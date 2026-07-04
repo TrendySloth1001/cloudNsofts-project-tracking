@@ -6,6 +6,7 @@ import {
   type CreateProjectInput,
   type CreateTaskInput,
   type Project,
+  type ReorderTasksInput,
   type UpdateProjectInput,
   type UpdateTaskInput,
 } from '@cnsofts/shared';
@@ -35,6 +36,8 @@ export const projectsApi = {
 
   addTask: (id: string, input: CreateTaskInput) =>
     apiClient.post<Project>(apiPaths.projects.tasks(id), input),
+  reorderTasks: (id: string, input: ReorderTasksInput) =>
+    apiClient.patch<Project>(apiPaths.projects.tasksReorder(id), input),
   updateTask: (id: string, taskId: string, patch: UpdateTaskInput) =>
     apiClient.patch<Project>(apiPaths.projects.task(id, taskId), patch),
   removeTask: (id: string, taskId: string) =>

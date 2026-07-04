@@ -134,7 +134,6 @@ export function ProjectHome({ project, peopleOpen }: ProjectHomeProps) {
           tasks={filteredTasks}
           members={project.members}
           projectId={project.id}
-          onAddTask={openNewTask}
           onOpenTask={openTaskDetail}
         />
       ) : (

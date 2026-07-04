@@ -6,6 +6,7 @@ import type {
   CreateProjectInput,
   CreateTaskInput,
   Project,
+  ReorderTasksInput,
   UpdateProjectInput,
   UpdateTaskInput,
 } from '@cnsofts/shared';
@@ -16,7 +17,7 @@ import { toProjectDto } from './projects.mapper';
 const include = {
   clients: { orderBy: { createdAt: 'asc' } },
   members: { orderBy: { createdAt: 'asc' } },
-  tasks: { orderBy: { createdAt: 'asc' } },
+  tasks: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] },
   milestones: { orderBy: { createdAt: 'asc' } },
 } satisfies Prisma.ProjectInclude;
 
@@ -107,6 +108,11 @@ export const projectsService = {
   /* -------------------------------- Tasks ------------------------------- */
   async addTask(projectId: string, input: CreateTaskInput): Promise<Project> {
     await ensureExists(projectId);
+    // Append the new task to the end of its status column.
+    const last = await prisma.task.aggregate({
+      where: { projectId, status: input.status },
+      _max: { position: true },
+    });
     await prisma.task.create({
       data: {
         projectId,
@@ -116,8 +122,27 @@ export const projectsService = {
         priority: input.priority,
         assigneeId: input.assigneeId,
         dueDate: input.dueDate,
+        position: (last._max.position ?? -1) + 1,
       },
     });
+    return load(projectId);
+  },
+
+  /** Persist the manual order of a status column. Every id in `orderedIds` is
+   *  moved to `status` and assigned its list index as the new position. */
+  async reorderTasks(
+    projectId: string,
+    input: ReorderTasksInput,
+  ): Promise<Project> {
+    await ensureExists(projectId);
+    await prisma.$transaction(
+      input.orderedIds.map((taskId, index) =>
+        prisma.task.updateMany({
+          where: { id: taskId, projectId },
+          data: { status: input.status, position: index },
+        }),
+      ),
+    );
     return load(projectId);
   },
   async updateTask(

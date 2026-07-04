@@ -192,6 +192,15 @@ export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export const updateTaskSchema = createTaskSchema.partial();
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 
+/** Reorder (and optionally move) tasks within a status column. `orderedIds` is
+ *  the full, final ordering of that column; each task is set to `status` and to
+ *  its index as the new position. */
+export const reorderTasksSchema = z.object({
+  status: taskStatusSchema,
+  orderedIds: z.array(z.string().min(1)),
+});
+export type ReorderTasksInput = z.infer<typeof reorderTasksSchema>;
+
 export const createMilestoneSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(160),
   dueDate: z.string().nullable().default(null),
@@ -254,6 +263,7 @@ export const apiPaths = {
     member: (id: string, memberId: string) =>
       `${API_ROUTES.projects}/${id}/members/${memberId}`,
     tasks: (id: string) => `${API_ROUTES.projects}/${id}/tasks`,
+    tasksReorder: (id: string) => `${API_ROUTES.projects}/${id}/tasks/reorder`,
     task: (id: string, taskId: string) =>
       `${API_ROUTES.projects}/${id}/tasks/${taskId}`,
     milestones: (id: string) => `${API_ROUTES.projects}/${id}/milestones`,

@@ -5,6 +5,7 @@ import type {
   AddClientInput,
   AddMemberInput,
   CreateTaskInput,
+  ReorderTasksInput,
   UpdateTaskInput,
   CreateMilestoneInput,
 } from '@cnsofts/shared';
@@ -112,6 +113,9 @@ export const projectStore = {
   },
   async removeTask(id: string, taskId: string): Promise<Project> {
     return replace(await projectsApi.removeTask(id, taskId));
+  },
+  async reorderTasks(id: string, input: ReorderTasksInput): Promise<Project> {
+    return replace(await projectsApi.reorderTasks(id, input));
   },
 
   async addMilestone(

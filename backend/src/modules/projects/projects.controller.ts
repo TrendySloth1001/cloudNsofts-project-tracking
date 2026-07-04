@@ -4,6 +4,7 @@ import {
   createMilestoneSchema,
   createProjectSchema,
   createTaskSchema,
+  reorderTasksSchema,
   updateProjectSchema,
   updateTaskSchema,
 } from '@cnsofts/shared';
@@ -54,6 +55,10 @@ export const projectsController = {
   addTask: asyncHandler(async (req, res) => {
     const input = validate(createTaskSchema, req.body);
     res.status(201).json(await projectsService.addTask(req.params.id, input));
+  }),
+  reorderTasks: asyncHandler(async (req, res) => {
+    const input = validate(reorderTasksSchema, req.body);
+    res.json(await projectsService.reorderTasks(req.params.id, input));
   }),
   updateTask: asyncHandler(async (req, res) => {
     const input = validate(updateTaskSchema, req.body);

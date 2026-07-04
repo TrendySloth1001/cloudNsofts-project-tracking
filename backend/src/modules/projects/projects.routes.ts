@@ -20,6 +20,8 @@ projectsRoutes.post('/:id/members', projectsController.addMember);
 projectsRoutes.delete('/:id/members/:memberId', projectsController.removeMember);
 
 projectsRoutes.post('/:id/tasks', projectsController.addTask);
+// Must precede the parameterised `:taskId` route so "reorder" isn't matched as an id.
+projectsRoutes.patch('/:id/tasks/reorder', projectsController.reorderTasks);
 projectsRoutes.patch('/:id/tasks/:taskId', projectsController.updateTask);
 projectsRoutes.delete('/:id/tasks/:taskId', projectsController.removeTask);
 
