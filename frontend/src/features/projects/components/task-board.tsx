@@ -8,6 +8,7 @@ import {
   type Task,
   type TaskStatus,
 } from '@cnsofts/shared';
+import { Icon } from '@/components/ui';
 import { cx } from '@/lib/cx';
 import { projectStore } from '../projects.store';
 import { groupByStatus } from '../task-utils';
@@ -37,6 +38,17 @@ export function TaskBoard({
   const groups = groupByStatus(tasks);
   const memberById = new Map(members.map((m) => [m.id, m]));
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  // Which columns are collapsed to a rail — view-only state (desktop).
+  const [collapsed, setCollapsed] = useState<Set<TaskStatus>>(new Set());
+
+  function toggleCollapsed(status: TaskStatus) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(status)) next.delete(status);
+      else next.add(status);
+      return next;
+    });
+  }
 
   function handleDrop(event: React.DragEvent, status: TaskStatus) {
     event.preventDefault();
@@ -71,10 +83,16 @@ export function TaskBoard({
       {TASK_STATUS_ORDER.map((status) => {
         const columnTasks = groups[status];
         const isDropCol = dropTarget?.status === status;
+        const isCollapsed = collapsed.has(status);
         return (
           <div
             key={status}
-            className={cx(styles.column, isDropCol && styles.columnDragOver)}
+            data-status={status}
+            className={cx(
+              styles.column,
+              isDropCol && styles.columnDragOver,
+              isCollapsed && styles.columnCollapsed,
+            )}
             onDragOver={(e) => {
               e.preventDefault();
               setDropTarget({ status, beforeId: null });
@@ -86,13 +104,32 @@ export function TaskBoard({
             }}
             onDrop={(e) => handleDrop(e, status)}
           >
-            <div className={styles.columnHead}>
+            <div
+              className={styles.columnHead}
+              onClick={isCollapsed ? () => toggleCollapsed(status) : undefined}
+            >
+              <span className={styles.columnDot} />
               <span className={styles.columnTitle}>
                 {TASK_STATUS_LABELS[status]}
               </span>
               <span className={styles.columnCount}>{columnTasks.length}</span>
+              <button
+                type="button"
+                className={styles.collapseBtn}
+                aria-label={isCollapsed ? 'Expand column' : 'Collapse column'}
+                aria-expanded={!isCollapsed}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleCollapsed(status);
+                }}
+              >
+                <Icon name={isCollapsed ? 'chevronRight' : 'chevronDown'} size={16} />
+              </button>
             </div>
             <div className={styles.columnBody}>
+              {columnTasks.length === 0 && (
+                <p className={styles.columnEmpty}>No tasks</p>
+              )}
               {columnTasks.map((task, index) => (
                 <div
                   key={task.id}
@@ -116,6 +153,13 @@ export function TaskBoard({
                     task={task}
                     assignee={memberById.get(task.assigneeId ?? '')}
                     onOpen={() => onOpenTask(task)}
+                    onMove={(next) => {
+                      if (next !== task.status) {
+                        void projectStore.updateTask(projectId, task.id, {
+                          status: next,
+                        });
+                      }
+                    }}
                   />
                 </div>
               ))}

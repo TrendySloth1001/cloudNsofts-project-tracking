@@ -19,5 +19,10 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
+  },
+  "comment:overrides": "Force one React across the workspace — @hugeicons/react pulls React 18, which npm hoisted to root and Next 15 then resolved instead of the frontend's React 19, breaking the production build (react element $$typeof mismatch → React #31).",
+  "overrides": {
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
   }
 }

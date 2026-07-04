@@ -1,53 +1,36 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Icon, IconButton, type IconName } from '@/components/ui';
+import { useRouter } from 'next/navigation';
+import type { NotificationKind } from '@cnsofts/shared';
+import {
+  Icon,
+  IconButton,
+  Spinner,
+  type IconName,
+  type IconTone,
+} from '@/components/ui';
+import { useNotifications } from '@/features/notifications/use-notifications';
+import { relativeTime } from '@/features/notifications/relative-time';
 import { cx } from '@/lib/cx';
 import styles from './notification-button.module.css';
 
-interface NotificationItem {
-  id: string;
-  icon: IconName;
-  title: string;
-  text: string;
-  time: string;
-  read: boolean;
-}
-
-// Placeholder data — swap for a notifications API later.
-const INITIAL: NotificationItem[] = [
+/** Each notification kind maps to a semantic icon + muted tone. */
+const KIND_VISUAL: Record<NotificationKind, { icon: IconName; tone: IconTone }> =
   {
-    id: '1',
-    icon: 'user',
-    title: 'New member joined',
-    text: 'Jane Cooper accepted your invite.',
-    time: '2m ago',
-    read: false,
-  },
-  {
-    id: '2',
-    icon: 'checkCircle',
-    title: 'Task completed',
-    text: '“Design homepage” was marked done.',
-    time: '1h ago',
-    read: false,
-  },
-  {
-    id: '3',
-    icon: 'calendar',
-    title: 'Upcoming deadline',
-    text: '“Mobile App v2” is due Friday.',
-    time: 'Yesterday',
-    read: true,
-  },
-];
+    task_created: { icon: 'tasks', tone: 'brand' },
+    task_completed: { icon: 'checkCircle', tone: 'success' },
+    comment_added: { icon: 'chat', tone: 'info' },
+    message_posted: { icon: 'chat', tone: 'info' },
+    member_added: { icon: 'user', tone: 'brand' },
+    system: { icon: 'info', tone: 'neutral' },
+  };
 
 export function NotificationButton() {
+  const router = useRouter();
+  const { items, unread, loading, markRead, markAllRead } = useNotifications();
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<NotificationItem[]>(INITIAL);
   const rootRef = useRef<HTMLDivElement>(null);
-
-  const unread = items.filter((n) => !n.read).length;
 
   useEffect(() => {
     if (!open) return;
@@ -65,13 +48,10 @@ export function NotificationButton() {
     };
   }, [open]);
 
-  function markAllRead() {
-    setItems((prev) => prev.map((n) => ({ ...n, read: true })));
-  }
-  function markRead(id: string) {
-    setItems((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
-    );
+  function openNotification(id: string, projectId: string | null) {
+    markRead(id);
+    setOpen(false);
+    if (projectId) router.push(`/projects/${projectId}`);
   }
 
   return (
@@ -83,7 +63,9 @@ export function NotificationButton() {
           variant={open ? 'subtle' : 'ghost'}
           onClick={() => setOpen((v) => !v)}
         />
-        {unread > 0 && <span className={styles.badge}>{unread}</span>}
+        {unread > 0 && (
+          <span className={styles.badge}>{unread > 9 ? '9+' : unread}</span>
+        )}
       </span>
 
       {open && (
@@ -101,44 +83,49 @@ export function NotificationButton() {
             )}
           </div>
 
-          {items.length === 0 ? (
+          {loading && items.length === 0 ? (
+            <div className={styles.loading}>
+              <Spinner size={22} />
+            </div>
+          ) : items.length === 0 ? (
             <div className={styles.empty}>
               <span className={styles.emptyIcon}>
-                <Icon name="checkCircle" size={24} />
+                <Icon name="checkCircle" size={24} tone="success" />
               </span>
               <p className={styles.emptyTitle}>You&apos;re all caught up</p>
               <p className={styles.emptyText}>
-                New notifications will show up here.
+                New activity across your projects will show up here.
               </p>
             </div>
           ) : (
             <div className={styles.list}>
-              {items.map((n) => (
-                <button
-                  key={n.id}
-                  type="button"
-                  className={cx(styles.item, !n.read && styles.itemUnread)}
-                  onClick={() => markRead(n.id)}
-                >
-                  <span className={styles.itemIcon}>
-                    <Icon name={n.icon} size={17} />
-                  </span>
-                  <span className={styles.itemBody}>
-                    <span className={styles.itemTitle}>{n.title}</span>
-                    <span className={styles.itemText}>{n.text}</span>
-                    <span className={styles.itemTime}>{n.time}</span>
-                  </span>
-                  {!n.read && <span className={styles.unreadDot} />}
-                </button>
-              ))}
+              {items.map((n) => {
+                const visual = KIND_VISUAL[n.kind];
+                return (
+                  <button
+                    key={n.id}
+                    type="button"
+                    className={cx(styles.item, !n.read && styles.itemUnread)}
+                    onClick={() => openNotification(n.id, n.projectId)}
+                  >
+                    <span className={styles.itemIcon}>
+                      <Icon name={visual.icon} size={17} tone={visual.tone} />
+                    </span>
+                    <span className={styles.itemBody}>
+                      <span className={styles.itemTitle}>{n.title}</span>
+                      {n.body && (
+                        <span className={styles.itemText}>{n.body}</span>
+                      )}
+                      <span className={styles.itemTime}>
+                        {relativeTime(n.createdAt)}
+                      </span>
+                    </span>
+                    {!n.read && <span className={styles.unreadDot} />}
+                  </button>
+                );
+              })}
             </div>
           )}
-
-          <div className={styles.footer}>
-            <button type="button" className={styles.viewAll}>
-              View all
-            </button>
-          </div>
         </div>
       )}
     </div>

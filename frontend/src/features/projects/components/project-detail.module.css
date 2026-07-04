@@ -69,6 +69,14 @@
   flex: 1;
   justify-content: flex-end;
 }
+/* Mobile-only icon actions; shown in place of .headActions below 640px. */
+.headActionsMobile {
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+  margin-left: auto;
+}
 .monogram {
   flex: none;
   display: grid;
@@ -116,12 +124,60 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Mobile: an app-bar, not a reflowed desktop header. Two tight rows —
+   (1) identity + inline icon actions, (2) a full-width segmented tab control.
+   --------------------------------------------------------------------------- */
 @media (max-width: 640px) {
+  .back {
+    margin-bottom: var(--space-3);
+  }
   .head {
     gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+  /* Row 1 — one line: monogram · title + status · icon actions pinned right.
+     The title flexes and truncates so status + actions never get pushed off. */
+  .headLeft {
+    align-items: center;
+  }
+  .headText {
+    flex: 1;
+    min-width: 0;
+  }
+  .titleRow {
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+  .title {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--text-lg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* Secondary detail is dropped on the one-line bar. */
+  .desc {
+    display: none;
+  }
+  .headActionsMobile {
+    display: flex;
   }
   .headActions {
-    justify-content: flex-start;
+    display: none;
+  }
+  /* Row 2: Home / Discussion as a full-width segmented control (Tabs `fluid`). */
+  .headTabs {
+    flex: 1 1 100%;
+  }
+  /* Compact the oversized identity block for phones. */
+  .monogram {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-lg);
+    font-size: var(--text-md);
   }
 }
 

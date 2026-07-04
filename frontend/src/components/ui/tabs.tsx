@@ -19,6 +19,8 @@ export interface TabsProps {
   value: string;
   onValueChange: (value: string) => void;
   variant?: 'underline' | 'pill';
+  /** Stretch the tabs to fill their container as a segmented control (mobile). */
+  fluid?: boolean;
   className?: string;
 }
 
@@ -27,12 +29,13 @@ export function Tabs({
   value,
   onValueChange,
   variant = 'underline',
+  fluid = false,
   className,
 }: TabsProps) {
   return (
     <div
       role="tablist"
-      className={cx(styles.tabs, styles[variant], className)}
+      className={cx(styles.tabs, styles[variant], fluid && styles.fluid, className)}
     >
       {items.map((item) => {
         const active = item.value === value;

@@ -94,6 +94,8 @@ export function ProjectHome({ project, peopleOpen }: ProjectHomeProps) {
       <div className={styles.tasksToolbar}>
         <Tabs
           variant="pill"
+          fluid
+          className={styles.viewTabs}
           value={taskView}
           onValueChange={(v) => setTaskView(v as 'board' | 'list')}
           items={[
@@ -124,7 +126,11 @@ export function ProjectHome({ project, peopleOpen }: ProjectHomeProps) {
           containerClassName={styles.taskFilter}
         />
         <span className={styles.spacer} />
-        <Button leftIcon="add" onClick={() => openNewTask('todo')}>
+        <Button
+          leftIcon="add"
+          className={styles.newTaskBtn}
+          onClick={() => openNewTask('todo')}
+        >
           New task
         </Button>
       </div>

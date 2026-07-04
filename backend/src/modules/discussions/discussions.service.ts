@@ -7,6 +7,7 @@ import type {
 } from '@cnsofts/shared';
 import { prisma } from '../../infra/prisma';
 import { HttpError } from '../../shared/http/http-error';
+import { notificationsService } from '../notifications/notifications.service';
 
 async function ensureProject(projectId: string): Promise<void> {
   if ((await prisma.project.count({ where: { id: projectId } })) === 0) {
@@ -111,6 +112,16 @@ export const discussionsService = {
     await ensureChannel(projectId, channelId);
     const created = await prisma.message.create({
       data: { channelId, author, body: input.body },
+    });
+    const channel = await prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { name: true },
+    });
+    await notificationsService.notify({
+      kind: 'message_posted',
+      title: 'New message',
+      body: `${author} posted in #${channel?.name ?? 'a channel'}`,
+      projectId,
     });
     return toMessage(created);
   },

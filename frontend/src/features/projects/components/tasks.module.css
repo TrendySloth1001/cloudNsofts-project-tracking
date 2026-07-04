@@ -17,6 +17,24 @@
     background var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out);
 }
+/* Per-status accent — the single status→color mapping lives here; the tokens
+   do the coloring, columns just resolve which accent to expose as a variable. */
+.column[data-status='todo'] {
+  --col-accent: var(--color-status-todo);
+  --col-accent-subtle: var(--color-status-todo-subtle);
+}
+.column[data-status='in_progress'] {
+  --col-accent: var(--color-status-in-progress);
+  --col-accent-subtle: var(--color-status-in-progress-subtle);
+}
+.column[data-status='in_review'] {
+  --col-accent: var(--color-status-in-review);
+  --col-accent-subtle: var(--color-status-in-review-subtle);
+}
+.column[data-status='done'] {
+  --col-accent: var(--color-status-done);
+  --col-accent-subtle: var(--color-status-done-subtle);
+}
 .columnDragOver {
   border-color: var(--color-primary);
   background: var(--color-primary-subtle);
@@ -25,7 +43,14 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-1) var(--space-3) var(--space-2);
+}
+.columnDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--col-accent);
 }
 .columnTitle {
   font-size: var(--text-xs);
@@ -41,23 +66,103 @@
   height: 20px;
   padding: 0 6px;
   border-radius: var(--radius-full);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--col-accent-subtle);
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
+  color: var(--col-accent);
+}
+.collapseBtn {
+  flex: none;
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-md);
   color: var(--color-text-muted);
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+.collapseBtn:hover {
+  background: var(--color-surface);
+  color: var(--color-text);
 }
 .columnBody {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
 }
+.columnEmpty {
+  padding: var(--space-5) var(--space-2);
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--color-text-placeholder);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+}
 
 /* Insertion indicator shown while dragging a card to reorder. */
 .dropLine {
-  height: 2px;
+  height: 3px;
   border-radius: var(--radius-full);
   background: var(--color-primary);
+  animation: dropLineIn var(--duration-fast) var(--ease-out);
+}
+@keyframes dropLineIn {
+  from {
+    opacity: 0;
+    transform: scaleX(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+/* Collapsing hides a column's cards on every viewport — the header, count and
+   expand control stay so it can be reopened. */
+.columnCollapsed .columnBody {
+  display: none;
+}
+/* Desktop only: collapse further into a slim vertical rail to reclaim width. */
+@media (min-width: 641px) {
+  .columnCollapsed {
+    flex: none;
+    width: 46px;
+    min-width: 46px;
+    padding: var(--space-3) var(--space-2);
+    cursor: pointer;
+  }
+  .columnCollapsed .columnHead {
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: 0;
+    align-items: center;
+  }
+  .columnCollapsed .columnTitle {
+    writing-mode: vertical-rl;
+  }
+  .columnCollapsed .collapseBtn {
+    order: -1;
+    margin-left: 0;
+  }
+}
+
+/* Mobile: a vertical accordion — columns stack full-width and each collapses
+   to just its header. No horizontal swiping. */
+@media (max-width: 640px) {
+  .board {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+    overflow-x: visible;
+  }
+  .column {
+    flex: none;
+    width: auto;
+    min-width: 0;
+  }
 }
 
 /* --------------------------------- Card --------------------------------- */
@@ -85,10 +190,42 @@
   outline: none;
   box-shadow: var(--shadow-focus);
 }
+/* The card being dragged fades to a ghost so the drop line reads clearly. */
+.cardDragging {
+  opacity: 0.45;
+  border-style: dashed;
+  box-shadow: none;
+}
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
 .cardTitle {
+  flex: 1;
+  min-width: 0;
   font-size: var(--text-md);
   font-weight: var(--weight-medium);
   color: var(--color-text);
+}
+/* Quick-move affordance — quiet until the card is hovered/focused. */
+.cardMenu {
+  flex: none;
+  margin: -4px -4px 0 0;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+.card:hover .cardMenu,
+.card:focus-within .cardMenu {
+  opacity: 1;
+}
+/* Touch devices can't hover (and narrow-width previews) — always reveal the
+   menu so it's discoverable without a tap. Placed after the base rule so it
+   wins on source order. */
+@media (hover: none), (max-width: 640px) {
+  .cardMenu {
+    opacity: 1;
+  }
 }
 .cardMeta {
   display: flex;

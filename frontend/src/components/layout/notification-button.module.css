@@ -28,12 +28,17 @@
   pointer-events: none;
 }
 
+/* The bell sits at the right of a narrow left sidebar, so a right-anchored
+   dropdown would run off the left edge. Pin the panel just below the 64px
+   header at the screen's left instead — this stays on-screen on desktop
+   (fixed to the viewport) and in the mobile drawer (fixed to the open drawer,
+   whose origin matches the viewport). */
 .panel {
-  position: absolute;
-  top: calc(100% + 12px);
-  right: 0;
+  position: fixed;
+  top: calc(64px + var(--space-1));
+  left: var(--space-3);
   width: 340px;
-  max-width: calc(100vw - 2 * var(--space-4));
+  max-width: calc(100vw - 2 * var(--space-3));
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
@@ -142,22 +147,10 @@
   background: var(--color-primary);
 }
 
-.footer {
-  padding: var(--space-1);
-  border-top: 1px solid var(--color-border);
-}
-.viewAll {
-  display: block;
-  width: 100%;
-  padding: var(--space-2);
-  font-size: var(--text-md);
-  font-weight: var(--weight-medium);
-  color: var(--color-text-link);
-  border-radius: var(--radius-md);
-  text-align: center;
-}
-.viewAll:hover {
-  background: var(--color-surface-hover);
+.loading {
+  display: grid;
+  place-items: center;
+  padding: var(--space-8) var(--space-4);
 }
 
 .empty {

@@ -1,5 +1,12 @@
-import type { ProjectMember, Task } from '@cnsofts/shared';
-import { Icon } from '@/components/ui';
+import { useState } from 'react';
+import {
+  TASK_STATUS_LABELS,
+  TASK_STATUS_ORDER,
+  type ProjectMember,
+  type Task,
+  type TaskStatus,
+} from '@cnsofts/shared';
+import { Icon, IconButton, Menu } from '@/components/ui';
 import { UserAvatar } from '@/features/profile/components/user-avatar';
 import { cx } from '@/lib/cx';
 import { formatDate, isOverdue } from '../task-utils';
@@ -10,31 +17,65 @@ export interface TaskCardProps {
   task: Task;
   assignee?: ProjectMember;
   onOpen: () => void;
+  /** Move the task to another column (used by the card's quick-move menu). */
+  onMove: (status: TaskStatus) => void;
 }
 
-export function TaskCard({ task, assignee, onOpen }: TaskCardProps) {
+export function TaskCard({ task, assignee, onOpen, onMove }: TaskCardProps) {
   const overdue = task.status !== 'done' && isOverdue(task.dueDate);
   const doneSubtasks = task.subtasks.filter((s) => s.done).length;
   const commentCount = task.events.filter((e) => e.kind === 'comment').length;
+  const [dragging, setDragging] = useState(false);
   return (
     <div
       role="button"
       tabIndex={0}
-      className={styles.card}
+      className={cx(styles.card, dragging && styles.cardDragging)}
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData('text/plain', task.id);
         e.dataTransfer.effectAllowed = 'move';
+        setDragging(true);
       }}
+      onDragEnd={() => setDragging(false)}
       onClick={onOpen}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        // Only the card itself opens on Enter/Space — not its inner controls.
+        if (
+          e.target === e.currentTarget &&
+          (e.key === 'Enter' || e.key === ' ')
+        ) {
           e.preventDefault();
           onOpen();
         }
       }}
     >
-      <span className={styles.cardTitle}>{task.title}</span>
+      <div className={styles.cardTop}>
+        <span className={styles.cardTitle}>{task.title}</span>
+        <span
+          className={styles.cardMenu}
+          draggable={false}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Menu
+            portal
+            align="end"
+            trigger={
+              <IconButton
+                icon="moreVertical"
+                label="Move task"
+                variant="ghost"
+                size="sm"
+              />
+            }
+            items={TASK_STATUS_ORDER.map((s) => ({
+              label: TASK_STATUS_LABELS[s],
+              selected: s === task.status,
+              onSelect: () => onMove(s),
+            }))}
+          />
+        </span>
+      </div>
 
       <div className={styles.cardMeta}>
         <TaskPriorityBadge priority={task.priority} />

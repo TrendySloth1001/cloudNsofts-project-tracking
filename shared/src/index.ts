@@ -320,6 +320,35 @@ export const updateProjectSchema = z.object({
 });
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
 
+/* ------------------------------ Notifications --------------------------- */
+
+export const notificationKindSchema = z.enum([
+  'task_created',
+  'task_completed',
+  'comment_added',
+  'message_posted',
+  'member_added',
+  'system',
+]);
+export type NotificationKind = z.infer<typeof notificationKindSchema>;
+
+export interface Notification {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  /** Optional deep-link target so the UI can open the related project. */
+  projectId: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
+/** GET /notifications payload — the feed plus the unread tally in one call. */
+export interface NotificationList {
+  items: Notification[];
+  unread: number;
+}
+
 /* ----------------------------- API responses ---------------------------- */
 
 /** Shape of every error response returned by the API. */
@@ -342,6 +371,7 @@ export const API_ROUTES = {
   auth: '/api/auth',
   users: '/api/users',
   projects: '/api/projects',
+  notifications: '/api/notifications',
 } as const;
 
 /** URL builders the frontend uses so no endpoint string is hardcoded. */
@@ -384,6 +414,11 @@ export const apiPaths = {
     milestones: (id: string) => `${API_ROUTES.projects}/${id}/milestones`,
     milestone: (id: string, milestoneId: string) =>
       `${API_ROUTES.projects}/${id}/milestones/${milestoneId}`,
+  },
+  notifications: {
+    list: () => API_ROUTES.notifications,
+    read: (id: string) => `${API_ROUTES.notifications}/${id}/read`,
+    readAll: () => `${API_ROUTES.notifications}/read-all`,
   },
 } as const;
 

@@ -1,4 +1,4 @@
-export { Icon, icons, type IconName, type IconProps } from './icon';
+export { Icon, icons, type IconName, type IconProps, type IconTone } from './icon';
 export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from './button';
 export { IconButton, type IconButtonProps } from './icon-button';
 export { Spinner, type SpinnerProps } from './spinner';

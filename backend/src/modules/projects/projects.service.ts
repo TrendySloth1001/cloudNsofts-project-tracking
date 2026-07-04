@@ -17,6 +17,7 @@ import {
 } from '@cnsofts/shared';
 import { prisma } from '../../infra/prisma';
 import { HttpError } from '../../shared/http/http-error';
+import { notificationsService } from '../notifications/notifications.service';
 import { toProjectDto } from './projects.mapper';
 
 const include = {
@@ -115,7 +116,14 @@ export const projectsService = {
         company: input.company ?? null,
       },
     });
-    return load(projectId);
+    const project = await load(projectId);
+    await notificationsService.notify({
+      kind: 'member_added',
+      title: 'Client added',
+      body: `${input.name} was added to ${project.name}`,
+      projectId,
+    });
+    return project;
   },
   async removeClient(projectId: string, clientId: string): Promise<Project> {
     await prisma.projectClient.deleteMany({ where: { id: clientId, projectId } });
@@ -133,7 +141,14 @@ export const projectsService = {
         role: input.role,
       },
     });
-    return load(projectId);
+    const project = await load(projectId);
+    await notificationsService.notify({
+      kind: 'member_added',
+      title: 'Team member added',
+      body: `${input.name} joined ${project.name}`,
+      projectId,
+    });
+    return project;
   },
   async removeMember(projectId: string, memberId: string): Promise<Project> {
     await prisma.projectMember.deleteMany({ where: { id: memberId, projectId } });
@@ -160,7 +175,14 @@ export const projectsService = {
         position: (last._max.position ?? -1) + 1,
       },
     });
-    return load(projectId);
+    const project = await load(projectId);
+    await notificationsService.notify({
+      kind: 'task_created',
+      title: 'New task',
+      body: `“${input.title}” added to ${project.name}`,
+      projectId,
+    });
+    return project;
   },
 
   /** Persist the manual order of a status column. Every id in `orderedIds` is
@@ -203,6 +225,14 @@ export const projectsService = {
     await prisma.task.update({ where: { id: taskId }, data: patch });
     if (patch.status && patch.status !== existing.status) {
       await logStatusChange(taskId, actor, patch.status);
+      if (patch.status === 'done') {
+        await notificationsService.notify({
+          kind: 'task_completed',
+          title: 'Task completed',
+          body: `“${existing.title}” was marked done`,
+          projectId,
+        });
+      }
     }
     return load(projectId);
   },
@@ -265,6 +295,16 @@ export const projectsService = {
     await ensureTask(projectId, taskId);
     await prisma.taskEvent.create({
       data: { taskId, kind: 'comment', author, body: input.body },
+    });
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { title: true },
+    });
+    await notificationsService.notify({
+      kind: 'comment_added',
+      title: 'New comment',
+      body: `${author} commented on “${task?.title ?? 'a task'}”`,
+      projectId,
     });
     return load(projectId);
   },

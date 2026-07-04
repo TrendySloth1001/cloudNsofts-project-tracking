@@ -3,10 +3,21 @@
 import { useState } from 'react';
 import {
   TASK_STATUS_LABELS,
+  TASK_STATUS_ORDER,
   type ProjectMember,
   type Task,
+  type TaskStatus,
 } from '@cnsofts/shared';
-import { Badge, Button, Divider, Modal, useConfirm } from '@/components/ui';
+import {
+  Badge,
+  type BadgeVariant,
+  Button,
+  Divider,
+  Icon,
+  Menu,
+  Modal,
+  useConfirm,
+} from '@/components/ui';
 import { UserAvatar } from '@/features/profile/components/user-avatar';
 import { cx } from '@/lib/cx';
 import { projectStore } from '../projects.store';
@@ -15,6 +26,14 @@ import { TaskPriorityBadge } from './task-priority-badge';
 import { TaskChecklist } from './task-checklist';
 import { TaskThread } from './task-thread';
 import styles from './task-detail-dialog.module.css';
+
+/** Task status → badge color, matching the board's per-column accents. */
+const TASK_STATUS_VARIANT: Record<TaskStatus, BadgeVariant> = {
+  todo: 'neutral',
+  in_progress: 'info',
+  in_review: 'warning',
+  done: 'success',
+};
 
 export interface TaskDetailDialogProps {
   open: boolean;
@@ -35,6 +54,11 @@ export function TaskDetailDialog({
 }: TaskDetailDialogProps) {
   const [deleting, setDeleting] = useState(false);
   const confirm = useConfirm();
+
+  async function moveTo(next: TaskStatus) {
+    if (!task || next === task.status) return;
+    await projectStore.updateTask(projectId, task.id, { status: next });
+  }
 
   if (!task) return null;
 
@@ -92,9 +116,22 @@ export function TaskDetailDialog({
       <div className={styles.rows}>
         <div className={styles.row}>
           <span className={styles.label}>Status</span>
-          <Badge variant="neutral" size="sm">
-            {TASK_STATUS_LABELS[task.status]}
-          </Badge>
+          <Menu
+            align="start"
+            trigger={
+              <button type="button" className={styles.statusTrigger}>
+                <Badge variant={TASK_STATUS_VARIANT[task.status]} size="sm" dot>
+                  {TASK_STATUS_LABELS[task.status]}
+                </Badge>
+                <Icon name="chevronDown" size={14} tone="neutral" />
+              </button>
+            }
+            items={TASK_STATUS_ORDER.map((s) => ({
+              label: TASK_STATUS_LABELS[s],
+              selected: s === task.status,
+              onSelect: () => void moveTo(s),
+            }))}
+          />
         </div>
         <div className={styles.row}>
           <span className={styles.label}>Priority</span>

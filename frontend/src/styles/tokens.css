@@ -139,6 +139,17 @@
   --color-icon-danger: var(--red-600);
   --color-icon-info: var(--blue-600);
 
+  /* Task board — per-status accents. Single source for column color coding
+     and the status changer; both map a TaskStatus to one of these. */
+  --color-status-todo: var(--gray-400);
+  --color-status-todo-subtle: var(--gray-100);
+  --color-status-in-progress: var(--color-info);
+  --color-status-in-progress-subtle: var(--color-info-subtle);
+  --color-status-in-review: var(--color-warning);
+  --color-status-in-review-subtle: var(--color-warning-subtle);
+  --color-status-done: var(--color-success);
+  --color-status-done-subtle: var(--color-success-subtle);
+
   /* ------------------------------------------------------------------ *
    * TYPOGRAPHY
    * ------------------------------------------------------------------ */

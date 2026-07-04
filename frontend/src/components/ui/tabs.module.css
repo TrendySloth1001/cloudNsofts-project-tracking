@@ -84,3 +84,16 @@
   font-weight: var(--weight-semibold);
   box-shadow: var(--shadow-xs);
 }
+
+/* Fluid: on narrow screens the tabs stretch to a full-width segmented control,
+   each tab sharing the row equally and centering its label. */
+@media (max-width: 640px) {
+  .fluid {
+    display: flex;
+    width: 100%;
+  }
+  .fluid .tab {
+    flex: 1;
+    justify-content: center;
+  }
+}

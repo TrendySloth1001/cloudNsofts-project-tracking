@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Button, Icon, Spinner, Tabs, useConfirm } from '@/components/ui';
+import { Button, Icon, IconButton, Spinner, Tabs, useConfirm } from '@/components/ui';
 import { cx } from '@/lib/cx';
 import { useProject } from '../use-projects';
 import { projectStore } from '../projects.store';
@@ -94,11 +94,31 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
               <p className={styles.desc}>{project.description}</p>
             )}
           </div>
+
+          {/* Mobile app-bar: actions collapse to icons on the identity row. */}
+          <div className={styles.headActionsMobile}>
+            {tab === 'home' && (
+              <IconButton
+                icon="user"
+                label="Team & clients"
+                variant="outline"
+                onClick={() => setPeopleOpen((open) => !open)}
+                aria-expanded={peopleOpen}
+              />
+            )}
+            <IconButton
+              icon="delete"
+              label="Delete project"
+              variant="outline"
+              onClick={deleteProject}
+            />
+          </div>
         </div>
 
         <Tabs
           className={styles.headTabs}
           variant="pill"
+          fluid
           value={tab}
           onValueChange={(v) => setTab(v as ProjectTab)}
           items={[
