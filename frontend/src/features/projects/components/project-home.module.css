@@ -1,0 +1,32 @@
+.home {
+  display: flex;
+  flex-direction: column;
+}
+
+.tasksToolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+.taskSearch {
+  width: 200px;
+}
+.taskFilter {
+  width: 156px;
+}
+.spacer {
+  flex: 1;
+}
+
+@media (max-width: 640px) {
+  .taskSearch,
+  .taskFilter {
+    width: 100%;
+    flex: 1;
+  }
+  .spacer {
+    display: none;
+  }
+}

@@ -1,0 +1,75 @@
+.root {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  cursor: pointer;
+}
+.root.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.control {
+  position: relative;
+  flex: none;
+  width: 40px;
+  height: 24px;
+  margin-top: 1px;
+}
+
+.input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.track {
+  display: block;
+  width: 40px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background: var(--color-border-strong);
+  transition: background var(--duration-normal) var(--ease-out);
+}
+
+.thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: #ffffff;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--duration-normal) var(--ease-out);
+}
+
+.input:checked + .track {
+  background: var(--color-primary);
+}
+.input:checked + .track .thumb {
+  transform: translateX(16px);
+}
+
+.input:focus-visible + .track {
+  box-shadow: var(--shadow-focus);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.label {
+  font-size: var(--text-md);
+  color: var(--color-text);
+  line-height: var(--leading-snug);
+}
+.description {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}

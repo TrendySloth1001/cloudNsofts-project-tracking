@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS "_LabelToTask";
+DROP TABLE IF EXISTS "labels";

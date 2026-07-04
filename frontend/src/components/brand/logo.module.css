@@ -1,0 +1,31 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text);
+}
+
+.mark {
+  flex: none;
+}
+
+.wordmark {
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--color-text);
+}
+
+.accent {
+  color: var(--brand);
+}
+
+.sm .wordmark {
+  font-size: var(--text-lg);
+}
+.md .wordmark {
+  font-size: var(--text-xl);
+}
+.lg .wordmark {
+  font-size: var(--text-3xl);
+}

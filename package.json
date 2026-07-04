@@ -1,0 +1,23 @@
+{
+  "name": "cloudnsofts-project-tracking",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Project tracking app — Next.js frontend + Node.js backend with end-to-end type safety",
+  "workspaces": [
+    "shared",
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "build:shared": "npm run build -w @cnsofts/shared",
+    "predev": "npm run build:shared",
+    "dev": "concurrently -n backend,frontend -c blue,magenta \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "npm run dev -w @cnsofts/backend",
+    "dev:frontend": "npm run dev -w @cnsofts/frontend",
+    "build": "npm run build -w @cnsofts/shared && npm run build -w @cnsofts/backend && npm run build -w @cnsofts/frontend",
+    "typecheck": "npm run build:shared && npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

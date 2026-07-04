@@ -1,0 +1,240 @@
+/**
+ * Design tokens — the single source of truth for the visual system.
+ *
+ * Palette: a calm violet accent on cool-gray neutrals, with soft, low-saturation
+ * status colors (mint / gray / amber / indigo). Nothing neon or high-contrast.
+ *
+ * Only reference these variables in component styles — never hard-code a hex.
+ */
+
+:root {
+  /* ------------------------------------------------------------------ *
+   * PRIMITIVE COLOR SCALES
+   * ------------------------------------------------------------------ */
+
+  /* Brand — soft indigo-violet */
+  --violet-50: #f2f0fe;
+  --violet-100: #e7e3fd;
+  --violet-200: #d1cafb;
+  --violet-300: #b3a6f6;
+  --violet-400: #9280ef;
+  --violet-500: #6c5ce7; /* primary */
+  --violet-600: #5a4bd4;
+  --violet-700: #4a3cb0;
+  --violet-800: #3d338c;
+  --violet-900: #2f286b;
+
+  /* Neutral — cool gray */
+  --gray-0: #ffffff;
+  --gray-25: #fcfcfd;
+  --gray-50: #f9fafb;
+  --gray-100: #f2f4f7;
+  --gray-200: #e9eaf0;
+  --gray-300: #d0d5dd;
+  --gray-400: #98a2b3;
+  --gray-500: #667085;
+  --gray-600: #475467;
+  --gray-700: #344054;
+  --gray-800: #1d2939;
+  --gray-900: #101828;
+
+  /* Teal — "in progress" / info-calm */
+  --teal-50: #effcf9;
+  --teal-100: #d3f4ee;
+  --teal-500: #15b79e;
+  --teal-600: #0e9384;
+  --teal-700: #107569;
+
+  /* Amber — "upcoming" / warning */
+  --amber-50: #fffaeb;
+  --amber-100: #fef0c7;
+  --amber-500: #f79009;
+  --amber-600: #dc6803;
+  --amber-700: #b54708;
+
+  /* Green — success */
+  --green-50: #ecfdf3;
+  --green-100: #d1fadf;
+  --green-500: #12b76a;
+  --green-600: #039855;
+  --green-700: #027a48;
+
+  /* Red — danger / error */
+  --red-50: #fef3f2;
+  --red-100: #fee4e2;
+  --red-500: #f04438;
+  --red-600: #d92d20;
+  --red-700: #b42318;
+
+  /* Blue — info */
+  --blue-50: #eff8ff;
+  --blue-100: #d1e9ff;
+  --blue-500: #2e90fa;
+  --blue-600: #1570ef;
+  --blue-700: #175cd3;
+
+  /* ------------------------------------------------------------------ *
+   * SEMANTIC TOKENS  (use these in components)
+   * ------------------------------------------------------------------ */
+
+  /* Brand / accent */
+  --color-primary: var(--violet-500);
+  --color-primary-hover: var(--violet-600);
+  --color-primary-active: var(--violet-700);
+  --color-primary-subtle: var(--violet-50);
+  --color-primary-subtle-hover: var(--violet-100);
+  --color-on-primary: #ffffff;
+  --color-focus-ring: rgba(108, 92, 231, 0.28);
+
+  /* CloudNSofts brand orange — used in the logo mark */
+  --brand: #f26a1b;
+  --brand-hover: #d95a10;
+  --brand-subtle: #fef1e8;
+
+  /* Surfaces & backgrounds */
+  --color-canvas: var(--gray-50);
+  --color-surface: var(--gray-0);
+  --color-surface-raised: var(--gray-0);
+  --color-surface-sunken: var(--gray-50);
+  --color-surface-hover: var(--gray-100);
+  --color-surface-active: var(--gray-200);
+  --color-overlay: rgba(16, 24, 40, 0.5);
+
+  /* Text */
+  --color-text: var(--gray-900);
+  --color-text-secondary: var(--gray-600);
+  --color-text-muted: var(--gray-500);
+  --color-text-placeholder: var(--gray-400);
+  --color-text-disabled: var(--gray-400);
+  --color-text-on-accent: #ffffff;
+  --color-text-link: var(--violet-600);
+
+  /* Borders */
+  --color-border: var(--gray-200);
+  --color-border-strong: var(--gray-300);
+  --color-border-hover: var(--gray-300);
+  --color-border-focus: var(--violet-500);
+
+  /* Status (feedback) */
+  --color-success: var(--green-600);
+  --color-success-subtle: var(--green-50);
+  --color-success-border: var(--green-100);
+  --color-warning: var(--amber-600);
+  --color-warning-subtle: var(--amber-50);
+  --color-warning-border: var(--amber-100);
+  --color-danger: var(--red-600);
+  --color-danger-hover: var(--red-700);
+  --color-danger-subtle: var(--red-50);
+  --color-danger-border: var(--red-100);
+  --color-info: var(--blue-600);
+  --color-info-subtle: var(--blue-50);
+  --color-info-border: var(--blue-100);
+
+  /* Icon tones — muted, meaningful hues for standalone/semantic icons.
+     Icons default to currentColor; these are opt-in via <Icon tone="…" />. */
+  --color-icon-brand: var(--violet-500);
+  --color-icon-neutral: var(--gray-500);
+  --color-icon-success: var(--green-600);
+  --color-icon-warning: var(--amber-600);
+  --color-icon-danger: var(--red-600);
+  --color-icon-info: var(--blue-600);
+
+  /* ------------------------------------------------------------------ *
+   * TYPOGRAPHY
+   * ------------------------------------------------------------------ */
+  --font-sans: var(--font-plus-jakarta), ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  --text-xs: 0.75rem; /* 12 */
+  --text-sm: 0.8125rem; /* 13 */
+  --text-md: 0.875rem; /* 14 — base UI size */
+  --text-base: 1rem; /* 16 */
+  --text-lg: 1.125rem; /* 18 */
+  --text-xl: 1.25rem; /* 20 */
+  --text-2xl: 1.5rem; /* 24 */
+  --text-3xl: 1.875rem; /* 30 */
+  --text-4xl: 2.25rem; /* 36 */
+
+  --leading-tight: 1.2;
+  --leading-snug: 1.35;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+
+  /* ------------------------------------------------------------------ *
+   * SPACING  (4px base scale)
+   * ------------------------------------------------------------------ */
+  --space-0: 0;
+  --space-1: 0.25rem; /* 4 */
+  --space-2: 0.5rem; /* 8 */
+  --space-3: 0.75rem; /* 12 */
+  --space-4: 1rem; /* 16 */
+  --space-5: 1.25rem; /* 20 */
+  --space-6: 1.5rem; /* 24 */
+  --space-8: 2rem; /* 32 */
+  --space-10: 2.5rem; /* 40 */
+  --space-12: 3rem; /* 48 */
+  --space-16: 4rem; /* 64 */
+
+  /* ------------------------------------------------------------------ *
+   * RADII
+   * ------------------------------------------------------------------ */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+  --radius-full: 9999px;
+
+  /* ------------------------------------------------------------------ *
+   * SHADOWS  (soft, low-spread)
+   * ------------------------------------------------------------------ */
+  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.1), 0 1px 2px rgba(16, 24, 40, 0.06);
+  --shadow-md: 0 4px 8px -2px rgba(16, 24, 40, 0.1),
+    0 2px 4px -2px rgba(16, 24, 40, 0.06);
+  --shadow-lg: 0 12px 16px -4px rgba(16, 24, 40, 0.08),
+    0 4px 6px -2px rgba(16, 24, 40, 0.03);
+  --shadow-xl: 0 20px 24px -4px rgba(16, 24, 40, 0.08),
+    0 8px 8px -4px rgba(16, 24, 40, 0.03);
+  --shadow-focus: 0 0 0 4px var(--color-focus-ring);
+
+  /* ------------------------------------------------------------------ *
+   * MOTION
+   * ------------------------------------------------------------------ */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 120ms;
+  --duration-normal: 180ms;
+  --duration-slow: 280ms;
+
+  /* ------------------------------------------------------------------ *
+   * LAYERING
+   * ------------------------------------------------------------------ */
+  --z-base: 1;
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-overlay: 1200;
+  --z-modal: 1300;
+  --z-tooltip: 1400;
+  --z-toast: 1500;
+
+  /* Controls */
+  --control-height-sm: 32px;
+  --control-height-md: 40px;
+  --control-height-lg: 48px;
+
+  /* Layout — shared content width so the app bar and page content align */
+  --layout-max-width: 1120px;
+}

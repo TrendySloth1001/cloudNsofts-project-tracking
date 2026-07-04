@@ -1,0 +1,29 @@
+.horizontal {
+  width: 100%;
+  height: 1px;
+  background: var(--color-border);
+  border: none;
+}
+
+.vertical {
+  width: 1px;
+  align-self: stretch;
+  min-height: 1em;
+  background: var(--color-border);
+}
+
+.labeled {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.labeled .line {
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+.label {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}

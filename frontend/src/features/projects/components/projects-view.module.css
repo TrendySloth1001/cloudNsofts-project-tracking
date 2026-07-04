@@ -1,0 +1,191 @@
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+.headingGroup {
+  min-width: 0;
+}
+.title {
+  font-size: var(--text-2xl);
+  letter-spacing: var(--tracking-tight);
+}
+.subtitle {
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+}
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+.search {
+  flex: 1;
+  max-width: 360px;
+}
+.filter {
+  width: 180px;
+}
+
+/* Grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-4);
+}
+
+.noResults {
+  padding: var(--space-12) var(--space-4);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+.loading {
+  display: grid;
+  place-items: center;
+  padding: var(--space-16) 0;
+}
+
+/* Card */
+.card {
+  display: flex;
+  flex-direction: column;
+  min-height: 208px;
+  padding: var(--space-5);
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.monogram {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.02em;
+}
+.cardName {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+.cardDesc {
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--text-md);
+  line-height: var(--leading-snug);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.progress {
+  margin-top: var(--space-3);
+}
+.progressHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+.progressPct {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+.progressTasks {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.progressTrack {
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-active);
+  overflow: hidden;
+}
+.progressBar {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: auto;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+.avatars {
+  display: flex;
+  align-items: center;
+  min-height: 26px;
+}
+.avatar {
+  margin-left: -8px;
+  box-shadow: 0 0 0 2px var(--color-surface);
+}
+.avatar:first-child {
+  margin-left: 0;
+}
+.moreAvatars {
+  margin-left: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.noTeam {
+  font-size: var(--text-sm);
+  color: var(--color-text-placeholder);
+}
+.clientCount {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* Empty state */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-12) var(--space-4);
+  text-align: center;
+}
+.emptyIcon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+  margin-bottom: var(--space-2);
+}
+.emptyTitle {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+.emptyText {
+  color: var(--color-text-muted);
+  max-width: 360px;
+  margin-bottom: var(--space-2);
+}
