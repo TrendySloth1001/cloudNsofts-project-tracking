@@ -14,7 +14,7 @@ export function requireAuth(
     if (scheme !== 'Bearer' || !token) {
       throw HttpError.unauthorized('Authentication required');
     }
-    authService.verify(token);
+    req.authUser = authService.verify(token);
     next();
   } catch (err) {
     next(err);

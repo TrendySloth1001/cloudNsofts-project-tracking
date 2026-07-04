@@ -4,8 +4,11 @@ import type {
   UpdateProjectInput,
   AddClientInput,
   AddMemberInput,
+  CreateCommentInput,
+  CreateSubtaskInput,
   CreateTaskInput,
   ReorderTasksInput,
+  UpdateSubtaskInput,
   UpdateTaskInput,
   CreateMilestoneInput,
 } from '@cnsofts/shared';
@@ -116,6 +119,37 @@ export const projectStore = {
   },
   async reorderTasks(id: string, input: ReorderTasksInput): Promise<Project> {
     return replace(await projectsApi.reorderTasks(id, input));
+  },
+
+  async addSubtask(
+    id: string,
+    taskId: string,
+    input: CreateSubtaskInput,
+  ): Promise<Project> {
+    return replace(await projectsApi.addSubtask(id, taskId, input));
+  },
+  async updateSubtask(
+    id: string,
+    taskId: string,
+    subtaskId: string,
+    patch: UpdateSubtaskInput,
+  ): Promise<Project> {
+    return replace(await projectsApi.updateSubtask(id, taskId, subtaskId, patch));
+  },
+  async removeSubtask(
+    id: string,
+    taskId: string,
+    subtaskId: string,
+  ): Promise<Project> {
+    return replace(await projectsApi.removeSubtask(id, taskId, subtaskId));
+  },
+
+  async addComment(
+    id: string,
+    taskId: string,
+    input: CreateCommentInput,
+  ): Promise<Project> {
+    return replace(await projectsApi.addComment(id, taskId, input));
   },
 
   async addMilestone(

@@ -14,6 +14,8 @@ export interface TaskCardProps {
 
 export function TaskCard({ task, assignee, onOpen }: TaskCardProps) {
   const overdue = task.status !== 'done' && isOverdue(task.dueDate);
+  const doneSubtasks = task.subtasks.filter((s) => s.done).length;
+  const commentCount = task.events.filter((e) => e.kind === 'comment').length;
   return (
     <div
       role="button"
@@ -44,6 +46,23 @@ export function TaskCard({ task, assignee, onOpen }: TaskCardProps) {
               tone={overdue ? undefined : 'warning'}
             />
             {formatDate(task.dueDate)}
+          </span>
+        )}
+        {task.subtasks.length > 0 && (
+          <span
+            className={cx(
+              styles.metaChip,
+              doneSubtasks === task.subtasks.length && styles.metaChipDone,
+            )}
+          >
+            <Icon name="checkSquare" size={13} />
+            {doneSubtasks}/{task.subtasks.length}
+          </span>
+        )}
+        {commentCount > 0 && (
+          <span className={styles.metaChip}>
+            <Icon name="chat" size={13} />
+            {commentCount}
           </span>
         )}
         <span className={styles.spacer} />

@@ -125,6 +125,24 @@ export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
   high: 'High',
 };
 
+export interface Subtask {
+  id: string;
+  title: string;
+  done: boolean;
+}
+
+/** A task's thread entry — either a user comment or a system activity note. */
+export const taskEventKindSchema = z.enum(['comment', 'activity']);
+export type TaskEventKind = z.infer<typeof taskEventKindSchema>;
+
+export interface TaskEvent {
+  id: string;
+  kind: TaskEventKind;
+  author: string;
+  body: string;
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -133,6 +151,8 @@ export interface Task {
   priority: TaskPriority;
   assigneeId: string | null;
   dueDate: string | null;
+  subtasks: Subtask[];
+  events: TaskEvent[];
   createdAt: string;
   updatedAt: string;
 }
@@ -201,6 +221,30 @@ export const reorderTasksSchema = z.object({
 });
 export type ReorderTasksInput = z.infer<typeof reorderTasksSchema>;
 
+/* ------------------------------- Subtasks ------------------------------- */
+
+export const createSubtaskSchema = z.object({
+  title: z.string().trim().min(1, 'Subtask is required').max(200),
+});
+export type CreateSubtaskInput = z.infer<typeof createSubtaskSchema>;
+
+export const updateSubtaskSchema = z
+  .object({
+    title: z.string().trim().min(1).max(200).optional(),
+    done: z.boolean().optional(),
+  })
+  .refine((v) => v.title !== undefined || v.done !== undefined, {
+    message: 'Nothing to update',
+  });
+export type UpdateSubtaskInput = z.infer<typeof updateSubtaskSchema>;
+
+/* ------------------------------- Comments ------------------------------- */
+
+export const createCommentSchema = z.object({
+  body: z.string().trim().min(1, 'Write a comment').max(2000),
+});
+export type CreateCommentInput = z.infer<typeof createCommentSchema>;
+
 export const createMilestoneSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(160),
   dueDate: z.string().nullable().default(null),
@@ -266,6 +310,12 @@ export const apiPaths = {
     tasksReorder: (id: string) => `${API_ROUTES.projects}/${id}/tasks/reorder`,
     task: (id: string, taskId: string) =>
       `${API_ROUTES.projects}/${id}/tasks/${taskId}`,
+    subtasks: (id: string, taskId: string) =>
+      `${API_ROUTES.projects}/${id}/tasks/${taskId}/subtasks`,
+    subtask: (id: string, taskId: string, subtaskId: string) =>
+      `${API_ROUTES.projects}/${id}/tasks/${taskId}/subtasks/${subtaskId}`,
+    comments: (id: string, taskId: string) =>
+      `${API_ROUTES.projects}/${id}/tasks/${taskId}/comments`,
     milestones: (id: string) => `${API_ROUTES.projects}/${id}/milestones`,
     milestone: (id: string, milestoneId: string) =>
       `${API_ROUTES.projects}/${id}/milestones/${milestoneId}`,

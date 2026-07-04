@@ -122,11 +122,10 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         </div>
       </div>
 
-      {tab === 'home' ? (
+      {tab === 'home' && (
         <ProjectHome project={project} peopleOpen={peopleOpen} />
-      ) : (
-        <ProjectDiscussion />
       )}
+      {tab === 'discussion' && <ProjectDiscussion />}
     </div>
   );
 }

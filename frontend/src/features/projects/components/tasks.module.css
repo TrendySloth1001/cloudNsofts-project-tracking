@@ -110,6 +110,17 @@
   color: var(--color-danger);
   font-weight: var(--weight-medium);
 }
+.metaChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.metaChipDone {
+  color: var(--color-success);
+}
 
 .addCard {
   display: flex;

@@ -110,11 +110,43 @@ model Task {
   dueDate     String?
   // Manual ordering within a status column (drag-to-reorder). Lower = higher up.
   position    Int            @default(0)
+  subtasks    Subtask[]
+  events      TaskEvent[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
   @@map("tasks")
 }
+
+model Subtask {
+  id        String   @id @default(cuid())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    String
+  title     String
+  done      Boolean  @default(false)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@map("subtasks")
+}
+
+enum TaskEventKind {
+  comment
+  activity
+}
+
+model TaskEvent {
+  id        String        @id @default(cuid())
+  task      Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    String
+  kind      TaskEventKind @default(comment)
+  author    String
+  body      String
+  createdAt DateTime      @default(now())
+
+  @@map("task_events")
+}
+
 
 model Milestone {
   id        String   @id @default(cuid())

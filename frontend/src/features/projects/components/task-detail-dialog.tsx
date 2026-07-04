@@ -12,6 +12,8 @@ import { cx } from '@/lib/cx';
 import { projectStore } from '../projects.store';
 import { formatDate, isOverdue } from '../task-utils';
 import { TaskPriorityBadge } from './task-priority-badge';
+import { TaskChecklist } from './task-checklist';
+import { TaskThread } from './task-thread';
 import styles from './task-detail-dialog.module.css';
 
 export interface TaskDetailDialogProps {
@@ -66,6 +68,7 @@ export function TaskDetailDialog({
       open={open}
       onClose={onClose}
       title={task.title}
+      size="lg"
       footer={
         <>
           <Button
@@ -131,6 +134,18 @@ export function TaskDetailDialog({
           <span className={styles.empty}>No description</span>
         )}
       </div>
+
+      <Divider className={styles.divider} />
+
+      <TaskChecklist
+        projectId={projectId}
+        taskId={task.id}
+        subtasks={task.subtasks}
+      />
+
+      <Divider className={styles.divider} />
+
+      <TaskThread projectId={projectId} taskId={task.id} events={task.events} />
     </Modal>
   );
 }

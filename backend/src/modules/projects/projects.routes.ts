@@ -25,6 +25,18 @@ projectsRoutes.patch('/:id/tasks/reorder', projectsController.reorderTasks);
 projectsRoutes.patch('/:id/tasks/:taskId', projectsController.updateTask);
 projectsRoutes.delete('/:id/tasks/:taskId', projectsController.removeTask);
 
+projectsRoutes.post('/:id/tasks/:taskId/subtasks', projectsController.addSubtask);
+projectsRoutes.patch(
+  '/:id/tasks/:taskId/subtasks/:subtaskId',
+  projectsController.updateSubtask,
+);
+projectsRoutes.delete(
+  '/:id/tasks/:taskId/subtasks/:subtaskId',
+  projectsController.removeSubtask,
+);
+
+projectsRoutes.post('/:id/tasks/:taskId/comments', projectsController.addComment);
+
 projectsRoutes.post('/:id/milestones', projectsController.addMilestone);
 projectsRoutes.patch(
   '/:id/milestones/:milestoneId',

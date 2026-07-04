@@ -2,12 +2,15 @@ import {
   apiPaths,
   type AddClientInput,
   type AddMemberInput,
+  type CreateCommentInput,
   type CreateMilestoneInput,
   type CreateProjectInput,
+  type CreateSubtaskInput,
   type CreateTaskInput,
   type Project,
   type ReorderTasksInput,
   type UpdateProjectInput,
+  type UpdateSubtaskInput,
   type UpdateTaskInput,
 } from '@cnsofts/shared';
 import { apiClient } from '@/lib/api-client';
@@ -42,6 +45,24 @@ export const projectsApi = {
     apiClient.patch<Project>(apiPaths.projects.task(id, taskId), patch),
   removeTask: (id: string, taskId: string) =>
     apiClient.delete<Project>(apiPaths.projects.task(id, taskId)),
+
+  addSubtask: (id: string, taskId: string, input: CreateSubtaskInput) =>
+    apiClient.post<Project>(apiPaths.projects.subtasks(id, taskId), input),
+  updateSubtask: (
+    id: string,
+    taskId: string,
+    subtaskId: string,
+    patch: UpdateSubtaskInput,
+  ) =>
+    apiClient.patch<Project>(
+      apiPaths.projects.subtask(id, taskId, subtaskId),
+      patch,
+    ),
+  removeSubtask: (id: string, taskId: string, subtaskId: string) =>
+    apiClient.delete<Project>(apiPaths.projects.subtask(id, taskId, subtaskId)),
+
+  addComment: (id: string, taskId: string, input: CreateCommentInput) =>
+    apiClient.post<Project>(apiPaths.projects.comments(id, taskId), input),
 
   addMilestone: (id: string, input: CreateMilestoneInput) =>
     apiClient.post<Project>(apiPaths.projects.milestones(id), input),

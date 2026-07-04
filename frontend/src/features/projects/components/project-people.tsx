@@ -78,7 +78,7 @@ export function ProjectPeople({
           ) : (
             members.map((member) => (
               <span key={member.id} className={styles.chip}>
-                <UserAvatar name={member.name} seed={member.id} size={22} />
+                <UserAvatar name={member.name} seed={member.id} size={28} />
                 <span className={styles.chipText}>
                   <span className={styles.chipName}>{member.name}</span>
                   <span className={styles.chipSub}>

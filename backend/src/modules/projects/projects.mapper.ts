@@ -4,17 +4,26 @@ import type {
   Project,
   ProjectClient,
   ProjectMember,
+  Subtask,
   Task,
+  TaskEvent,
 } from '@cnsofts/shared';
 
 /** A project with all its relations loaded. */
 export type PrismaProjectFull = Prisma.ProjectGetPayload<{
-  include: { clients: true; members: true; tasks: true; milestones: true };
+  include: {
+    clients: true;
+    members: true;
+    tasks: { include: { subtasks: true; events: true } };
+    milestones: true;
+  };
 }>;
 
 type ClientRow = PrismaProjectFull['clients'][number];
 type MemberRow = PrismaProjectFull['members'][number];
 type TaskRow = PrismaProjectFull['tasks'][number];
+type SubtaskRow = TaskRow['subtasks'][number];
+type TaskEventRow = TaskRow['events'][number];
 type MilestoneRow = PrismaProjectFull['milestones'][number];
 
 function toClient(c: ClientRow): ProjectClient {
@@ -30,6 +39,20 @@ function toMember(m: MemberRow): ProjectMember {
   return { id: m.id, name: m.name, email: m.email, role: m.role };
 }
 
+function toSubtask(s: SubtaskRow): Subtask {
+  return { id: s.id, title: s.title, done: s.done };
+}
+
+function toTaskEvent(e: TaskEventRow): TaskEvent {
+  return {
+    id: e.id,
+    kind: e.kind,
+    author: e.author,
+    body: e.body,
+    createdAt: e.createdAt.toISOString(),
+  };
+}
+
 function toTask(t: TaskRow): Task {
   return {
     id: t.id,
@@ -39,6 +62,8 @@ function toTask(t: TaskRow): Task {
     priority: t.priority,
     assigneeId: t.assigneeId,
     dueDate: t.dueDate,
+    subtasks: t.subtasks.map(toSubtask),
+    events: t.events.map(toTaskEvent),
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
   };

@@ -32,6 +32,19 @@ export function formatDate(iso: string | null): string {
   return Number.isNaN(date.getTime()) ? '—' : dateFormatter.format(date);
 }
 
+const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+});
+
+/** Short "Jul 4, 2:05 PM"-style stamp for comments and activity. */
+export function formatDateTime(iso: string): string {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? '' : dateTimeFormatter.format(date);
+}
+
 /** True when a date is before today (used to flag overdue tasks/milestones). */
 export function isOverdue(iso: string | null): boolean {
   if (!iso) return false;

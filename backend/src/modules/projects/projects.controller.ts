@@ -1,16 +1,25 @@
 import {
   addClientSchema,
   addMemberSchema,
+  createCommentSchema,
   createMilestoneSchema,
   createProjectSchema,
+  createSubtaskSchema,
   createTaskSchema,
   reorderTasksSchema,
   updateProjectSchema,
+  updateSubtaskSchema,
   updateTaskSchema,
 } from '@cnsofts/shared';
+import type { Request } from 'express';
 import { asyncHandler } from '../../shared/http/async-handler';
 import { validate } from '../../shared/http/validate';
 import { projectsService } from './projects.service';
+
+/** Display name of the authenticated actor, for activity/comment attribution. */
+function actorName(req: Request): string {
+  return req.authUser?.name ?? 'Someone';
+}
 
 export const projectsController = {
   list: asyncHandler(async (_req, res) => {
@@ -58,18 +67,74 @@ export const projectsController = {
   }),
   reorderTasks: asyncHandler(async (req, res) => {
     const input = validate(reorderTasksSchema, req.body);
-    res.json(await projectsService.reorderTasks(req.params.id, input));
+    res.json(
+      await projectsService.reorderTasks(req.params.id, input, actorName(req)),
+    );
   }),
   updateTask: asyncHandler(async (req, res) => {
     const input = validate(updateTaskSchema, req.body);
     res.json(
-      await projectsService.updateTask(req.params.id, req.params.taskId, input),
+      await projectsService.updateTask(
+        req.params.id,
+        req.params.taskId,
+        input,
+        actorName(req),
+      ),
     );
   }),
   removeTask: asyncHandler(async (req, res) => {
     res.json(
       await projectsService.removeTask(req.params.id, req.params.taskId),
     );
+  }),
+
+  /* ------------------------------ Subtasks ------------------------------ */
+  addSubtask: asyncHandler(async (req, res) => {
+    const input = validate(createSubtaskSchema, req.body);
+    res
+      .status(201)
+      .json(
+        await projectsService.addSubtask(
+          req.params.id,
+          req.params.taskId,
+          input,
+        ),
+      );
+  }),
+  updateSubtask: asyncHandler(async (req, res) => {
+    const input = validate(updateSubtaskSchema, req.body);
+    res.json(
+      await projectsService.updateSubtask(
+        req.params.id,
+        req.params.taskId,
+        req.params.subtaskId,
+        input,
+      ),
+    );
+  }),
+  removeSubtask: asyncHandler(async (req, res) => {
+    res.json(
+      await projectsService.removeSubtask(
+        req.params.id,
+        req.params.taskId,
+        req.params.subtaskId,
+      ),
+    );
+  }),
+
+  /* ------------------------------ Comments ------------------------------ */
+  addComment: asyncHandler(async (req, res) => {
+    const input = validate(createCommentSchema, req.body);
+    res
+      .status(201)
+      .json(
+        await projectsService.addComment(
+          req.params.id,
+          req.params.taskId,
+          actorName(req),
+          input,
+        ),
+      );
   }),
 
   addMilestone: asyncHandler(async (req, res) => {
