@@ -1,6 +1,7 @@
 .page {
   display: flex;
   flex-direction: column;
+  min-height: 100%;
 }
 
 .loading {
@@ -121,5 +122,15 @@
   }
   .headActions {
     justify-content: flex-start;
+  }
+}
+
+/* Mobile: while a discussion channel's chat is open, hide the project header
+   so the conversation goes full-screen (the chat's own back arrow returns to
+   the channel list, where the header reappears). */
+@media (max-width: 720px) {
+  .chatDetail .back,
+  .chatDetail .head {
+    display: none;
   }
 }

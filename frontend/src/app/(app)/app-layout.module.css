@@ -27,7 +27,7 @@
   min-width: 0;
   overflow-y: auto;
   background: var(--color-surface);
-  padding: var(--space-6) var(--space-8) var(--space-12);
+  padding: var(--space-6) var(--space-8) var(--space-6);
 }
 
 .overlay {
@@ -58,7 +58,7 @@
     background: var(--color-surface-hover);
   }
   .main {
-    padding: var(--space-5) var(--space-4) var(--space-12);
+    padding: var(--space-5) var(--space-4) var(--space-6);
   }
   .overlay {
     display: block;

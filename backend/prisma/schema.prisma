@@ -66,6 +66,7 @@ model Project {
   members     ProjectMember[]
   tasks       Task[]
   milestones  Milestone[]
+  channels    Channel[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
@@ -158,4 +159,34 @@ model Milestone {
   createdAt DateTime @default(now())
 
   @@map("milestones")
+}
+
+// A project discussion channel. Enum values match the shared Zod contract.
+enum ChannelVisibility {
+  internal
+  client
+}
+
+model Channel {
+  id          String            @id @default(cuid())
+  project     Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  name        String
+  description String            @default("")
+  visibility  ChannelVisibility @default(internal)
+  messages    Message[]
+  createdAt   DateTime          @default(now())
+
+  @@map("channels")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  channelId String
+  author    String
+  body      String
+  createdAt DateTime @default(now())
+
+  @@map("messages")
 }

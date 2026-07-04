@@ -245,6 +245,66 @@ export const createCommentSchema = z.object({
 });
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 
+/* ----------------------------- Discussions ------------------------------ */
+
+/** Channel visibility: `internal` = team-only, `client` = shared with clients. */
+export const channelVisibilitySchema = z.enum(['internal', 'client']);
+export type ChannelVisibility = z.infer<typeof channelVisibilitySchema>;
+
+export const CHANNEL_VISIBILITY_LABELS: Record<ChannelVisibility, string> = {
+  internal: 'Internal',
+  client: 'Client',
+};
+
+/** Slack-style channel slug: lowercase, hyphenated, alphanumeric. */
+export function channelSlug(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]+/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+export interface Message {
+  id: string;
+  author: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface Channel {
+  id: string;
+  name: string;
+  description: string;
+  visibility: ChannelVisibility;
+  messageCount: number;
+  createdAt: string;
+}
+
+export interface ChannelWithMessages extends Channel {
+  messages: Message[];
+}
+
+export const createChannelSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Channel name is required')
+    .max(80)
+    .transform(channelSlug)
+    .refine((v) => v.length > 0, 'Use letters or numbers'),
+  description: z.string().trim().max(280).default(''),
+  visibility: channelVisibilitySchema.default('internal'),
+});
+export type CreateChannelInput = z.infer<typeof createChannelSchema>;
+
+export const postMessageSchema = z.object({
+  body: z.string().trim().min(1, 'Message is required').max(4000),
+});
+export type PostMessageInput = z.infer<typeof postMessageSchema>;
+
 export const createMilestoneSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(160),
   dueDate: z.string().nullable().default(null),
@@ -316,6 +376,11 @@ export const apiPaths = {
       `${API_ROUTES.projects}/${id}/tasks/${taskId}/subtasks/${subtaskId}`,
     comments: (id: string, taskId: string) =>
       `${API_ROUTES.projects}/${id}/tasks/${taskId}/comments`,
+    channels: (id: string) => `${API_ROUTES.projects}/${id}/channels`,
+    channel: (id: string, channelId: string) =>
+      `${API_ROUTES.projects}/${id}/channels/${channelId}`,
+    channelMessages: (id: string, channelId: string) =>
+      `${API_ROUTES.projects}/${id}/channels/${channelId}/messages`,
     milestones: (id: string) => `${API_ROUTES.projects}/${id}/milestones`,
     milestone: (id: string, milestoneId: string) =>
       `${API_ROUTES.projects}/${id}/milestones/${milestoneId}`,

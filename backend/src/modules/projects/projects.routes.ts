@@ -1,11 +1,15 @@
 import { Router } from 'express';
 import { requireAuth } from '../auth/auth.middleware';
+import { discussionsRoutes } from '../discussions/discussions.routes';
 import { projectsController } from './projects.controller';
 
 export const projectsRoutes = Router();
 
 // Every projects endpoint requires an authenticated request.
 projectsRoutes.use(requireAuth);
+
+// Project discussion channels + messages (nested; reads the parent `:id`).
+projectsRoutes.use('/:id/channels', discussionsRoutes);
 
 projectsRoutes.get('/', projectsController.list);
 projectsRoutes.post('/', projectsController.create);

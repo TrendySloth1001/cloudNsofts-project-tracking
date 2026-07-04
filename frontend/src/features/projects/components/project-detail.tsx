@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button, Icon, Spinner, Tabs, useConfirm } from '@/components/ui';
+import { cx } from '@/lib/cx';
 import { useProject } from '../use-projects';
 import { projectStore } from '../projects.store';
 import { projectInitials, projectTint } from '../project-visuals';
@@ -20,6 +21,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   const { project, loading } = useProject(projectId);
   const [tab, setTab] = useState<ProjectTab>('home');
   const [peopleOpen, setPeopleOpen] = useState(false);
+  // Mobile: the discussion's chat detail is open (hide the project header).
+  const [chatDetail, setChatDetail] = useState(false);
 
   if (loading && !project) {
     return (
@@ -60,7 +63,12 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className={styles.page}>
+    <div
+      className={cx(
+        styles.page,
+        tab === 'discussion' && chatDetail && styles.chatDetail,
+      )}
+    >
       <Link href="/" className={styles.back}>
         <Icon name="chevronLeft" size={16} />
         <span>Projects</span>
@@ -125,7 +133,12 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
       {tab === 'home' && (
         <ProjectHome project={project} peopleOpen={peopleOpen} />
       )}
-      {tab === 'discussion' && <ProjectDiscussion />}
+      {tab === 'discussion' && (
+        <ProjectDiscussion
+          projectId={project.id}
+          onChatDetailChange={setChatDetail}
+        />
+      )}
     </div>
   );
 }
