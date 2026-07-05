@@ -1,19 +1,8 @@
-import type { Request } from 'express';
-import { loginSchema } from '@cnsofts/shared';
+import { createApiTokenSchema, loginSchema } from '@cnsofts/shared';
 import { asyncHandler } from '../../shared/http/async-handler';
 import { validate } from '../../shared/http/validate';
-import { HttpError } from '../../shared/http/http-error';
+import { requireUser } from './access';
 import { authService } from './auth.service';
-
-/** Extract the `Authorization: Bearer <token>` value or throw 401. */
-function getBearerToken(req: Request): string {
-  const header = req.headers.authorization ?? '';
-  const [scheme, token] = header.split(' ');
-  if (scheme !== 'Bearer' || !token) {
-    throw HttpError.unauthorized('Missing bearer token');
-  }
-  return token;
-}
 
 export const authController = {
   login: asyncHandler(async (req, res) => {
@@ -21,8 +10,27 @@ export const authController = {
     res.json(await authService.login(input));
   }),
 
+  // Runs behind `requireAuth`, so the principal (JWT or PAT) is already resolved.
   me: asyncHandler(async (req, res) => {
-    const token = getBearerToken(req);
-    res.json({ user: authService.verify(token) });
+    res.json({ user: requireUser(req) });
+  }),
+
+  /* --------------------------- Access tokens ---------------------------- */
+
+  createToken: asyncHandler(async (req, res) => {
+    const user = requireUser(req);
+    const input = validate(createApiTokenSchema, req.body);
+    res.status(201).json(await authService.createApiToken(user, input));
+  }),
+
+  listTokens: asyncHandler(async (req, res) => {
+    const user = requireUser(req);
+    res.json({ tokens: await authService.listApiTokens(user) });
+  }),
+
+  revokeToken: asyncHandler(async (req, res) => {
+    const user = requireUser(req);
+    await authService.revokeApiToken(user, req.params.id);
+    res.status(204).end();
   }),
 };

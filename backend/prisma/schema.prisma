@@ -29,6 +29,31 @@ model User {
   @@map("users")
 }
 
+/**
+ * A long-lived Personal Access Token that lets a coding agent (e.g. Claude Code
+ * via the MCP server) act AS the token's owner. Only the sha-256 hash is stored;
+ * the plaintext `cnsofts_pat_…` value is shown once at creation.
+ *
+ * `userId` is the principal id — a `User.id` (cuid) or the `'admin'` bootstrap
+ * sentinel — and is intentionally NOT a foreign key so the env-provisioned admin
+ * (which has no users row) can also mint tokens. Verification reconstructs the
+ * principal's role live (from `users`, or the env admin), so role changes/
+ * deletions take effect immediately.
+ */
+model ApiToken {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  tokenHash  String    @unique
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@map("api_tokens")
+}
+
 // Enum values match the shared Zod contract (@cnsofts/shared) exactly.
 enum ProjectStatus {
   planning

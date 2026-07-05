@@ -27,6 +27,30 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
+/* ----------------------------- Access tokens ---------------------------- */
+
+/** A Personal Access Token as listed to its owner (never includes the secret). */
+export interface ApiTokenSummary {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+}
+
+export const createApiTokenSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(80),
+  /** Optional lifetime in days; omit for a token that never expires. */
+  expiresInDays: z.coerce.number().int().positive().max(365).optional(),
+});
+export type CreateApiTokenInput = z.infer<typeof createApiTokenSchema>;
+
+/** Mint response — the plaintext token is returned exactly once, at creation. */
+export interface CreatedApiToken {
+  token: string;
+  apiToken: ApiTokenSummary;
+}
+
 /* -------------------------------- Users --------------------------------- */
 
 export const userRoleSchema = z.enum(['ADMIN', 'MEMBER', 'VIEWER', 'CLIENT']);
@@ -568,6 +592,8 @@ export const apiPaths = {
   auth: {
     login: () => `${API_ROUTES.auth}/login`,
     me: () => `${API_ROUTES.auth}/me`,
+    tokens: () => `${API_ROUTES.auth}/tokens`,
+    token: (id: string) => `${API_ROUTES.auth}/tokens/${id}`,
   },
   users: {
     list: () => API_ROUTES.users,

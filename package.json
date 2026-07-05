@@ -6,7 +6,8 @@
   "workspaces": [
     "shared",
     "backend",
-    "frontend"
+    "frontend",
+    "mcp"
   ],
   "scripts": {
     "build:shared": "npm run build -w @cnsofts/shared",

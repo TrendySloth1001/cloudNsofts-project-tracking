@@ -124,6 +124,11 @@ export function Sidebar({ user, onSignOut, open, onClose }: SidebarProps) {
               icon: 'settings',
               onSelect: () => router.push('/profile-setup'),
             },
+            {
+              label: 'Connect coding agent',
+              icon: 'ai',
+              onSelect: () => router.push('/settings/agent'),
+            },
             { separator: true },
             {
               label: 'Log out',
