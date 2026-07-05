@@ -7,10 +7,15 @@ import { useChannels } from '../use-discussions';
 import { ChannelSidebar } from './channel-sidebar';
 import { ChannelView } from './channel-view';
 import { CreateChannelDialog } from './create-channel-dialog';
+import type { ChannelCandidate } from './channel-members-dialog';
 import styles from './project-discussion.module.css';
 
 export interface ProjectDiscussionProps {
   projectId: string;
+  /** Project members + clients an admin/manager can add to channels. */
+  candidates: ChannelCandidate[];
+  /** Caller may create/delete channels & manage rosters (admin/manager). */
+  canManageChannels: boolean;
   /** Fired (mobile) when the chat detail opens/closes, so the parent can go
    *  full-screen by hiding the project header. */
   onChatDetailChange?: (open: boolean) => void;
@@ -21,6 +26,8 @@ export interface ProjectDiscussionProps {
  *  master-detail — the channel list, then the full chat on tap. */
 export function ProjectDiscussion({
   projectId,
+  candidates,
+  canManageChannels,
   onChatDetailChange,
 }: ProjectDiscussionProps) {
   const { channels, loading, reload, upsert, removeLocal } =
@@ -61,6 +68,7 @@ export function ProjectDiscussion({
         loading={loading}
         onSelect={openChannel}
         onCreate={() => setCreateOpen(true)}
+        canCreate={canManageChannels}
       />
 
       <div className={styles.main}>
@@ -68,6 +76,8 @@ export function ProjectDiscussion({
           <ChannelView
             projectId={projectId}
             channel={active}
+            candidates={candidates}
+            canManageChannels={canManageChannels}
             onBack={() => setMobileChatOpen(false)}
             onDeleted={() => {
               removeLocal(active.id);
@@ -86,12 +96,15 @@ export function ProjectDiscussion({
             </span>
             <p className={styles.emptyTitle}>No channels yet</p>
             <p className={styles.emptyText}>
-              Create a channel to start the discussion — keep it internal to the
-              team, or share it with the client.
+              {canManageChannels
+                ? 'Create a channel to start the discussion — keep it internal to the team, or share it with the client.'
+                : 'No channels have been shared with you yet.'}
             </p>
-            <Button leftIcon="add" onClick={() => setCreateOpen(true)}>
-              New channel
-            </Button>
+            {canManageChannels && (
+              <Button leftIcon="add" onClick={() => setCreateOpen(true)}>
+                New channel
+              </Button>
+            )}
           </div>
         )}
       </div>

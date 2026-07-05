@@ -1,0 +1,19 @@
+/* Leading check square in each option — reads as a multi-pick affordance. */
+.tick {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-on-primary);
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+.tickChecked {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}

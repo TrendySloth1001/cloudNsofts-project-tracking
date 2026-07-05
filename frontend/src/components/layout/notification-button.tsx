@@ -64,7 +64,10 @@ export function NotificationButton() {
           onClick={() => setOpen((v) => !v)}
         />
         {unread > 0 && (
-          <span className={styles.badge}>{unread > 9 ? '9+' : unread}</span>
+          <span
+            className={styles.badge}
+            aria-label={`${unread} unread notifications`}
+          />
         )}
       </span>
 

@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import {
   MEMBER_ROLE_LABELS,
+  memberRoleSchema,
+  type MemberRole,
   type ProjectClient,
   type ProjectMember,
 } from '@cnsofts/shared';
-import { Button, Divider, Icon, useConfirm } from '@/components/ui';
+import { Button, Divider, Icon, Menu, useConfirm } from '@/components/ui';
 import { UserAvatar } from '@/features/profile/components/user-avatar';
 import { projectStore } from '../projects.store';
 import { MemberDialog } from './member-dialog';
@@ -17,12 +19,15 @@ export interface ProjectPeopleProps {
   projectId: string;
   members: ProjectMember[];
   clients: ProjectClient[];
+  /** Admin-only: show add/remove controls. Members see the roster read-only. */
+  canManage: boolean;
 }
 
 export function ProjectPeople({
   projectId,
   members,
   clients,
+  canManage,
 }: ProjectPeopleProps) {
   const [memberOpen, setMemberOpen] = useState(false);
   const [clientOpen, setClientOpen] = useState(false);
@@ -40,6 +45,10 @@ export function ProjectPeople({
       tone: 'danger',
     });
     if (ok) void projectStore.removeMember(projectId, member.id);
+  }
+  async function changeRole(member: ProjectMember, role: MemberRole) {
+    if (role === member.role) return;
+    await projectStore.updateMemberRole(projectId, member.id, { role });
   }
   async function removeClient(client: ProjectClient) {
     const ok = await confirm({
@@ -63,14 +72,16 @@ export function ProjectPeople({
           <span className={styles.groupTitle}>Team</span>
           <span className={styles.count}>{members.length}</span>
           <span className={styles.grow} />
-          <Button
-            variant="ghost"
-            size="sm"
-            leftIcon="add"
-            onClick={() => setMemberOpen(true)}
-          >
-            Add member
-          </Button>
+          {canManage && (
+            <Button
+              variant="ghost"
+              size="sm"
+              leftIcon="add"
+              onClick={() => setMemberOpen(true)}
+            >
+              Add member
+            </Button>
+          )}
         </div>
         <div className={styles.chips}>
           {members.length === 0 ? (
@@ -81,18 +92,44 @@ export function ProjectPeople({
                 <UserAvatar name={member.name} seed={member.id} size={28} />
                 <span className={styles.chipText}>
                   <span className={styles.chipName}>{member.name}</span>
-                  <span className={styles.chipSub}>
-                    {MEMBER_ROLE_LABELS[member.role]}
-                  </span>
+                  {canManage ? (
+                    <Menu
+                      portal
+                      align="start"
+                      className={styles.roleMenu}
+                      trigger={
+                        <span
+                          className={styles.roleBtn}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Change ${member.name}'s role`}
+                        >
+                          {MEMBER_ROLE_LABELS[member.role]}
+                          <Icon name="chevronDown" size={12} />
+                        </span>
+                      }
+                      items={memberRoleSchema.options.map((role) => ({
+                        label: MEMBER_ROLE_LABELS[role],
+                        selected: role === member.role,
+                        onSelect: () => void changeRole(member, role),
+                      }))}
+                    />
+                  ) : (
+                    <span className={styles.chipSub}>
+                      {MEMBER_ROLE_LABELS[member.role]}
+                    </span>
+                  )}
                 </span>
-                <button
-                  type="button"
-                  className={styles.chipRemove}
-                  onClick={() => void removeMember(member)}
-                  aria-label={`Remove ${member.name}`}
-                >
-                  <Icon name="close" size={13} />
-                </button>
+                {canManage && (
+                  <button
+                    type="button"
+                    className={styles.chipRemove}
+                    onClick={() => void removeMember(member)}
+                    aria-label={`Remove ${member.name}`}
+                  >
+                    <Icon name="close" size={13} />
+                  </button>
+                )}
               </span>
             ))
           )}
@@ -107,14 +144,16 @@ export function ProjectPeople({
           <span className={styles.groupTitle}>Clients</span>
           <span className={styles.count}>{clients.length}</span>
           <span className={styles.grow} />
-          <Button
-            variant="ghost"
-            size="sm"
-            leftIcon="add"
-            onClick={() => setClientOpen(true)}
-          >
-            Add client
-          </Button>
+          {canManage && (
+            <Button
+              variant="ghost"
+              size="sm"
+              leftIcon="add"
+              onClick={() => setClientOpen(true)}
+            >
+              Add client
+            </Button>
+          )}
         </div>
         <div className={styles.chips}>
           {clients.length === 0 ? (
@@ -131,14 +170,16 @@ export function ProjectPeople({
                     {client.company || client.email}
                   </span>
                 </span>
-                <button
-                  type="button"
-                  className={styles.chipRemove}
-                  onClick={() => void removeClient(client)}
-                  aria-label={`Remove ${client.name}`}
-                >
-                  <Icon name="close" size={13} />
-                </button>
+                {canManage && (
+                  <button
+                    type="button"
+                    className={styles.chipRemove}
+                    onClick={() => void removeClient(client)}
+                    aria-label={`Remove ${client.name}`}
+                  >
+                    <Icon name="close" size={13} />
+                  </button>
+                )}
               </span>
             ))
           )}

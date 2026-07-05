@@ -12,8 +12,14 @@ import { IconButton, Select } from '@/components/ui';
 import { UserAvatar } from '@/features/profile/components/user-avatar';
 import { cx } from '@/lib/cx';
 import { projectStore } from '../projects.store';
-import { formatDate, groupByStatus, isOverdue } from '../task-utils';
+import {
+  formatDate,
+  groupByStatus,
+  isOverdue,
+  resolveMembers,
+} from '../task-utils';
 import { TaskPriorityBadge } from './task-priority-badge';
+import { AssigneePicker } from './assignee-picker';
 import styles from './tasks.module.css';
 
 const STATUS_OPTIONS = taskStatusSchema.options.map((s) => ({
@@ -26,6 +32,8 @@ export interface TaskListProps {
   members: ProjectMember[];
   projectId: string;
   onOpenTask: (task: Task) => void;
+  /** When false (e.g. a client), rows are view-only. */
+  canEdit: boolean;
 }
 
 export function TaskList({
@@ -33,6 +41,7 @@ export function TaskList({
   members,
   projectId,
   onOpenTask,
+  canEdit,
 }: TaskListProps) {
   const groups = groupByStatus(tasks);
   const memberById = new Map(members.map((m) => [m.id, m]));
@@ -51,7 +60,7 @@ export function TaskList({
               <span className={styles.listCount}>{groups[status].length}</span>
             </div>
             {groups[status].map((task) => {
-              const assignee = memberById.get(task.assigneeId ?? '');
+              const assignees = resolveMembers(task.assigneeIds, memberById);
               const overdue = task.status !== 'done' && isOverdue(task.dueDate);
               return (
                 <div key={task.id} className={styles.listRow}>
@@ -68,33 +77,65 @@ export function TaskList({
                       {formatDate(task.dueDate)}
                     </span>
                   )}
-                  {assignee ? (
-                    <UserAvatar
-                      name={assignee.name}
-                      seed={assignee.id}
-                      size={24}
-                    />
+                  {assignees.length > 0 ? (
+                    <span
+                      className={cx(styles.laneAvatars, styles.cardAvatars)}
+                      title={assignees.map((m) => m.name).join(', ')}
+                    >
+                      {assignees.slice(0, 3).map((m) => (
+                        <span key={m.id} className={styles.laneAvatar}>
+                          <UserAvatar name={m.name} seed={m.id} size={24} />
+                        </span>
+                      ))}
+                      {assignees.length > 3 && (
+                        <span className={styles.laneAvatarMore}>
+                          +{assignees.length - 3}
+                        </span>
+                      )}
+                    </span>
                   ) : (
                     <span className={styles.unassigned}>Unassigned</span>
                   )}
-                  <Select
-                    selectSize="sm"
-                    containerClassName={styles.statusSelect}
-                    value={task.status}
-                    onChange={(e) =>
-                      projectStore.updateTask(projectId, task.id, {
-                        status: e.target.value as TaskStatus,
-                      })
-                    }
-                    options={STATUS_OPTIONS}
-                  />
-                  <IconButton
-                    icon="delete"
-                    label={`Delete ${task.title}`}
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => projectStore.removeTask(projectId, task.id)}
-                  />
+                  {canEdit && (
+                    <AssigneePicker
+                      members={members}
+                      values={task.assigneeIds}
+                      onChange={(assigneeIds) =>
+                        void projectStore.updateTask(projectId, task.id, {
+                          assigneeIds,
+                        })
+                      }
+                      label="Assign members"
+                    />
+                  )}
+                  {canEdit ? (
+                    <>
+                      <Select
+                        selectSize="sm"
+                        containerClassName={styles.statusSelect}
+                        value={task.status}
+                        onChange={(e) =>
+                          projectStore.updateTask(projectId, task.id, {
+                            status: e.target.value as TaskStatus,
+                          })
+                        }
+                        options={STATUS_OPTIONS}
+                      />
+                      <IconButton
+                        icon="delete"
+                        label={`Delete ${task.title}`}
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          projectStore.removeTask(projectId, task.id)
+                        }
+                      />
+                    </>
+                  ) : (
+                    <span className={styles.listStatus}>
+                      {TASK_STATUS_LABELS[task.status]}
+                    </span>
+                  )}
                 </div>
               );
             })}

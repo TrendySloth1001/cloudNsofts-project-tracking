@@ -1,4 +1,4 @@
-import type { AuthUser } from '@cnsofts/shared';
+import type { AuthUser, ProjectRole } from '@cnsofts/shared';
 
 // Expose the verified principal on the request for authenticated handlers.
 declare global {
@@ -6,6 +6,8 @@ declare global {
   namespace Express {
     interface Request {
       authUser?: AuthUser;
+      // Set by `requireProjectAccess` for routes under `/projects/:id`.
+      projectRole?: ProjectRole;
     }
   }
 }

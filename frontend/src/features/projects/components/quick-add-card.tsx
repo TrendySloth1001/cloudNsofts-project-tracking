@@ -9,12 +9,18 @@ import styles from './tasks.module.css';
 export interface QuickAddCardProps {
   projectId: string;
   status: TaskStatus;
+  /** When set (swimlane view), the new task is created under this feature. */
+  featureId?: string | null;
 }
 
 /** Trello-style inline task capture: reveals a title field, adds on Enter, and
  *  stays open for rapid entry. Full fields (assignee, priority, …) are set by
  *  opening the task afterwards or via the toolbar's "New task". */
-export function QuickAddCard({ projectId, status }: QuickAddCardProps) {
+export function QuickAddCard({
+  projectId,
+  status,
+  featureId = null,
+}: QuickAddCardProps) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [saving, setSaving] = useState(false);
@@ -25,7 +31,7 @@ export function QuickAddCard({ projectId, status }: QuickAddCardProps) {
   }
 
   async function submit() {
-    const parsed = createTaskSchema.safeParse({ title, status });
+    const parsed = createTaskSchema.safeParse({ title, status, featureId });
     if (!parsed.success) return; // empty/invalid title — ignore
     setSaving(true);
     try {

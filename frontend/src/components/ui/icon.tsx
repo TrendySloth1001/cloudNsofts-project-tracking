@@ -55,6 +55,12 @@ import {
   Clock01Icon,
   Flag02Icon,
   Bookmark01Icon,
+  Share01Icon,
+  GripVerticalIcon,
+  SentIcon,
+  Layers01Icon,
+  PinIcon,
+  PinOffIcon,
 } from '@hugeicons/core-free-icons';
 
 /**
@@ -117,6 +123,12 @@ export const icons = {
   clock: Clock01Icon,
   flag: Flag02Icon,
   bookmark: Bookmark01Icon,
+  share: Share01Icon,
+  gripVertical: GripVerticalIcon,
+  send: SentIcon,
+  layers: Layers01Icon,
+  pin: PinIcon,
+  pinOff: PinOffIcon,
 } satisfies Record<string, IconSvgElement>;
 
 export type IconName = keyof typeof icons;

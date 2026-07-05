@@ -29,7 +29,7 @@ export interface AuthResponse {
 
 /* -------------------------------- Users --------------------------------- */
 
-export const userRoleSchema = z.enum(['ADMIN', 'MEMBER', 'VIEWER']);
+export const userRoleSchema = z.enum(['ADMIN', 'MEMBER', 'VIEWER', 'CLIENT']);
 export type UserRole = z.infer<typeof userRoleSchema>;
 
 /** A user as returned by the API (dates serialized to ISO strings). */
@@ -82,6 +82,50 @@ export const MEMBER_ROLE_LABELS: Record<MemberRole, string> = {
   member: 'Member',
   viewer: 'Viewer',
 };
+
+/**
+ * A user's *effective role within a single project* — the authority for what
+ * they can do there. `admin` is the global superuser; `client` is a project
+ * client (read-only board, client channels only); `manager`/`member`/`viewer`
+ * come from the caller's `ProjectMember.role`. Both sides derive capabilities
+ * from this via {@link projectAbilities} — the single source for the matrix.
+ */
+export const projectRoleSchema = z.enum([
+  'admin',
+  'manager',
+  'member',
+  'viewer',
+  'client',
+]);
+export type ProjectRole = z.infer<typeof projectRoleSchema>;
+
+export interface ProjectAbilities {
+  /** Create/edit/move tasks, comments, checklists, milestones. */
+  canEditBoard: boolean;
+  /** Add/remove members & clients and change member roles. */
+  canManageTeam: boolean;
+  /** Create/delete channels and manage channel membership. */
+  canManageChannels: boolean;
+  /** Edit the project's own settings (name, status, dates). */
+  canEditProject: boolean;
+  /** Delete the whole project. */
+  canDeleteProject: boolean;
+}
+
+/** The permission matrix. Viewer < Member < Manager < Admin (Client is aside,
+ *  read-only). Referenced by the backend (enforcement) and the frontend (UI
+ *  gating) so the rules live in exactly one place. */
+export function projectAbilities(role: ProjectRole): ProjectAbilities {
+  const isAdmin = role === 'admin';
+  const canManage = isAdmin || role === 'manager';
+  return {
+    canEditBoard: canManage || role === 'member',
+    canManageTeam: canManage,
+    canManageChannels: canManage,
+    canEditProject: isAdmin,
+    canDeleteProject: isAdmin,
+  };
+}
 
 export interface ProjectClient {
   id: string;
@@ -149,7 +193,10 @@ export interface Task {
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
-  assigneeId: string | null;
+  /** Members working this task (empty = unassigned). */
+  assigneeIds: string[];
+  /** Parent feature this task belongs to (null = ungrouped). */
+  featureId: string | null;
   dueDate: string | null;
   subtasks: Subtask[];
   events: TaskEvent[];
@@ -164,6 +211,37 @@ export interface Milestone {
   done: boolean;
 }
 
+/* -------------------------------- Features ------------------------------ */
+
+export const featureStatusSchema = z.enum(['planned', 'active', 'shipped']);
+export type FeatureStatus = z.infer<typeof featureStatusSchema>;
+export const FEATURE_STATUS_LABELS: Record<FeatureStatus, string> = {
+  planned: 'Planned',
+  active: 'Active',
+  shipped: 'Shipped',
+};
+export const FEATURE_STATUS_ORDER: readonly FeatureStatus[] = [
+  'planned',
+  'active',
+  'shipped',
+];
+
+/** A unit of work that groups tasks — the parent of Tasks. */
+export interface Feature {
+  id: string;
+  name: string;
+  description: string;
+  status: FeatureStatus;
+  /** Members owning/driving this feature (empty = no owner). */
+  ownerIds: string[];
+  targetDate: string | null;
+  /** Pinned features float to the top of the board. */
+  pinned: boolean;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -173,6 +251,7 @@ export interface Project {
   dueDate: string | null;
   clients: ProjectClient[];
   members: ProjectMember[];
+  features: Feature[];
   tasks: Task[];
   milestones: Milestone[];
   createdAt: string;
@@ -200,15 +279,46 @@ export const addMemberSchema = z.object({
 });
 export type AddMemberInput = z.infer<typeof addMemberSchema>;
 
+/** Change an existing member's project role (admin/manager only). */
+export const updateMemberRoleSchema = z.object({
+  role: memberRoleSchema,
+});
+export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;
+
 export const createTaskSchema = z.object({
   title: z.string().trim().min(1, 'Task title is required').max(200),
   description: z.string().trim().max(2000).default(''),
   status: taskStatusSchema.default('todo'),
   priority: taskPrioritySchema.default('medium'),
-  assigneeId: z.string().nullable().default(null),
+  assigneeIds: z.array(z.string().min(1)).default([]),
+  featureId: z.string().nullable().default(null),
   dueDate: z.string().nullable().default(null),
 });
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
+
+/* --------------------------- Feature mutations -------------------------- */
+
+export const createFeatureSchema = z.object({
+  name: z.string().trim().min(1, 'Feature name is required').max(120),
+  description: z.string().trim().max(2000).default(''),
+  status: featureStatusSchema.default('planned'),
+  ownerIds: z.array(z.string().min(1)).default([]),
+  targetDate: z.string().nullable().default(null),
+});
+export type CreateFeatureInput = z.infer<typeof createFeatureSchema>;
+// `pinned` lives only on update (a quick toggle), so the create/edit form never
+// resets it.
+export const updateFeatureSchema = createFeatureSchema
+  .partial()
+  .extend({ pinned: z.boolean().optional() });
+export type UpdateFeatureInput = z.infer<typeof updateFeatureSchema>;
+
+/** Reorder swimlanes: the full, final ordering of the project's features;
+ *  each feature is set to its index as the new position. */
+export const reorderFeaturesSchema = z.object({
+  orderedIds: z.array(z.string().min(1)),
+});
+export type ReorderFeaturesInput = z.infer<typeof reorderFeaturesSchema>;
 export const updateTaskSchema = createTaskSchema.partial();
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 
@@ -267,10 +377,21 @@ export function channelSlug(name: string): string {
     .replace(/^-|-$/g, '');
 }
 
+/** A task or feature shared into a channel message. */
+export const messageAttachmentSchema = z.object({
+  kind: z.enum(['task', 'feature']),
+  id: z.string().min(1),
+});
+export type MessageAttachment = z.infer<typeof messageAttachmentSchema>;
+
 export interface Message {
   id: string;
   author: string;
+  /** Login email of the author (null on messages predating this field). */
+  authorEmail: string | null;
   body: string;
+  /** Shared task/feature reference (null = plain text message). */
+  attachment: MessageAttachment | null;
   createdAt: string;
 }
 
@@ -280,12 +401,27 @@ export interface Channel {
   description: string;
   visibility: ChannelVisibility;
   messageCount: number;
+  memberCount: number;
   createdAt: string;
 }
 
 export interface ChannelWithMessages extends Channel {
   messages: Message[];
 }
+
+/** A participant in a channel (matched to a login by email). */
+export interface ChannelMember {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: string;
+}
+
+export const addChannelMemberSchema = z.object({
+  email: z.string().trim().toLowerCase().email('A valid email is required'),
+  name: z.string().trim().min(1, 'Name is required').max(120),
+});
+export type AddChannelMemberInput = z.infer<typeof addChannelMemberSchema>;
 
 export const createChannelSchema = z.object({
   name: z
@@ -300,9 +436,15 @@ export const createChannelSchema = z.object({
 });
 export type CreateChannelInput = z.infer<typeof createChannelSchema>;
 
-export const postMessageSchema = z.object({
-  body: z.string().trim().min(1, 'Message is required').max(4000),
-});
+export const postMessageSchema = z
+  .object({
+    body: z.string().trim().max(4000).default(''),
+    attachment: messageAttachmentSchema.nullable().default(null),
+  })
+  .refine((v) => v.body.length > 0 || v.attachment !== null, {
+    message: 'Message is required',
+    path: ['body'],
+  });
 export type PostMessageInput = z.infer<typeof postMessageSchema>;
 
 export const createMilestoneSchema = z.object({
@@ -348,6 +490,52 @@ export interface NotificationList {
   items: Notification[];
   unread: number;
 }
+
+/* ------------------------------- Realtime ------------------------------- */
+
+/** Socket.IO event names — the single source shared by server and client. */
+export const WS_EVENTS = {
+  joinChannel: 'channel:join',
+  leaveChannel: 'channel:leave',
+  messageCreated: 'message:created',
+  messageDeleted: 'message:deleted',
+} as const;
+
+/** Client → server: (un)subscribe to a channel's live message room. */
+export const channelRoomSchema = z.object({
+  projectId: z.string().min(1),
+  channelId: z.string().min(1),
+});
+export type ChannelRoom = z.infer<typeof channelRoomSchema>;
+
+/** Server → client: a new message landed in a watched channel. */
+export interface MessageCreatedEvent {
+  projectId: string;
+  channelId: string;
+  message: Message;
+}
+
+/** Server → client: a message was removed from a watched channel. */
+export interface MessageDeletedEvent {
+  projectId: string;
+  channelId: string;
+  messageId: string;
+}
+
+/** Ack returned to the client after a join attempt. */
+export interface ChannelJoinAck {
+  ok: boolean;
+  error?: string;
+}
+
+/** Cursor pagination for a channel's message history (message ids as cursors).
+ *  No cursor → newest `limit`; `after` → newer than it; `before` → older. */
+export const listMessagesQuerySchema = z.object({
+  before: z.string().optional(),
+  after: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+export type ListMessagesQuery = z.infer<typeof listMessagesQuerySchema>;
 
 /* ----------------------------- API responses ---------------------------- */
 
@@ -396,6 +584,11 @@ export const apiPaths = {
     members: (id: string) => `${API_ROUTES.projects}/${id}/members`,
     member: (id: string, memberId: string) =>
       `${API_ROUTES.projects}/${id}/members/${memberId}`,
+    features: (id: string) => `${API_ROUTES.projects}/${id}/features`,
+    featuresReorder: (id: string) =>
+      `${API_ROUTES.projects}/${id}/features/reorder`,
+    feature: (id: string, featureId: string) =>
+      `${API_ROUTES.projects}/${id}/features/${featureId}`,
     tasks: (id: string) => `${API_ROUTES.projects}/${id}/tasks`,
     tasksReorder: (id: string) => `${API_ROUTES.projects}/${id}/tasks/reorder`,
     task: (id: string, taskId: string) =>
@@ -411,6 +604,12 @@ export const apiPaths = {
       `${API_ROUTES.projects}/${id}/channels/${channelId}`,
     channelMessages: (id: string, channelId: string) =>
       `${API_ROUTES.projects}/${id}/channels/${channelId}/messages`,
+    channelMessage: (id: string, channelId: string, messageId: string) =>
+      `${API_ROUTES.projects}/${id}/channels/${channelId}/messages/${messageId}`,
+    channelMembers: (id: string, channelId: string) =>
+      `${API_ROUTES.projects}/${id}/channels/${channelId}/members`,
+    channelMember: (id: string, channelId: string, memberId: string) =>
+      `${API_ROUTES.projects}/${id}/channels/${channelId}/members/${memberId}`,
     milestones: (id: string) => `${API_ROUTES.projects}/${id}/milestones`,
     milestone: (id: string, milestoneId: string) =>
       `${API_ROUTES.projects}/${id}/milestones/${milestoneId}`,
@@ -426,4 +625,5 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
   ADMIN: 'Admin',
   MEMBER: 'Member',
   VIEWER: 'Viewer',
+  CLIENT: 'Client',
 };

@@ -25,6 +25,8 @@ export interface ChannelSidebarProps {
   loading: boolean;
   onSelect: (id: string) => void;
   onCreate: () => void;
+  /** Admin/member only: show the "new channel" control. */
+  canCreate: boolean;
 }
 
 export function ChannelSidebar({
@@ -33,18 +35,21 @@ export function ChannelSidebar({
   loading,
   onSelect,
   onCreate,
+  canCreate,
 }: ChannelSidebarProps) {
   return (
     <aside className={styles.sidebar}>
       <div className={styles.sidebarHead}>
         <span className={styles.sidebarTitle}>Channels</span>
-        <IconButton
-          icon="add"
-          label="New channel"
-          variant="ghost"
-          size="sm"
-          onClick={onCreate}
-        />
+        {canCreate && (
+          <IconButton
+            icon="add"
+            label="New channel"
+            variant="ghost"
+            size="sm"
+            onClick={onCreate}
+          />
+        )}
       </div>
 
       <div className={styles.channelList}>

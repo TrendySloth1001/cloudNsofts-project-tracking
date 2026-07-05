@@ -11,12 +11,15 @@ export interface TaskChecklistProps {
   projectId: string;
   taskId: string;
   subtasks: Subtask[];
+  /** When false (e.g. a client), the checklist is read-only. */
+  canEdit: boolean;
 }
 
 export function TaskChecklist({
   projectId,
   taskId,
   subtasks,
+  canEdit,
 }: TaskChecklistProps) {
   const [title, setTitle] = useState('');
   const [adding, setAdding] = useState(false);
@@ -58,6 +61,7 @@ export function TaskChecklist({
           <li key={s.id} className={styles.checkItem}>
             <Checkbox
               checked={s.done}
+              disabled={!canEdit}
               onChange={() =>
                 void projectStore.updateSubtask(projectId, taskId, s.id, {
                   done: !s.done,
@@ -69,29 +73,33 @@ export function TaskChecklist({
                 </span>
               }
             />
-            <IconButton
-              icon="close"
-              label={`Remove ${s.title}`}
-              variant="ghost"
-              size="sm"
-              onClick={() =>
-                void projectStore.removeSubtask(projectId, taskId, s.id)
-              }
-            />
+            {canEdit && (
+              <IconButton
+                icon="close"
+                label={`Remove ${s.title}`}
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  void projectStore.removeSubtask(projectId, taskId, s.id)
+                }
+              />
+            )}
           </li>
         ))}
       </ul>
 
-      <form onSubmit={add} className={styles.checkAdd}>
-        <Icon name="add" size={15} tone="brand" />
-        <input
-          className={styles.checkAddInput}
-          placeholder="Add a checklist item"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          disabled={adding}
-        />
-      </form>
+      {canEdit && (
+        <form onSubmit={add} className={styles.checkAdd}>
+          <Icon name="add" size={15} tone="brand" />
+          <input
+            className={styles.checkAddInput}
+            placeholder="Add a checklist item"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            disabled={adding}
+          />
+        </form>
+      )}
     </div>
   );
 }

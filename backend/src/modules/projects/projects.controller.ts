@@ -2,11 +2,15 @@ import {
   addClientSchema,
   addMemberSchema,
   createCommentSchema,
+  createFeatureSchema,
   createMilestoneSchema,
   createProjectSchema,
   createSubtaskSchema,
   createTaskSchema,
+  reorderFeaturesSchema,
   reorderTasksSchema,
+  updateFeatureSchema,
+  updateMemberRoleSchema,
   updateProjectSchema,
   updateSubtaskSchema,
   updateTaskSchema,
@@ -14,6 +18,7 @@ import {
 import type { Request } from 'express';
 import { asyncHandler } from '../../shared/http/async-handler';
 import { validate } from '../../shared/http/validate';
+import { requireUser } from '../auth/access';
 import { projectsService } from './projects.service';
 
 /** Display name of the authenticated actor, for activity/comment attribution. */
@@ -22,8 +27,8 @@ function actorName(req: Request): string {
 }
 
 export const projectsController = {
-  list: asyncHandler(async (_req, res) => {
-    res.json(await projectsService.list());
+  list: asyncHandler(async (req, res) => {
+    res.json(await projectsService.list(requireUser(req)));
   }),
   create: asyncHandler(async (req, res) => {
     const input = validate(createProjectSchema, req.body);
@@ -55,10 +60,45 @@ export const projectsController = {
     const input = validate(addMemberSchema, req.body);
     res.status(201).json(await projectsService.addMember(req.params.id, input));
   }),
+  updateMember: asyncHandler(async (req, res) => {
+    const input = validate(updateMemberRoleSchema, req.body);
+    res.json(
+      await projectsService.updateMemberRole(
+        req.params.id,
+        req.params.memberId,
+        input.role,
+      ),
+    );
+  }),
   removeMember: asyncHandler(async (req, res) => {
     res.json(
       await projectsService.removeMember(req.params.id, req.params.memberId),
     );
+  }),
+
+  /* ------------------------------- Features ----------------------------- */
+  addFeature: asyncHandler(async (req, res) => {
+    const input = validate(createFeatureSchema, req.body);
+    res.status(201).json(await projectsService.addFeature(req.params.id, input));
+  }),
+  updateFeature: asyncHandler(async (req, res) => {
+    const input = validate(updateFeatureSchema, req.body);
+    res.json(
+      await projectsService.updateFeature(
+        req.params.id,
+        req.params.featureId,
+        input,
+      ),
+    );
+  }),
+  removeFeature: asyncHandler(async (req, res) => {
+    res.json(
+      await projectsService.removeFeature(req.params.id, req.params.featureId),
+    );
+  }),
+  reorderFeatures: asyncHandler(async (req, res) => {
+    const input = validate(reorderFeaturesSchema, req.body);
+    res.json(await projectsService.reorderFeatures(req.params.id, input));
   }),
 
   addTask: asyncHandler(async (req, res) => {

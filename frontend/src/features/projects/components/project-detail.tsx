@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button, Icon, IconButton, Spinner, Tabs, useConfirm } from '@/components/ui';
 import { cx } from '@/lib/cx';
+import { useProjectPermissions } from '@/features/auth/use-project-permissions';
 import { useProject } from '../use-projects';
 import { projectStore } from '../projects.store';
 import { projectInitials, projectTint } from '../project-visuals';
@@ -19,6 +20,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   const router = useRouter();
   const confirm = useConfirm();
   const { project, loading } = useProject(projectId);
+  const perms = useProjectPermissions(project);
   const [tab, setTab] = useState<ProjectTab>('home');
   const [peopleOpen, setPeopleOpen] = useState(false);
   // Mobile: the discussion's chat detail is open (hide the project header).
@@ -97,7 +99,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
 
           {/* Mobile app-bar: actions collapse to icons on the identity row. */}
           <div className={styles.headActionsMobile}>
-            {tab === 'home' && (
+            {tab === 'home' && !perms.isClient && (
               <IconButton
                 icon="user"
                 label="Team & clients"
@@ -106,12 +108,14 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
                 aria-expanded={peopleOpen}
               />
             )}
-            <IconButton
-              icon="delete"
-              label="Delete project"
-              variant="outline"
-              onClick={deleteProject}
-            />
+            {perms.canDeleteProject && (
+              <IconButton
+                icon="delete"
+                label="Delete project"
+                variant="outline"
+                onClick={deleteProject}
+              />
+            )}
           </div>
         </div>
 
@@ -133,7 +137,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         />
 
         <div className={styles.headActions}>
-          {tab === 'home' && (
+          {tab === 'home' && !perms.isClient && (
             <Button
               variant="outline"
               leftIcon="user"
@@ -144,18 +148,30 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
               Team &amp; clients
             </Button>
           )}
-          <Button variant="outline" leftIcon="delete" onClick={deleteProject}>
-            Delete
-          </Button>
+          {perms.canDeleteProject && (
+            <Button variant="outline" leftIcon="delete" onClick={deleteProject}>
+              Delete
+            </Button>
+          )}
         </div>
       </div>
 
       {tab === 'home' && (
-        <ProjectHome project={project} peopleOpen={peopleOpen} />
+        <ProjectHome
+          project={project}
+          peopleOpen={peopleOpen}
+          canEditBoard={perms.canEditBoard}
+          canManageTeam={perms.canManageTeam}
+        />
       )}
       {tab === 'discussion' && (
         <ProjectDiscussion
           projectId={project.id}
+          candidates={[...project.members, ...project.clients].map((p) => ({
+            email: p.email,
+            name: p.name,
+          }))}
+          canManageChannels={perms.canManageChannels}
           onChatDetailChange={setChatDetail}
         />
       )}

@@ -3,12 +3,16 @@ import {
   type AddClientInput,
   type AddMemberInput,
   type CreateCommentInput,
+  type CreateFeatureInput,
   type CreateMilestoneInput,
   type CreateProjectInput,
   type CreateSubtaskInput,
   type CreateTaskInput,
   type Project,
+  type ReorderFeaturesInput,
   type ReorderTasksInput,
+  type UpdateFeatureInput,
+  type UpdateMemberRoleInput,
   type UpdateProjectInput,
   type UpdateSubtaskInput,
   type UpdateTaskInput,
@@ -34,8 +38,22 @@ export const projectsApi = {
 
   addMember: (id: string, input: AddMemberInput) =>
     apiClient.post<Project>(apiPaths.projects.members(id), input),
+  updateMemberRole: (
+    id: string,
+    memberId: string,
+    input: UpdateMemberRoleInput,
+  ) => apiClient.patch<Project>(apiPaths.projects.member(id, memberId), input),
   removeMember: (id: string, memberId: string) =>
     apiClient.delete<Project>(apiPaths.projects.member(id, memberId)),
+
+  addFeature: (id: string, input: CreateFeatureInput) =>
+    apiClient.post<Project>(apiPaths.projects.features(id), input),
+  updateFeature: (id: string, featureId: string, patch: UpdateFeatureInput) =>
+    apiClient.patch<Project>(apiPaths.projects.feature(id, featureId), patch),
+  removeFeature: (id: string, featureId: string) =>
+    apiClient.delete<Project>(apiPaths.projects.feature(id, featureId)),
+  reorderFeatures: (id: string, input: ReorderFeaturesInput) =>
+    apiClient.patch<Project>(apiPaths.projects.featuresReorder(id), input),
 
   addTask: (id: string, input: CreateTaskInput) =>
     apiClient.post<Project>(apiPaths.projects.tasks(id), input),

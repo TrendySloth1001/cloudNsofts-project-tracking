@@ -1,14 +1,19 @@
 import { Prisma } from '@prisma/client';
 import {
   TASK_STATUS_LABELS,
+  type AuthUser,
   type AddClientInput,
   type AddMemberInput,
   type CreateCommentInput,
+  type CreateFeatureInput,
   type CreateMilestoneInput,
   type CreateProjectInput,
   type CreateSubtaskInput,
   type CreateTaskInput,
+  type MemberRole,
+  type UpdateFeatureInput,
   type Project,
+  type ReorderFeaturesInput,
   type ReorderTasksInput,
   type TaskStatus,
   type UpdateProjectInput,
@@ -17,17 +22,24 @@ import {
 } from '@cnsofts/shared';
 import { prisma } from '../../infra/prisma';
 import { HttpError } from '../../shared/http/http-error';
+import { projectScopeWhere } from '../auth/access';
 import { notificationsService } from '../notifications/notifications.service';
 import { toProjectDto } from './projects.mapper';
 
 const include = {
   clients: { orderBy: { createdAt: 'asc' } },
   members: { orderBy: { createdAt: 'asc' } },
+  features: {
+    // Pinned features float to the top, then by manual swimlane order.
+    orderBy: [{ pinned: 'desc' }, { position: 'asc' }, { createdAt: 'asc' }],
+    include: { owners: { orderBy: { createdAt: 'asc' } } },
+  },
   tasks: {
     orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
     include: {
       subtasks: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] },
       events: { orderBy: { createdAt: 'asc' } },
+      assignees: { orderBy: { createdAt: 'asc' } },
     },
   },
   milestones: { orderBy: { createdAt: 'asc' } },
@@ -53,6 +65,22 @@ async function ensureTask(projectId: string, taskId: string): Promise<void> {
   }
 }
 
+/** Scope incoming member ids to this project's own roster, so a foreign or
+ *  bogus id can never be attached as an assignee/owner. */
+async function projectMemberIds(
+  projectId: string,
+  ids: string[],
+): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const rows = await prisma.projectMember.findMany({
+    where: { projectId, id: { in: ids } },
+    select: { id: true },
+  });
+  const valid = new Set(rows.map((r) => r.id));
+  // Preserve the caller's order; drop anything not in the roster.
+  return ids.filter((id) => valid.has(id));
+}
+
 /** Record a status-change entry in a task's activity thread. */
 async function logStatusChange(
   taskId: string,
@@ -71,8 +99,9 @@ async function logStatusChange(
 
 
 export const projectsService = {
-  async list(): Promise<Project[]> {
+  async list(user: AuthUser): Promise<Project[]> {
     const projects = await prisma.project.findMany({
+      where: projectScopeWhere(user),
       include,
       orderBy: { createdAt: 'desc' },
     });
@@ -150,8 +179,97 @@ export const projectsService = {
     });
     return project;
   },
+  async updateMemberRole(
+    projectId: string,
+    memberId: string,
+    role: MemberRole,
+  ): Promise<Project> {
+    const updated = await prisma.projectMember.updateMany({
+      where: { id: memberId, projectId },
+      data: { role },
+    });
+    if (updated.count === 0) throw HttpError.notFound('Member not found');
+    return load(projectId);
+  },
   async removeMember(projectId: string, memberId: string): Promise<Project> {
     await prisma.projectMember.deleteMany({ where: { id: memberId, projectId } });
+    return load(projectId);
+  },
+
+  /* ------------------------------- Features ----------------------------- */
+  async addFeature(
+    projectId: string,
+    input: CreateFeatureInput,
+  ): Promise<Project> {
+    await ensureExists(projectId);
+    // Append the new feature to the end of the swimlane order.
+    const last = await prisma.feature.aggregate({
+      where: { projectId },
+      _max: { position: true },
+    });
+    const ownerIds = await projectMemberIds(projectId, input.ownerIds);
+    await prisma.feature.create({
+      data: {
+        projectId,
+        name: input.name,
+        description: input.description,
+        status: input.status,
+        targetDate: input.targetDate,
+        position: (last._max.position ?? -1) + 1,
+        owners: { create: ownerIds.map((memberId) => ({ memberId })) },
+      },
+    });
+    return load(projectId);
+  },
+  async updateFeature(
+    projectId: string,
+    featureId: string,
+    input: UpdateFeatureInput,
+  ): Promise<Project> {
+    // Owners are join rows, not a scalar — split them out of the patch.
+    const { ownerIds, ...scalars } = input;
+    const exists = await prisma.feature.count({
+      where: { id: featureId, projectId },
+    });
+    if (exists === 0) throw HttpError.notFound('Feature not found');
+    // `updateMany` with an empty data object matches nothing — skip it when
+    // the patch was owners-only.
+    if (Object.keys(scalars).length > 0) {
+      await prisma.feature.updateMany({
+        where: { id: featureId, projectId },
+        data: scalars,
+      });
+    }
+    if (ownerIds !== undefined) {
+      const valid = await projectMemberIds(projectId, ownerIds);
+      await prisma.$transaction([
+        prisma.featureOwner.deleteMany({ where: { featureId } }),
+        prisma.featureOwner.createMany({
+          data: valid.map((memberId) => ({ featureId, memberId })),
+        }),
+      ]);
+    }
+    return load(projectId);
+  },
+  async removeFeature(projectId: string, featureId: string): Promise<Project> {
+    // Tasks keep existing; their featureId is set null by the FK (SetNull).
+    await prisma.feature.deleteMany({ where: { id: featureId, projectId } });
+    return load(projectId);
+  },
+  /** Persist the swimlane order: each feature gets its list index as position. */
+  async reorderFeatures(
+    projectId: string,
+    input: ReorderFeaturesInput,
+  ): Promise<Project> {
+    await ensureExists(projectId);
+    await prisma.$transaction(
+      input.orderedIds.map((featureId, index) =>
+        prisma.feature.updateMany({
+          where: { id: featureId, projectId },
+          data: { position: index },
+        }),
+      ),
+    );
     return load(projectId);
   },
 
@@ -163,6 +281,7 @@ export const projectsService = {
       where: { projectId, status: input.status },
       _max: { position: true },
     });
+    const assigneeIds = await projectMemberIds(projectId, input.assigneeIds);
     await prisma.task.create({
       data: {
         projectId,
@@ -170,9 +289,10 @@ export const projectsService = {
         description: input.description,
         status: input.status,
         priority: input.priority,
-        assigneeId: input.assigneeId,
+        featureId: input.featureId,
         dueDate: input.dueDate,
         position: (last._max.position ?? -1) + 1,
+        assignees: { create: assigneeIds.map((memberId) => ({ memberId })) },
       },
     });
     const project = await load(projectId);
@@ -222,7 +342,18 @@ export const projectsService = {
       where: { id: taskId, projectId },
     });
     if (!existing) throw HttpError.notFound('Task not found');
-    await prisma.task.update({ where: { id: taskId }, data: patch });
+    // Assignees are join rows, not a scalar — split them out of the patch.
+    const { assigneeIds, ...scalars } = patch;
+    await prisma.task.update({ where: { id: taskId }, data: scalars });
+    if (assigneeIds !== undefined) {
+      const valid = await projectMemberIds(projectId, assigneeIds);
+      await prisma.$transaction([
+        prisma.taskAssignee.deleteMany({ where: { taskId } }),
+        prisma.taskAssignee.createMany({
+          data: valid.map((memberId) => ({ taskId, memberId })),
+        }),
+      ]);
+    }
     if (patch.status && patch.status !== existing.status) {
       await logStatusChange(taskId, actor, patch.status);
       if (patch.status === 'done') {

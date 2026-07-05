@@ -190,6 +190,29 @@
   display: grid;
   place-items: center;
 }
+.loadOlder {
+  align-self: center;
+  margin-bottom: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+.loadOlder:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+.loadOlder:disabled {
+  color: var(--color-text-muted);
+}
+
 .channelIntro {
   padding-bottom: var(--space-2);
 }
@@ -206,8 +229,27 @@
   color: var(--color-text-muted);
 }
 .message {
+  position: relative;
   display: flex;
   gap: var(--space-2);
+}
+/* Per-message delete affordance — quiet until hover/focus (always on touch). */
+.msgDelete {
+  position: absolute;
+  top: 0;
+  right: 0;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+.message:hover .msgDelete,
+.messageCont:hover .msgDelete,
+.msgDelete:focus-within {
+  opacity: 1;
+}
+@media (hover: none) {
+  .msgDelete {
+    opacity: 1;
+  }
 }
 .messageMain {
   flex: 1;
@@ -234,13 +276,104 @@
   word-break: break-word;
 }
 .messageCont {
+  position: relative;
   padding-left: calc(34px + var(--space-2));
+}
+
+/* --------------------------- Shared attachments -------------------------- */
+/* A task/feature shared into the thread — a compact clickable summary card. */
+.attachCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 420px;
+  margin-top: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  text-align: left;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+.attachCard:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+}
+.attachIcon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+.attachMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.attachTitle {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.attachMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.attachProgress {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.attachOpen {
+  flex: none;
+  color: var(--color-text-placeholder);
+}
+.attachMissing {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-text-placeholder);
+  font-style: italic;
 }
 
 /* ------------------------------- Composer ------------------------------- */
 .composer {
   padding: var(--space-3) var(--space-4) var(--space-4);
   border-top: 1px solid var(--color-border);
+}
+/* Pending attachment chip shown above the input until the message is sent. */
+.composerChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+  padding: 2px 2px 2px var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-sunken);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+.composerChipLabel {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--weight-medium);
 }
 .composerBox {
   display: flex;

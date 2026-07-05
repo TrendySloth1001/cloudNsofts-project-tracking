@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   TASK_STATUS_LABELS,
   TASK_STATUS_ORDER,
+  type Feature,
   type ProjectMember,
   type Task,
   type TaskStatus,
@@ -11,7 +12,7 @@ import {
 import { Icon } from '@/components/ui';
 import { cx } from '@/lib/cx';
 import { projectStore } from '../projects.store';
-import { groupByStatus } from '../task-utils';
+import { groupByStatus, resolveMembers } from '../task-utils';
 import { TaskCard } from './task-card';
 import { QuickAddCard } from './quick-add-card';
 import styles from './tasks.module.css';
@@ -25,18 +26,24 @@ interface DropTarget {
 export interface TaskBoardProps {
   tasks: Task[];
   members: ProjectMember[];
+  features: Feature[];
   projectId: string;
   onOpenTask: (task: Task) => void;
+  /** When false (e.g. a client), the board is view-only. */
+  canEdit: boolean;
 }
 
 export function TaskBoard({
   tasks,
   members,
+  features,
   projectId,
   onOpenTask,
+  canEdit,
 }: TaskBoardProps) {
   const groups = groupByStatus(tasks);
   const memberById = new Map(members.map((m) => [m.id, m]));
+  const featureById = new Map(features.map((f) => [f.id, f]));
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   // Which columns are collapsed to a rail — view-only state (desktop).
   const [collapsed, setCollapsed] = useState<Set<TaskStatus>>(new Set());
@@ -151,8 +158,20 @@ export function TaskBoard({
                   )}
                   <TaskCard
                     task={task}
-                    assignee={memberById.get(task.assigneeId ?? '')}
+                    assignees={resolveMembers(task.assigneeIds, memberById)}
+                    members={members}
+                    onAssigneesChange={(assigneeIds) =>
+                      void projectStore.updateTask(projectId, task.id, {
+                        assigneeIds,
+                      })
+                    }
+                    featureName={
+                      task.featureId
+                        ? featureById.get(task.featureId)?.name
+                        : undefined
+                    }
                     onOpen={() => onOpenTask(task)}
+                    canEdit={canEdit}
                     onMove={(next) => {
                       if (next !== task.status) {
                         void projectStore.updateTask(projectId, task.id, {
@@ -166,7 +185,7 @@ export function TaskBoard({
               {isDropCol && dropTarget?.beforeId === null && (
                 <div className={styles.dropLine} />
               )}
-              <QuickAddCard projectId={projectId} status={status} />
+              {canEdit && <QuickAddCard projectId={projectId} status={status} />}
             </div>
           </div>
         );

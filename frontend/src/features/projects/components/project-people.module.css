@@ -99,6 +99,26 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Role selector (managers/admins): the sub-label becomes a small dropdown. */
+.roleMenu {
+  display: inline-flex;
+  min-width: 0;
+}
+.roleBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.roleBtn:hover,
+.roleBtn:focus-visible {
+  color: var(--color-text);
+  outline: none;
+}
 .clientBadge {
   flex: none;
   display: grid;

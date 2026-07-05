@@ -35,22 +35,34 @@
   height: var(--control-height-lg);
 }
 
-.select {
-  appearance: none;
-  -webkit-appearance: none;
+/* The combobox trigger — a button styled like the old native select. */
+.trigger {
   flex: 1;
   min-width: 0;
   height: 100%;
+  display: flex;
+  align-items: center;
   padding: 0 var(--space-8) 0 var(--space-3);
   background: transparent;
   border: none;
   outline: none;
   color: var(--color-text);
   font-size: var(--text-md);
+  text-align: left;
   cursor: pointer;
 }
-.select:disabled {
+.trigger:disabled {
   cursor: not-allowed;
+}
+.triggerLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.triggerPlaceholder {
+  color: var(--color-text-placeholder);
 }
 
 .chevron {
@@ -58,4 +70,61 @@
   right: var(--space-3);
   color: var(--color-text-muted);
   pointer-events: none;
+}
+
+/* Options popup — design-system styled (mirrors the Menu panel), portaled to
+   body above modals so it's never clipped. */
+.panel {
+  z-index: var(--z-popover);
+  max-height: 320px;
+  overflow-y: auto;
+  padding: var(--space-1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: selectIn var(--duration-fast) var(--ease-out);
+}
+@keyframes selectIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  color: var(--color-text);
+  text-align: left;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.optionActive:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+.option:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+.optionSelected {
+  font-weight: var(--weight-medium);
+}
+.optionLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.optionCheck {
+  color: var(--color-primary);
 }

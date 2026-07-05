@@ -238,6 +238,8 @@
   --z-sticky: 1100;
   --z-overlay: 1200;
   --z-modal: 1300;
+  /* Floating panels that must layer above modals (e.g. a Select popup in a dialog). */
+  --z-popover: 1350;
   --z-tooltip: 1400;
   --z-toast: 1500;
 

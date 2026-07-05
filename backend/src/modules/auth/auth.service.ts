@@ -1,12 +1,20 @@
 import { timingSafeEqual } from 'node:crypto';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import type { AuthResponse, AuthUser, LoginInput } from '@cnsofts/shared';
+import {
+  userRoleSchema,
+  type AuthResponse,
+  type AuthUser,
+  type LoginInput,
+} from '@cnsofts/shared';
 import { env } from '../../infra/env';
+import { prisma } from '../../infra/prisma';
 import { HttpError } from '../../shared/http/http-error';
 
 /**
- * Auth for an invite-only app. For now the only account is the bootstrap admin
- * defined in env; this is where a database-backed user check would slot in later.
+ * Auth for an invite-only app. The bootstrap admin lives in env; all other
+ * accounts are DB-backed users (admin-provisioned, with a bcrypt password
+ * hash). The JWT carries id/email/name/role so `verify` needs no DB round-trip.
  */
 const adminUser: AuthUser = {
   id: 'admin',
@@ -15,9 +23,12 @@ const adminUser: AuthUser = {
   role: 'ADMIN',
 };
 
+const BCRYPT_ROUNDS = 10;
+
 interface TokenPayload {
   sub: string;
   email: string;
+  name: string;
   role: AuthUser['role'];
 }
 
@@ -29,34 +40,64 @@ function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(bufA, bufB);
 }
 
+function issueToken(user: AuthUser): string {
+  const signOptions: jwt.SignOptions = {
+    subject: user.id,
+    expiresIn: env.AUTH_TOKEN_TTL as unknown as jwt.SignOptions['expiresIn'],
+  };
+  return jwt.sign(
+    { email: user.email, name: user.name, role: user.role },
+    env.AUTH_SECRET,
+    signOptions,
+  );
+}
+
 export const authService = {
-  login(input: LoginInput): AuthResponse {
-    const emailMatches = safeEqual(input.email, env.ADMIN_EMAIL);
-    const passwordMatches = safeEqual(input.password, env.ADMIN_PASSWORD);
-    if (!emailMatches || !passwordMatches) {
-      throw HttpError.unauthorized('Invalid email or password');
-    }
-
-    const signOptions: jwt.SignOptions = {
-      subject: adminUser.id,
-      expiresIn: env.AUTH_TOKEN_TTL as unknown as jwt.SignOptions['expiresIn'],
-    };
-    const token = jwt.sign(
-      { email: adminUser.email, role: adminUser.role },
-      env.AUTH_SECRET,
-      signOptions,
-    );
-
-    return { token, user: adminUser };
+  /** Hash a plaintext password for storage (used when provisioning users). */
+  hashPassword(plain: string): Promise<string> {
+    return bcrypt.hash(plain, BCRYPT_ROUNDS);
   },
 
+  async login(input: LoginInput): Promise<AuthResponse> {
+    // 1) Bootstrap admin from env (constant-time compare).
+    if (safeEqual(input.email, env.ADMIN_EMAIL)) {
+      if (!safeEqual(input.password, env.ADMIN_PASSWORD)) {
+        throw HttpError.unauthorized('Invalid email or password');
+      }
+      return { token: issueToken(adminUser), user: adminUser };
+    }
+
+    // 2) DB-backed users must have a password set (invite-provisioned).
+    const record = await prisma.user.findUnique({
+      where: { email: input.email },
+    });
+    if (!record?.passwordHash) {
+      throw HttpError.unauthorized('Invalid email or password');
+    }
+    const matches = await bcrypt.compare(input.password, record.passwordHash);
+    if (!matches) throw HttpError.unauthorized('Invalid email or password');
+
+    const user: AuthUser = {
+      id: record.id,
+      email: record.email,
+      name: record.name,
+      role: record.role,
+    };
+    return { token: issueToken(user), user };
+  },
+
+  /** Verify a token and reconstruct the principal from its payload (no DB hit). */
   verify(token: string): AuthUser {
     try {
       const payload = jwt.verify(token, env.AUTH_SECRET) as TokenPayload;
-      if (payload.sub !== adminUser.id) {
-        throw new Error('Unknown subject');
-      }
-      return adminUser;
+      return {
+        id: payload.sub,
+        email: payload.email,
+        // Older tokens predate the name claim — fall back so the UI never
+        // receives an undefined name.
+        name: payload.name ?? payload.email ?? 'User',
+        role: userRoleSchema.parse(payload.role),
+      };
     } catch {
       throw HttpError.unauthorized('Invalid or expired token');
     }

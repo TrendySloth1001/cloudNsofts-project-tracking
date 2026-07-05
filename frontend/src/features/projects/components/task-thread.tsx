@@ -12,9 +12,16 @@ export interface TaskThreadProps {
   projectId: string;
   taskId: string;
   events: TaskEvent[];
+  /** When false (e.g. a client), the activity is read-only (no commenting). */
+  canEdit: boolean;
 }
 
-export function TaskThread({ projectId, taskId, events }: TaskThreadProps) {
+export function TaskThread({
+  projectId,
+  taskId,
+  events,
+  canEdit,
+}: TaskThreadProps) {
   const [body, setBody] = useState('');
   const [posting, setPosting] = useState(false);
 
@@ -67,18 +74,25 @@ export function TaskThread({ projectId, taskId, events }: TaskThreadProps) {
         )}
       </div>
 
-      <form onSubmit={post} className={styles.commentForm}>
-        <input
-          className={styles.commentInput}
-          placeholder="Write a comment…"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          disabled={posting}
-        />
-        <Button type="submit" size="sm" loading={posting} disabled={!body.trim()}>
-          Comment
-        </Button>
-      </form>
+      {canEdit && (
+        <form onSubmit={post} className={styles.commentForm}>
+          <input
+            className={styles.commentInput}
+            placeholder="Write a comment…"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            disabled={posting}
+          />
+          <Button
+            type="submit"
+            size="sm"
+            loading={posting}
+            disabled={!body.trim()}
+          >
+            Comment
+          </Button>
+        </form>
+      )}
     </div>
   );
 }

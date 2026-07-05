@@ -5,9 +5,13 @@ import type {
   AddClientInput,
   AddMemberInput,
   CreateCommentInput,
+  CreateFeatureInput,
   CreateSubtaskInput,
   CreateTaskInput,
+  ReorderFeaturesInput,
   ReorderTasksInput,
+  UpdateFeatureInput,
+  UpdateMemberRoleInput,
   UpdateSubtaskInput,
   UpdateTaskInput,
   CreateMilestoneInput,
@@ -100,8 +104,35 @@ export const projectStore = {
   async addMember(id: string, input: AddMemberInput): Promise<Project> {
     return replace(await projectsApi.addMember(id, input));
   },
+  async updateMemberRole(
+    id: string,
+    memberId: string,
+    input: UpdateMemberRoleInput,
+  ): Promise<Project> {
+    return replace(await projectsApi.updateMemberRole(id, memberId, input));
+  },
   async removeMember(id: string, memberId: string): Promise<Project> {
     return replace(await projectsApi.removeMember(id, memberId));
+  },
+
+  async addFeature(id: string, input: CreateFeatureInput): Promise<Project> {
+    return replace(await projectsApi.addFeature(id, input));
+  },
+  async updateFeature(
+    id: string,
+    featureId: string,
+    patch: UpdateFeatureInput,
+  ): Promise<Project> {
+    return replace(await projectsApi.updateFeature(id, featureId, patch));
+  },
+  async removeFeature(id: string, featureId: string): Promise<Project> {
+    return replace(await projectsApi.removeFeature(id, featureId));
+  },
+  async reorderFeatures(
+    id: string,
+    input: ReorderFeaturesInput,
+  ): Promise<Project> {
+    return replace(await projectsApi.reorderFeatures(id, input));
   },
 
   async addTask(id: string, input: CreateTaskInput): Promise<Project> {

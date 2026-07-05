@@ -13,15 +13,18 @@ enum UserRole {
   ADMIN
   MEMBER
   VIEWER
+  CLIENT
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  role      UserRole @default(MEMBER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  role         UserRole @default(MEMBER)
+  // bcrypt hash; null until the account is given a password (invite-provisioned).
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@map("users")
 }
@@ -64,6 +67,7 @@ model Project {
   dueDate     String?
   clients     ProjectClient[]
   members     ProjectMember[]
+  features    Feature[]
   tasks       Task[]
   milestones  Milestone[]
   channels    Channel[]
@@ -92,7 +96,8 @@ model ProjectMember {
   name      String
   email     String
   role      MemberRole @default(member)
-  tasks     Task[]
+  taskAssignments    TaskAssignee[]
+  featureOwnerships  FeatureOwner[]
   createdAt DateTime   @default(now())
 
   @@map("project_members")
@@ -106,17 +111,36 @@ model Task {
   description String         @default("")
   status      TaskStatus     @default(todo)
   priority    TaskPriority   @default(medium)
-  assignee    ProjectMember? @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
-  assigneeId  String?
+  // Multiple members can work one task (join rows; see TaskAssignee).
+  assignees   TaskAssignee[]
+  // Parent feature (optional). SetNull so deleting a feature un-assigns, never
+  // deletes, its tasks.
+  feature     Feature?       @relation(fields: [featureId], references: [id], onDelete: SetNull)
+  featureId   String?
   dueDate     String?
   // Manual ordering within a status column (drag-to-reorder). Lower = higher up.
   position    Int            @default(0)
   subtasks    Subtask[]
   events      TaskEvent[]
+  sharedInMessages Message[] @relation("MessageTask")
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
   @@map("tasks")
+}
+
+// Task ↔ member assignment (many-to-many join row).
+model TaskAssignee {
+  id        String        @id @default(cuid())
+  task      Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    String
+  member    ProjectMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId  String
+  createdAt DateTime      @default(now())
+
+  @@unique([taskId, memberId])
+  @@index([memberId])
+  @@map("task_assignees")
 }
 
 model Subtask {
@@ -161,6 +185,51 @@ model Milestone {
   @@map("milestones")
 }
 
+// A unit of work that groups tasks (the parent of Tasks). Enum values match the
+// shared Zod contract (@cnsofts/shared) exactly.
+enum FeatureStatus {
+  planned
+  active
+  shipped
+}
+
+model Feature {
+  id          String         @id @default(cuid())
+  project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  name        String
+  description String         @default("")
+  status      FeatureStatus  @default(planned)
+  // Multiple members can own/drive one feature (join rows; see FeatureOwner).
+  owners      FeatureOwner[]
+  // Date-only value (ISO date string), matching Task.dueDate / Project.dueDate.
+  targetDate  String?
+  // Pinned features float to the top of the board, ahead of `position` order.
+  pinned      Boolean        @default(false)
+  // Swimlane ordering (drag-to-reorder). Lower = higher up.
+  position    Int            @default(0)
+  tasks       Task[]
+  sharedInMessages Message[] @relation("MessageFeature")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@map("features")
+}
+
+// Feature ↔ member ownership (many-to-many join row).
+model FeatureOwner {
+  id        String        @id @default(cuid())
+  feature   Feature       @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  featureId String
+  member    ProjectMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  memberId  String
+  createdAt DateTime      @default(now())
+
+  @@unique([featureId, memberId])
+  @@index([memberId])
+  @@map("feature_owners")
+}
+
 // A project discussion channel. Enum values match the shared Zod contract.
 enum ChannelVisibility {
   internal
@@ -175,20 +244,46 @@ model Channel {
   description String            @default("")
   visibility  ChannelVisibility @default(internal)
   messages    Message[]
+  members     ChannelMember[]
   createdAt   DateTime          @default(now())
 
   @@map("channels")
 }
 
 model Message {
+  id          String   @id @default(cuid())
+  channel     Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  channelId   String
+  author      String
+  // Stable author identity (login email) for "delete own message"; null on
+  // messages that predate this column.
+  authorEmail String?
+  body        String
+  // Optional shared task/feature (at most one set). SetNull so deleting the
+  // target keeps the message; the card renders a "no longer available" state.
+  attachedTask      Task?    @relation("MessageTask", fields: [attachedTaskId], references: [id], onDelete: SetNull)
+  attachedTaskId    String?
+  attachedFeature   Feature? @relation("MessageFeature", fields: [attachedFeatureId], references: [id], onDelete: SetNull)
+  attachedFeatureId String?
+  createdAt   DateTime @default(now())
+
+  @@index([channelId, createdAt])
+  @@map("messages")
+}
+
+// Explicit per-channel membership. Access to a channel is granted by a row
+// here (matched on the login email); admins bypass it. `name` is for display.
+model ChannelMember {
   id        String   @id @default(cuid())
   channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
   channelId String
-  author    String
-  body      String
+  email     String
+  name      String
   createdAt DateTime @default(now())
 
-  @@map("messages")
+  @@unique([channelId, email])
+  @@index([email])
+  @@map("channel_members")
 }
 
 // Enum values match the shared Zod contract (notificationKindSchema) exactly.

@@ -18,7 +18,7 @@ function getBearerToken(req: Request): string {
 export const authController = {
   login: asyncHandler(async (req, res) => {
     const input = validate(loginSchema, req.body);
-    res.json(authService.login(input));
+    res.json(await authService.login(input));
   }),
 
   me: asyncHandler(async (req, res) => {

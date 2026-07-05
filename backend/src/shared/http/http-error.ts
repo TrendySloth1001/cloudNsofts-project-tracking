@@ -15,6 +15,9 @@ export class HttpError extends Error {
   static unauthorized(message = 'Unauthorized'): HttpError {
     return new HttpError(401, message);
   }
+  static forbidden(message = 'You do not have access to this action'): HttpError {
+    return new HttpError(403, message);
+  }
   static notFound(message = 'Not found'): HttpError {
     return new HttpError(404, message);
   }

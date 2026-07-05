@@ -5,7 +5,13 @@ export { Spinner, type SpinnerProps } from './spinner';
 export { Field, type FieldProps } from './field';
 export { Input, type InputProps, type InputSize } from './input';
 export { Textarea, type TextareaProps } from './textarea';
-export { Select, type SelectProps, type SelectOption } from './select';
+export {
+  Select,
+  type SelectProps,
+  type SelectOption,
+  type SelectChangeEvent,
+} from './select';
+export { MultiSelect, type MultiSelectProps } from './multi-select';
 export { Checkbox, type CheckboxProps } from './checkbox';
 export { Radio, type RadioProps } from './radio';
 export { Switch, type SwitchProps } from './switch';

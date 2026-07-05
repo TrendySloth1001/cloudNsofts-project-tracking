@@ -7,12 +7,21 @@ import {
   taskStatusSchema,
   TASK_PRIORITY_LABELS,
   TASK_STATUS_LABELS,
+  type Feature,
   type ProjectMember,
   type Task,
   type TaskPriority,
   type TaskStatus,
 } from '@cnsofts/shared';
-import { Alert, Button, Input, Modal, Select, Textarea } from '@/components/ui';
+import {
+  Alert,
+  Button,
+  Input,
+  Modal,
+  MultiSelect,
+  Select,
+  Textarea,
+} from '@/components/ui';
 import { projectStore } from '../projects.store';
 import styles from './task-dialog.module.css';
 
@@ -30,7 +39,10 @@ export interface TaskDialogProps {
   onClose: () => void;
   projectId: string;
   members: ProjectMember[];
+  features: Feature[];
   defaultStatus?: TaskStatus;
+  /** Pre-selected parent feature (e.g. adding within a feature swimlane). */
+  defaultFeatureId?: string | null;
   task?: Task | null;
 }
 
@@ -39,14 +51,17 @@ export function TaskDialog({
   onClose,
   projectId,
   members,
+  features,
   defaultStatus = 'todo',
+  defaultFeatureId = null,
   task,
 }: TaskDialogProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<TaskStatus>(defaultStatus);
   const [priority, setPriority] = useState<TaskPriority>('medium');
-  const [assigneeId, setAssigneeId] = useState('');
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [featureId, setFeatureId] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -57,15 +72,17 @@ export function TaskDialog({
     setDescription(task?.description ?? '');
     setStatus(task?.status ?? defaultStatus);
     setPriority(task?.priority ?? 'medium');
-    setAssigneeId(task?.assigneeId ?? '');
+    setAssigneeIds(task?.assigneeIds ?? []);
+    setFeatureId(task?.featureId ?? defaultFeatureId ?? '');
     setDueDate(task?.dueDate ?? '');
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, task?.id, defaultStatus]);
+  }, [open, task?.id, defaultStatus, defaultFeatureId]);
 
-  const assigneeOptions = [
-    { value: '', label: 'Unassigned' },
-    ...members.map((m) => ({ value: m.id, label: m.name })),
+  const assigneeOptions = members.map((m) => ({ value: m.id, label: m.name }));
+  const featureOptions = [
+    { value: '', label: 'No feature' },
+    ...features.map((f) => ({ value: f.id, label: f.name })),
   ];
 
   async function handleSubmit(event: React.FormEvent) {
@@ -75,7 +92,8 @@ export function TaskDialog({
       description,
       status,
       priority,
-      assigneeId: assigneeId || null,
+      assigneeIds,
+      featureId: featureId || null,
       dueDate: dueDate || null,
     });
     if (!parsed.success) {
@@ -131,13 +149,20 @@ export function TaskDialog({
           placeholder="Optional details"
           rows={3}
         />
+        <Select
+          label="Feature"
+          value={featureId}
+          onChange={(e) => setFeatureId(e.target.value)}
+          options={featureOptions}
+        />
         <div className={styles.row}>
-          <Select
-            label="Assignee"
+          <MultiSelect
+            label="Assignees"
             containerClassName={styles.grow}
-            value={assigneeId}
-            onChange={(e) => setAssigneeId(e.target.value)}
+            values={assigneeIds}
+            onValuesChange={setAssigneeIds}
             options={assigneeOptions}
+            placeholder="Unassigned"
           />
           <Select
             label="Status"

@@ -4,6 +4,8 @@ import { useState } from 'react';
 import {
   TASK_PRIORITY_LABELS,
   taskPrioritySchema,
+  type Feature,
+  type MessageAttachment,
   type Project,
   type Task,
   type TaskStatus,
@@ -11,23 +13,45 @@ import {
 import { Button, Input, Select, Tabs } from '@/components/ui';
 import { ProjectPeople } from './project-people';
 import { TaskBoard } from './task-board';
+import { TaskBoardSwimlanes } from './task-board-swimlanes';
 import { TaskList } from './task-list';
 import { TaskDialog } from './task-dialog';
 import { TaskDetailDialog } from './task-detail-dialog';
+import { FeatureDialog } from './feature-dialog';
+import { ShareToChannelDialog } from './share-to-channel-dialog';
 import styles from './project-home.module.css';
 
 export interface ProjectHomeProps {
   project: Project;
   peopleOpen: boolean;
+  /** Caller may create/edit tasks (per-project: admin/manager/member). */
+  canEditBoard: boolean;
+  /** Caller may add/remove members & change roles (per-project: admin/manager). */
+  canManageTeam: boolean;
 }
 
-export function ProjectHome({ project, peopleOpen }: ProjectHomeProps) {
+export function ProjectHome({
+  project,
+  peopleOpen,
+  canEditBoard,
+  canManageTeam,
+}: ProjectHomeProps) {
   const [taskView, setTaskView] = useState<'board' | 'list'>('board');
+  const [groupBy, setGroupBy] = useState<'status' | 'feature'>('feature');
   const [taskDialog, setTaskDialog] = useState<{
     open: boolean;
     taskId: string | null;
     status: TaskStatus;
   }>({ open: false, taskId: null, status: 'todo' });
+  const [featureDialog, setFeatureDialog] = useState<{
+    open: boolean;
+    feature: Feature | null;
+  }>({ open: false, feature: null });
+  // Share a task/feature into a discussion channel.
+  const [share, setShare] = useState<{
+    attachment: MessageAttachment;
+    name: string;
+  } | null>(null);
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
   const [taskQuery, setTaskQuery] = useState('');
   const [assigneeFilter, setAssigneeFilter] = useState('all');
@@ -51,8 +75,8 @@ export function ProjectHome({ project, peopleOpen }: ProjectHomeProps) {
       assigneeFilter === 'all'
         ? true
         : assigneeFilter === 'unassigned'
-          ? t.assigneeId === null
-          : t.assigneeId === assigneeFilter;
+          ? t.assigneeIds.length === 0
+          : t.assigneeIds.includes(assigneeFilter);
     const priorityOk = priorityFilter === 'all' || t.priority === priorityFilter;
     const queryOk = q === '' || t.title.toLowerCase().includes(q);
     return assigneeOk && priorityOk && queryOk;
@@ -88,6 +112,7 @@ export function ProjectHome({ project, peopleOpen }: ProjectHomeProps) {
           projectId={project.id}
           members={project.members}
           clients={project.clients}
+          canManage={canManageTeam}
         />
       )}
 
@@ -125,29 +150,73 @@ export function ProjectHome({ project, peopleOpen }: ProjectHomeProps) {
           options={priorityFilterOptions}
           containerClassName={styles.taskFilter}
         />
+        {taskView === 'board' && (
+          <Select
+            selectSize="md"
+            value={groupBy}
+            onChange={(e) => setGroupBy(e.target.value as 'status' | 'feature')}
+            options={[
+              { value: 'status', label: 'Group: Status' },
+              { value: 'feature', label: 'Group: Feature' },
+            ]}
+            containerClassName={styles.taskFilter}
+          />
+        )}
         <span className={styles.spacer} />
-        <Button
-          leftIcon="add"
-          className={styles.newTaskBtn}
-          onClick={() => openNewTask('todo')}
-        >
-          New task
-        </Button>
+        {canEditBoard && (
+          <>
+            <Button
+              variant="outline"
+              leftIcon="flag"
+              className={styles.newTaskBtn}
+              onClick={() => setFeatureDialog({ open: true, feature: null })}
+            >
+              New feature
+            </Button>
+            <Button
+              variant="info"
+              leftIcon="add"
+              className={styles.newTaskBtn}
+              onClick={() => openNewTask('todo')}
+            >
+              New task
+            </Button>
+          </>
+        )}
       </div>
 
-      {taskView === 'board' ? (
-        <TaskBoard
-          tasks={filteredTasks}
-          members={project.members}
-          projectId={project.id}
-          onOpenTask={openTaskDetail}
-        />
-      ) : (
+      {taskView === 'list' ? (
         <TaskList
           tasks={filteredTasks}
           members={project.members}
           projectId={project.id}
           onOpenTask={openTaskDetail}
+          canEdit={canEditBoard}
+        />
+      ) : groupBy === 'feature' ? (
+        <TaskBoardSwimlanes
+          tasks={filteredTasks}
+          features={project.features}
+          members={project.members}
+          projectId={project.id}
+          onOpenTask={openTaskDetail}
+          onEditFeature={(feature) => setFeatureDialog({ open: true, feature })}
+          onShareFeature={(feature) =>
+            setShare({
+              attachment: { kind: 'feature', id: feature.id },
+              name: feature.name,
+            })
+          }
+          canEdit={canEditBoard}
+        />
+      ) : (
+        <TaskBoard
+          tasks={filteredTasks}
+          members={project.members}
+          features={project.features}
+          projectId={project.id}
+          onOpenTask={openTaskDetail}
+          canEdit={canEditBoard}
         />
       )}
 
@@ -158,6 +227,16 @@ export function ProjectHome({ project, peopleOpen }: ProjectHomeProps) {
         task={detailTask}
         members={project.members}
         onEdit={editFromDetail}
+        onShare={
+          detailTask
+            ? () =>
+                setShare({
+                  attachment: { kind: 'task', id: detailTask.id },
+                  name: detailTask.title,
+                })
+            : undefined
+        }
+        canEdit={canEditBoard}
       />
 
       <TaskDialog
@@ -165,8 +244,25 @@ export function ProjectHome({ project, peopleOpen }: ProjectHomeProps) {
         onClose={closeTaskDialog}
         projectId={project.id}
         members={project.members}
+        features={project.features}
         defaultStatus={taskDialog.status}
         task={dialogTask}
+      />
+
+      <FeatureDialog
+        open={featureDialog.open}
+        onClose={() => setFeatureDialog((d) => ({ ...d, open: false }))}
+        projectId={project.id}
+        members={project.members}
+        feature={featureDialog.feature}
+      />
+
+      <ShareToChannelDialog
+        open={share !== null}
+        onClose={() => setShare(null)}
+        projectId={project.id}
+        attachment={share?.attachment ?? null}
+        itemName={share?.name ?? ''}
       />
     </div>
   );

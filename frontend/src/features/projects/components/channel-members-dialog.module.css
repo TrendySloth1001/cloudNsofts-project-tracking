@@ -1,0 +1,67 @@
+.loading {
+  display: grid;
+  place-items: center;
+  padding: var(--space-8) 0;
+}
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--color-text-secondary);
+}
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 28px;
+}
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+}
+.row:hover {
+  background: var(--color-surface-hover);
+}
+.rowText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.rowName {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+}
+.rowSub {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.empty {
+  font-size: var(--text-sm);
+  color: var(--color-text-placeholder);
+  padding: var(--space-1) var(--space-2);
+}

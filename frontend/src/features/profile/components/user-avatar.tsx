@@ -53,7 +53,9 @@ export function UserAvatar({
 }: UserAvatarProps) {
   const [errored, setErrored] = useState(false);
   const id = isKnownAvatar(avatarId) ? avatarId : defaultAvatarFor(seed);
-  const initial = name.trim() ? name.trim()[0].toUpperCase() : '?';
+  // Tolerate a missing name (e.g. an older token without one).
+  const safeName = name ?? '';
+  const initial = safeName.trim() ? safeName.trim()[0].toUpperCase() : '?';
 
   return (
     <span
@@ -64,7 +66,8 @@ export function UserAvatar({
         <span
           className={styles.fallback}
           style={{
-            background: FALLBACK_PALETTE[hash(name) % FALLBACK_PALETTE.length],
+            background:
+              FALLBACK_PALETTE[hash(safeName) % FALLBACK_PALETTE.length],
             fontSize: Math.round(size * 0.42),
           }}
         >
@@ -75,7 +78,7 @@ export function UserAvatar({
         <img
           className={styles.img}
           src={avatarAsset(id)}
-          alt={name}
+          alt={safeName}
           width={size}
           height={size}
           onError={() => setErrored(true)}

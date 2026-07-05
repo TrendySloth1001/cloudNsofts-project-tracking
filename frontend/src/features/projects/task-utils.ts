@@ -1,9 +1,21 @@
 import {
   TASK_STATUS_ORDER,
+  type Feature,
   type Project,
+  type ProjectMember,
   type Task,
   type TaskStatus,
 } from '@cnsofts/shared';
+
+/** Resolve member ids to members (dropping ids no longer on the roster). */
+export function resolveMembers(
+  ids: string[],
+  memberById: Map<string, ProjectMember>,
+): ProjectMember[] {
+  return ids
+    .map((id) => memberById.get(id))
+    .filter((m): m is ProjectMember => m !== undefined);
+}
 
 /** Percentage of a project's tasks that are done (0 when there are none). */
 export function projectProgress(project: Project): number {
@@ -18,6 +30,46 @@ export function groupByStatus(tasks: Task[]): Record<TaskStatus, Task[]> {
   for (const status of TASK_STATUS_ORDER) groups[status] = [];
   for (const task of tasks) groups[task.status].push(task);
   return groups;
+}
+
+/** A swimlane: a feature (or `null` for the "No feature" lane) + its tasks. */
+export interface FeatureLane {
+  feature: Feature | null;
+  tasks: Task[];
+}
+
+/**
+ * Group tasks into swimlanes — one per feature (in the given feature order),
+ * then a trailing "No feature" lane for ungrouped tasks. Empty feature lanes
+ * are kept (so newly-created features are visible); the "No feature" lane is
+ * only shown when it has tasks.
+ */
+export function groupByFeature(
+  tasks: Task[],
+  features: Feature[],
+): FeatureLane[] {
+  const byFeature = new Map<string, Task[]>();
+  for (const feature of features) byFeature.set(feature.id, []);
+  const orphans: Task[] = [];
+  for (const task of tasks) {
+    const bucket = task.featureId ? byFeature.get(task.featureId) : undefined;
+    if (bucket) bucket.push(task);
+    else orphans.push(task);
+  }
+  const lanes: FeatureLane[] = features.map((feature) => ({
+    feature,
+    tasks: byFeature.get(feature.id) ?? [],
+  }));
+  if (orphans.length > 0) lanes.push({ feature: null, tasks: orphans });
+  return lanes;
+}
+
+/** Done / total task counts for a swimlane (or feature card). */
+export function featureProgress(tasks: Task[]): { done: number; total: number } {
+  return {
+    done: tasks.filter((t) => t.status === 'done').length,
+    total: tasks.length,
+  };
 }
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {

@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import type {
+  Feature,
   Milestone,
   Project,
   ProjectClient,
@@ -14,13 +15,15 @@ export type PrismaProjectFull = Prisma.ProjectGetPayload<{
   include: {
     clients: true;
     members: true;
-    tasks: { include: { subtasks: true; events: true } };
+    features: { include: { owners: true } };
+    tasks: { include: { subtasks: true; events: true; assignees: true } };
     milestones: true;
   };
 }>;
 
 type ClientRow = PrismaProjectFull['clients'][number];
 type MemberRow = PrismaProjectFull['members'][number];
+type FeatureRow = PrismaProjectFull['features'][number];
 type TaskRow = PrismaProjectFull['tasks'][number];
 type SubtaskRow = TaskRow['subtasks'][number];
 type TaskEventRow = TaskRow['events'][number];
@@ -37,6 +40,21 @@ function toClient(c: ClientRow): ProjectClient {
 
 function toMember(m: MemberRow): ProjectMember {
   return { id: m.id, name: m.name, email: m.email, role: m.role };
+}
+
+function toFeature(f: FeatureRow): Feature {
+  return {
+    id: f.id,
+    name: f.name,
+    description: f.description,
+    status: f.status,
+    ownerIds: f.owners.map((o) => o.memberId),
+    targetDate: f.targetDate,
+    pinned: f.pinned,
+    position: f.position,
+    createdAt: f.createdAt.toISOString(),
+    updatedAt: f.updatedAt.toISOString(),
+  };
 }
 
 function toSubtask(s: SubtaskRow): Subtask {
@@ -60,7 +78,8 @@ function toTask(t: TaskRow): Task {
     description: t.description,
     status: t.status,
     priority: t.priority,
-    assigneeId: t.assigneeId,
+    assigneeIds: t.assignees.map((a) => a.memberId),
+    featureId: t.featureId,
     dueDate: t.dueDate,
     subtasks: t.subtasks.map(toSubtask),
     events: t.events.map(toTaskEvent),
@@ -84,6 +103,7 @@ export function toProjectDto(p: PrismaProjectFull): Project {
     dueDate: p.dueDate,
     clients: p.clients.map(toClient),
     members: p.members.map(toMember),
+    features: p.features.map(toFeature),
     tasks: p.tasks.map(toTask),
     milestones: p.milestones.map(toMilestone),
     createdAt: p.createdAt.toISOString(),

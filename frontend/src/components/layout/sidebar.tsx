@@ -45,25 +45,32 @@ export function Sidebar({ user, onSignOut, open, onClose }: SidebarProps) {
       </div>
 
       <nav className={styles.nav}>
-        <Link
-          href="/"
-          onClick={onClose}
-          className={cx(styles.navItem, pathname === '/' && styles.active)}
-        >
-          <Icon name="home" size={18} tone="brand" />
-          <span>All projects</span>
-        </Link>
-
-        <div className={styles.sectionHead}>
-          <span className={styles.sectionLabel}>Projects</span>
-          <button
-            type="button"
-            className={styles.addBtn}
-            onClick={() => setCreateOpen(true)}
-            aria-label="New project"
+        {/* One project section: the "All projects" home + inline add, then the
+            list directly below — no separate caption row. */}
+        <div className={styles.navTop}>
+          <Link
+            href="/"
+            onClick={onClose}
+            className={cx(
+              styles.navItem,
+              styles.grow,
+              pathname === '/' && styles.active,
+            )}
           >
-            <Icon name="add" size={16} tone="brand" />
-          </button>
+            <Icon name="home" size={18} tone="brand" />
+            <span>All projects</span>
+          </Link>
+          {user.role === 'ADMIN' && (
+            <button
+              type="button"
+              className={styles.addBtn}
+              onClick={() => setCreateOpen(true)}
+              aria-label="New project"
+              title="New project"
+            >
+              <Icon name="add" size={16} tone="brand" />
+            </button>
+          )}
         </div>
 
         <div className={styles.projectList}>
@@ -92,18 +99,7 @@ export function Sidebar({ user, onSignOut, open, onClose }: SidebarProps) {
       </nav>
 
       <div className={styles.bottom}>
-        <Link
-          href="/profile-setup"
-          onClick={onClose}
-          className={cx(
-            styles.navItem,
-            pathname === '/profile-setup' && styles.active,
-          )}
-        >
-          <Icon name="settings" size={18} tone="neutral" />
-          <span>Settings</span>
-        </Link>
-
+        {/* Single account row — Settings lives in its menu (no duplicate row). */}
         <Menu
           side="top"
           align="start"
@@ -115,18 +111,20 @@ export function Sidebar({ user, onSignOut, open, onClose }: SidebarProps) {
                 avatarId={avatarId}
                 size={30}
               />
-              <span className={styles.userName}>{user.name}</span>
+              <span className={styles.userMeta}>
+                <span className={styles.userName}>{user.name}</span>
+                <span className={styles.userEmail}>{user.email}</span>
+              </span>
               <Icon name="chevronUp" size={15} className={styles.userChevron} />
             </button>
           }
           items={[
-            { label: user.email, icon: 'userCircle', disabled: true },
-            { separator: true },
             {
-              label: 'Profile',
-              icon: 'user',
+              label: 'Profile & settings',
+              icon: 'settings',
               onSelect: () => router.push('/profile-setup'),
             },
+            { separator: true },
             {
               label: 'Log out',
               icon: 'logout',

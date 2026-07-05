@@ -104,6 +104,18 @@
   background: var(--color-danger-hover);
 }
 
+.info {
+  background: var(--color-info);
+  color: var(--color-on-primary);
+  box-shadow: var(--shadow-xs);
+}
+.info:hover:not(:disabled) {
+  background: var(--blue-700);
+}
+.info:active:not(:disabled) {
+  background: var(--blue-700);
+}
+
 /* Loading */
 .loading .content {
   opacity: 0;
