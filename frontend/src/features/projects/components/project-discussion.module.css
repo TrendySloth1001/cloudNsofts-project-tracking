@@ -101,15 +101,25 @@
 }
 .channelCount {
   flex: none;
+  box-sizing: border-box;
   display: inline-grid;
   place-items: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
   border-radius: var(--radius-full);
   background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
   font-size: var(--text-xs);
-  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--color-text-secondary);
+}
+.channelItemActive .channelCount {
+  background: var(--color-primary);
+  border-color: transparent;
+  color: var(--color-on-primary);
 }
 
 /* -------------------------------- Channel ------------------------------- */
@@ -177,8 +187,9 @@
   display: flex;
   flex-direction: column;
 }
-/* Bottom-align messages (Slack-style): short threads stick to the composer,
-   long threads scroll normally. */
+/* Bottom-anchor the thread (Slack-style): messages grow up from the composer,
+   so a short thread sits just above the input instead of floating in the middle
+   of the panel; long threads scroll normally. */
 .messagesInner {
   margin-top: auto;
   display: flex;
@@ -216,17 +227,37 @@
 .channelIntro {
   padding-bottom: var(--space-2);
 }
-.introTitle {
-  display: flex;
-  align-items: center;
-  font-size: var(--text-xl);
-  font-weight: var(--weight-bold);
-  color: var(--color-text);
-}
 .introText {
-  margin-top: 2px;
   font-size: var(--text-sm);
   color: var(--color-text-muted);
+}
+.introChannel {
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+}
+/* Centered day divider ("Today" / "Yesterday" / date) between message days. */
+.dayDivider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-1) 0;
+}
+.dayDivider::before,
+.dayDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+.dayDividerLabel {
+  flex: none;
+  padding: 2px var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
 }
 .message {
   position: relative;
@@ -254,6 +285,10 @@
 .messageMain {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
 }
 .messageHead {
   display: flex;
@@ -265,11 +300,18 @@
   font-weight: var(--weight-semibold);
   color: var(--color-text);
 }
+/* Time shown as a small chip next to the author. */
 .messageTime {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
   font-size: var(--text-xs);
-  color: var(--color-text-placeholder);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
 }
 .messageBody {
+  max-width: min(560px, 82%);
   font-size: var(--text-md);
   color: var(--color-text);
   white-space: pre-wrap;
@@ -277,7 +319,34 @@
 }
 .messageCont {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
   padding-left: calc(34px + var(--space-2));
+}
+
+/* ------------------------------ Mine (right) ---------------------------- */
+.message.mine {
+  flex-direction: row-reverse;
+}
+.mine .messageMain {
+  align-items: flex-end;
+}
+.mine .messageHead {
+  flex-direction: row-reverse;
+}
+.mine .messageBody {
+  text-align: right;
+}
+.messageCont.mine {
+  align-items: flex-end;
+  padding-left: 0;
+  padding-right: calc(34px + var(--space-2));
+}
+.mine .msgDelete {
+  right: auto;
+  left: 0;
 }
 
 /* --------------------------- Shared attachments -------------------------- */
@@ -379,16 +448,21 @@
   display: flex;
   align-items: flex-end;
   gap: var(--space-1);
-  padding: 5px 5px 5px var(--space-3);
+  padding: 5px 5px 5px var(--space-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  background: var(--color-surface-sunken);
   transition:
     border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out);
+}
+.composerBox:hover {
+  border-color: var(--color-border-strong);
 }
 .composerBox:focus-within {
   border-color: var(--color-border-focus);
+  background: var(--color-surface);
   box-shadow: var(--shadow-focus);
 }
 .composerInput {

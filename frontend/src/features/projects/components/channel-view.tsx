@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   CHANNEL_VISIBILITY_LABELS,
   type Channel,
@@ -12,7 +12,8 @@ import { usePermissions } from '@/features/auth/use-permissions';
 import { discussionsApi } from '../discussions.api';
 import { useChannelMessages } from '../use-discussions';
 import { useProject } from '../use-projects';
-import { formatDateTime } from '../task-utils';
+import { cx } from '@/lib/cx';
+import { dayKey, formatDayLabel, formatTime } from '../task-utils';
 import {
   ChannelMembersDialog,
   type ChannelCandidate,
@@ -181,23 +182,35 @@ export function ChannelView({
               </button>
             ) : (
               <div className={styles.channelIntro}>
-                <p className={styles.introTitle}>
-                  <span className={styles.channelHash}>#</span>
-                  {channel.name}
-                </p>
                 <p className={styles.introText}>
-                  This is the beginning of the #{channel.name} channel.
+                  This is the beginning of the{' '}
+                  <span className={styles.introChannel}>#{channel.name}</span>{' '}
+                  channel.
                 </p>
               </div>
             )}
             {messages.map((m, i) => {
               const prev = messages[i - 1];
+              // A new calendar day always starts a fresh block (with a divider
+              // and the author's avatar), never a grouped continuation.
+              const newDay =
+                !prev || dayKey(m.createdAt) !== dayKey(prev.createdAt);
               const grouped =
+                !newDay &&
                 prev &&
                 prev.author === m.author &&
                 new Date(m.createdAt).getTime() -
                   new Date(prev.createdAt).getTime() <
                   GROUP_WINDOW_MS;
+              const dayDivider = newDay ? (
+                <div className={styles.dayDivider}>
+                  <span className={styles.dayDividerLabel}>
+                    {formatDayLabel(m.createdAt)}
+                  </span>
+                </div>
+              ) : null;
+              // My own messages align right (messenger-style); everyone else left.
+              const isMine = !!m.authorEmail && !!email && m.authorEmail === email;
               const deletable = canDeleteMessage(m.authorEmail);
               const deleteBtn = deletable ? (
                 <span className={styles.msgDelete}>
@@ -218,23 +231,22 @@ export function ChannelView({
                   onOpenFeature={(feature) => setDetailFeatureId(feature.id)}
                 />
               ) : null;
-              if (grouped) {
-                return (
-                  <div key={m.id} className={styles.messageCont}>
-                    {m.body && <p className={styles.messageBody}>{m.body}</p>}
-                    {attachmentCard}
-                    {deleteBtn}
-                  </div>
-                );
-              }
-              return (
-                <div key={m.id} className={styles.message}>
+              const content = grouped ? (
+                <div className={cx(styles.messageCont, isMine && styles.mine)}>
+                  {m.body && <p className={styles.messageBody}>{m.body}</p>}
+                  {attachmentCard}
+                  {deleteBtn}
+                </div>
+              ) : (
+                <div className={cx(styles.message, isMine && styles.mine)}>
                   <UserAvatar name={m.author} seed={m.author} size={34} />
                   <div className={styles.messageMain}>
                     <div className={styles.messageHead}>
-                      <span className={styles.messageAuthor}>{m.author}</span>
+                      {!isMine && (
+                        <span className={styles.messageAuthor}>{m.author}</span>
+                      )}
                       <span className={styles.messageTime}>
-                        {formatDateTime(m.createdAt)}
+                        {formatTime(m.createdAt)}
                       </span>
                     </div>
                     {m.body && <p className={styles.messageBody}>{m.body}</p>}
@@ -242,6 +254,12 @@ export function ChannelView({
                   </div>
                   {deleteBtn}
                 </div>
+              );
+              return (
+                <Fragment key={m.id}>
+                  {dayDivider}
+                  {content}
+                </Fragment>
               );
             })}
           </div>

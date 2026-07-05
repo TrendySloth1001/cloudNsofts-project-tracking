@@ -57,6 +57,8 @@
   align-items: flex-start;
   gap: var(--space-4);
   min-width: 0;
+  /* Grow equally with .headActions so the tab strip stays centered between the
+     title block and the right-hand actions. */
   flex: 1;
 }
 .headTabs {

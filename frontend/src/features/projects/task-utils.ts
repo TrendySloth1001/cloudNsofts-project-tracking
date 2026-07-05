@@ -97,6 +97,50 @@ export function formatDateTime(iso: string): string {
   return Number.isNaN(date.getTime()) ? '' : dateTimeFormatter.format(date);
 }
 
+const timeFormatter = new Intl.DateTimeFormat('en-US', {
+  hour: 'numeric',
+  minute: '2-digit',
+});
+
+/** Time-only stamp ("6:36 PM") — the day is carried by the message divider. */
+export function formatTime(iso: string): string {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? '' : timeFormatter.format(date);
+}
+
+/** Local YYYY-MM-DD key for a Date — used to detect calendar-day boundaries. */
+function localDayKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/** Calendar-day key for a timestamp (empty for an invalid date). */
+export function dayKey(iso: string): string {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? '' : localDayKey(date);
+}
+
+const dayLabelFormatter = new Intl.DateTimeFormat('en-US', {
+  weekday: 'long',
+  month: 'long',
+  day: 'numeric',
+});
+
+/** Day-divider label: "Today" / "Yesterday" / "Friday, July 4". */
+export function formatDayLabel(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const key = localDayKey(date);
+  if (key === localDayKey(today)) return 'Today';
+  if (key === localDayKey(yesterday)) return 'Yesterday';
+  return dayLabelFormatter.format(date);
+}
+
 /** True when a date is before today (used to flag overdue tasks/milestones). */
 export function isOverdue(iso: string | null): boolean {
   if (!iso) return false;

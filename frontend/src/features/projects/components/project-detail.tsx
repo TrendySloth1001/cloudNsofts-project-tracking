@@ -3,7 +3,15 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Button, Icon, IconButton, Spinner, Tabs, useConfirm } from '@/components/ui';
+import {
+  Button,
+  Icon,
+  IconButton,
+  Menu,
+  Spinner,
+  Tabs,
+  useConfirm,
+} from '@/components/ui';
 import { cx } from '@/lib/cx';
 import { useProjectPermissions } from '@/features/auth/use-project-permissions';
 import { useProject } from '../use-projects';
@@ -149,9 +157,24 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             </Button>
           )}
           {perms.canDeleteProject && (
-            <Button variant="outline" leftIcon="delete" onClick={deleteProject}>
-              Delete
-            </Button>
+            <Menu
+              align="end"
+              trigger={
+                <IconButton
+                  icon="moreVertical"
+                  label="Project actions"
+                  variant="outline"
+                />
+              }
+              items={[
+                {
+                  label: 'Delete project',
+                  icon: 'delete',
+                  danger: true,
+                  onSelect: deleteProject,
+                },
+              ]}
+            />
           )}
         </div>
       </div>
