@@ -23,8 +23,10 @@ export function requireAuth(
   if (authService.isApiToken(token)) {
     authService
       .verifyApiToken(token)
-      .then((user) => {
+      .then(({ user, tokenName }) => {
         req.authUser = user;
+        // Attribute agent-performed writes to the token's name ("via <agent>").
+        req.agentName = tokenName;
         next();
       })
       .catch(next);

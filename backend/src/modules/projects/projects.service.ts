@@ -26,6 +26,10 @@ import { projectScopeWhere } from '../auth/access';
 import { notificationsService } from '../notifications/notifications.service';
 import { toProjectDto } from './projects.mapper';
 
+/** Most recent task-events loaded per task in a project read (older history is
+ *  not sent in the board payload). */
+const EVENT_PAGE_SIZE = 100;
+
 const include = {
   clients: { orderBy: { createdAt: 'asc' } },
   members: { orderBy: { createdAt: 'asc' } },
@@ -38,7 +42,9 @@ const include = {
     orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
     include: {
       subtasks: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] },
-      events: { orderBy: { createdAt: 'asc' } },
+      // Cap the activity/comment history loaded per task (it's an append-only
+      // log). Fetch the most recent page; the mapper reverses to ascending.
+      events: { orderBy: { createdAt: 'desc' }, take: EVENT_PAGE_SIZE },
       assignees: { orderBy: { createdAt: 'asc' } },
     },
   },
@@ -81,17 +87,21 @@ async function projectMemberIds(
   return ids.filter((id) => valid.has(id));
 }
 
-/** Record a status-change entry in a task's activity thread. */
+/** Record a status-change entry in a task's activity thread. Accepts a Prisma
+ *  transaction client so it can join an enclosing atomic write. */
 async function logStatusChange(
   taskId: string,
   actor: string,
   status: TaskStatus,
+  agentName: string | null = null,
+  db: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  await prisma.taskEvent.create({
+  await db.taskEvent.create({
     data: {
       taskId,
       kind: 'activity',
       author: actor,
+      agentName,
       body: `moved this to ${TASK_STATUS_LABELS[status]}`,
     },
   });
@@ -146,7 +156,7 @@ export const projectsService = {
       },
     });
     const project = await load(projectId);
-    await notificationsService.notify({
+    void notificationsService.notify({
       kind: 'member_added',
       title: 'Client added',
       body: `${input.name} was added to ${project.name}`,
@@ -171,7 +181,7 @@ export const projectsService = {
       },
     });
     const project = await load(projectId);
-    await notificationsService.notify({
+    void notificationsService.notify({
       kind: 'member_added',
       title: 'Team member added',
       body: `${input.name} joined ${project.name}`,
@@ -227,28 +237,45 @@ export const projectsService = {
     input: UpdateFeatureInput,
   ): Promise<Project> {
     // Owners are join rows, not a scalar — split them out of the patch.
-    const { ownerIds, ...scalars } = input;
-    const exists = await prisma.feature.count({
+    const { ownerIds, expectedUpdatedAt, ...scalars } = input;
+    const existing = await prisma.feature.findFirst({
       where: { id: featureId, projectId },
+      select: { updatedAt: true },
     });
-    if (exists === 0) throw HttpError.notFound('Feature not found');
-    // `updateMany` with an empty data object matches nothing — skip it when
-    // the patch was owners-only.
-    if (Object.keys(scalars).length > 0) {
-      await prisma.feature.updateMany({
-        where: { id: featureId, projectId },
-        data: scalars,
-      });
+    if (!existing) throw HttpError.notFound('Feature not found');
+    // Optimistic concurrency: reject if the feature changed since the read.
+    if (
+      expectedUpdatedAt &&
+      existing.updatedAt.toISOString() !== expectedUpdatedAt
+    ) {
+      throw HttpError.conflict(
+        'Feature was modified since you last read it — re-read and retry',
+      );
     }
-    if (ownerIds !== undefined) {
-      const valid = await projectMemberIds(projectId, ownerIds);
-      await prisma.$transaction([
-        prisma.featureOwner.deleteMany({ where: { featureId } }),
-        prisma.featureOwner.createMany({
-          data: valid.map((memberId) => ({ featureId, memberId })),
-        }),
-      ]);
-    }
+    const validOwners =
+      ownerIds === undefined
+        ? null
+        : await projectMemberIds(projectId, ownerIds);
+
+    // One atomic write: scalar update + owner replacement.
+    await prisma.$transaction(async (tx) => {
+      // `updateMany` with an empty data object matches nothing — skip it when
+      // the patch was owners-only.
+      if (Object.keys(scalars).length > 0) {
+        await tx.feature.updateMany({
+          where: { id: featureId, projectId },
+          data: scalars,
+        });
+      }
+      if (validOwners !== null) {
+        await tx.featureOwner.deleteMany({ where: { featureId } });
+        if (validOwners.length > 0) {
+          await tx.featureOwner.createMany({
+            data: validOwners.map((memberId) => ({ featureId, memberId })),
+          });
+        }
+      }
+    });
     return load(projectId);
   },
   async removeFeature(projectId: string, featureId: string): Promise<Project> {
@@ -296,7 +323,7 @@ export const projectsService = {
       },
     });
     const project = await load(projectId);
-    await notificationsService.notify({
+    void notificationsService.notify({
       kind: 'task_created',
       title: 'New task',
       body: `“${input.title}” added to ${project.name}`,
@@ -321,15 +348,18 @@ export const projectsService = {
     const movedIds = current
       .filter((t) => t.status !== input.status)
       .map((t) => t.id);
-    await prisma.$transaction(
-      input.orderedIds.map((taskId, index) =>
-        prisma.task.updateMany({
+    // One atomic write: all repositions + the activity entries for moved tasks.
+    await prisma.$transaction(async (tx) => {
+      for (const [index, taskId] of input.orderedIds.entries()) {
+        await tx.task.updateMany({
           where: { id: taskId, projectId },
           data: { status: input.status, position: index },
-        }),
-      ),
-    );
-    for (const id of movedIds) await logStatusChange(id, actor, input.status);
+        });
+      }
+      for (const id of movedIds) {
+        await logStatusChange(id, actor, input.status, null, tx);
+      }
+    });
     return load(projectId);
   },
   async updateTask(
@@ -337,33 +367,54 @@ export const projectsService = {
     taskId: string,
     patch: UpdateTaskInput,
     actor: string,
+    agentName: string | null = null,
   ): Promise<Project> {
     const existing = await prisma.task.findFirst({
       where: { id: taskId, projectId },
     });
     if (!existing) throw HttpError.notFound('Task not found');
     // Assignees are join rows, not a scalar — split them out of the patch.
-    const { assigneeIds, ...scalars } = patch;
-    await prisma.task.update({ where: { id: taskId }, data: scalars });
-    if (assigneeIds !== undefined) {
-      const valid = await projectMemberIds(projectId, assigneeIds);
-      await prisma.$transaction([
-        prisma.taskAssignee.deleteMany({ where: { taskId } }),
-        prisma.taskAssignee.createMany({
-          data: valid.map((memberId) => ({ taskId, memberId })),
-        }),
-      ]);
+    const { assigneeIds, expectedUpdatedAt, ...scalars } = patch;
+    // Optimistic concurrency: reject if the task changed since the caller read it.
+    if (
+      expectedUpdatedAt &&
+      existing.updatedAt.toISOString() !== expectedUpdatedAt
+    ) {
+      throw HttpError.conflict(
+        'Task was modified since you last read it — re-read and retry',
+      );
     }
-    if (patch.status && patch.status !== existing.status) {
-      await logStatusChange(taskId, actor, patch.status);
-      if (patch.status === 'done') {
-        await notificationsService.notify({
-          kind: 'task_completed',
-          title: 'Task completed',
-          body: `“${existing.title}” was marked done`,
-          projectId,
-        });
+    // Resolve/scope assignee ids before opening the transaction (a read).
+    const validAssignees =
+      assigneeIds === undefined
+        ? null
+        : await projectMemberIds(projectId, assigneeIds);
+    const statusChanged =
+      patch.status !== undefined && patch.status !== existing.status;
+
+    // One atomic write: scalar update + assignee replacement + status event.
+    await prisma.$transaction(async (tx) => {
+      await tx.task.update({ where: { id: taskId }, data: scalars });
+      if (validAssignees !== null) {
+        await tx.taskAssignee.deleteMany({ where: { taskId } });
+        if (validAssignees.length > 0) {
+          await tx.taskAssignee.createMany({
+            data: validAssignees.map((memberId) => ({ taskId, memberId })),
+          });
+        }
       }
+      if (statusChanged && patch.status) {
+        await logStatusChange(taskId, actor, patch.status, agentName, tx);
+      }
+    });
+
+    if (statusChanged && patch.status === 'done') {
+      void notificationsService.notify({
+        kind: 'task_completed',
+        title: 'Task completed',
+        body: `“${existing.title}” was marked done`,
+        projectId,
+      });
     }
     return load(projectId);
   },
@@ -422,16 +473,17 @@ export const projectsService = {
     taskId: string,
     author: string,
     input: CreateCommentInput,
+    agentName: string | null = null,
   ): Promise<Project> {
     await ensureTask(projectId, taskId);
     await prisma.taskEvent.create({
-      data: { taskId, kind: 'comment', author, body: input.body },
+      data: { taskId, kind: 'comment', author, agentName, body: input.body },
     });
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       select: { title: true },
     });
-    await notificationsService.notify({
+    void notificationsService.notify({
       kind: 'comment_added',
       title: 'New comment',
       body: `${author} commented on “${task?.title ?? 'a task'}”`,

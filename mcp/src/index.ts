@@ -4,6 +4,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import {
   apiPaths,
+  createChannelSchema,
   createCommentSchema,
   createFeatureSchema,
   createSubtaskSchema,
@@ -12,6 +13,9 @@ import {
   taskStatusSchema,
   updateFeatureSchema,
   updateTaskSchema,
+  type Feature,
+  type Project,
+  type Task,
 } from '@cnsofts/shared';
 import { api } from './client.js';
 import { config } from './config.js';
@@ -34,10 +38,68 @@ async function run(work: () => Promise<unknown>): Promise<ToolResult> {
   }
 }
 
+/* ---- Lean projections: the API returns the full project (with all event
+   history) on every write; agents only need the shape below, which keeps tool
+   output small and cheap. Use get_task for a single task's full detail. ---- */
+
+function compactTask(t: Task) {
+  return {
+    id: t.id,
+    title: t.title,
+    status: t.status,
+    priority: t.priority,
+    featureId: t.featureId,
+    assigneeIds: t.assigneeIds,
+    dueDate: t.dueDate,
+    subtaskCount: t.subtasks.length,
+    doneSubtasks: t.subtasks.filter((s) => s.done).length,
+    commentCount: t.events.filter((e) => e.kind === 'comment').length,
+    // For optimistic concurrency: pass this back as expectedUpdatedAt on update.
+    updatedAt: t.updatedAt,
+  };
+}
+
+function compactProject(p: Project) {
+  return {
+    id: p.id,
+    name: p.name,
+    status: p.status,
+    members: p.members.map((m) => ({ id: m.id, name: m.name, role: m.role })),
+    features: p.features.map((f) => ({
+      id: f.id,
+      name: f.name,
+      status: f.status,
+      pinned: f.pinned,
+      ownerIds: f.ownerIds,
+      targetDate: f.targetDate,
+      taskCount: p.tasks.filter((t) => t.featureId === f.id).length,
+      updatedAt: f.updatedAt,
+    })),
+    tasks: p.tasks.map(compactTask),
+  };
+}
+
+function findTask(p: Project, taskId: string): Task {
+  const t = p.tasks.find((x) => x.id === taskId);
+  if (!t) throw new Error(`Task ${taskId} not found in project`);
+  return t;
+}
+
+function findFeature(p: Project, featureId: string): Feature {
+  const f = p.features.find((x) => x.id === featureId);
+  if (!f) throw new Error(`Feature ${featureId} not found in project`);
+  return f;
+}
+
+/** Run a project-returning write and reply with the compact board. */
+const runBoard = (work: () => Promise<Project>): Promise<ToolResult> =>
+  run(async () => compactProject(await work()));
+
 const projectId = z.string().min(1).describe('The project id');
 const taskId = z.string().min(1).describe('The task id');
 const featureId = z.string().min(1).describe('The feature id');
 const channelId = z.string().min(1).describe('The channel id');
+const subtaskId = z.string().min(1).describe('The subtask id');
 
 const server = new McpServer(
   { name: 'cnsofts', version: '0.1.0' },
@@ -76,10 +138,52 @@ server.registerTool(
   {
     title: 'Get project',
     description:
-      'Full project detail: features (swimlanes), tasks, channels, members and clients. Use this to find the ids needed by the write tools.',
+      'Project board: features (swimlanes) and a compact list of tasks, plus members. Use this to find the ids the write tools need. For one task’s full detail (subtasks, comments, activity) use get_task.',
     inputSchema: { projectId },
   },
-  ({ projectId }) => run(() => api.get(apiPaths.projects.detail(projectId))),
+  ({ projectId }) =>
+    run(async () =>
+      compactProject(await api.get<Project>(apiPaths.projects.detail(projectId))),
+    ),
+);
+
+server.registerTool(
+  'get_task',
+  {
+    title: 'Get task',
+    description:
+      "One task's full detail: description, subtasks (with ids), and the comment/activity thread.",
+    inputSchema: { projectId, taskId },
+  },
+  ({ projectId, taskId }) =>
+    run(async () =>
+      findTask(await api.get<Project>(apiPaths.projects.detail(projectId)), taskId),
+    ),
+);
+
+server.registerTool(
+  'list_tasks',
+  {
+    title: 'List tasks',
+    description:
+      'List a project’s tasks (compact), optionally filtered by status, feature, or assignee (member id).',
+    inputSchema: {
+      projectId,
+      status: taskStatusSchema.optional(),
+      featureId: z.string().optional().describe('Filter to one feature'),
+      assigneeId: z.string().optional().describe('Filter to one member id'),
+    },
+  },
+  ({ projectId, status, featureId, assigneeId }) =>
+    run(async () => {
+      const p = await api.get<Project>(apiPaths.projects.detail(projectId));
+      let tasks = p.tasks;
+      if (status) tasks = tasks.filter((t) => t.status === status);
+      if (featureId) tasks = tasks.filter((t) => t.featureId === featureId);
+      if (assigneeId)
+        tasks = tasks.filter((t) => t.assigneeIds.includes(assigneeId));
+      return tasks.map(compactTask);
+    }),
 );
 
 server.registerTool(
@@ -90,6 +194,20 @@ server.registerTool(
     inputSchema: { projectId },
   },
   ({ projectId }) => run(() => api.get(apiPaths.projects.channels(projectId))),
+);
+
+server.registerTool(
+  'read_channel',
+  {
+    title: 'Read channel messages',
+    description:
+      'Read recent messages in a discussion channel (call list_channels first for the channelId). Use this to catch up on a conversation before replying.',
+    inputSchema: { projectId, channelId },
+  },
+  ({ projectId, channelId }) =>
+    run(() =>
+      api.get(apiPaths.projects.channelMessages(projectId, channelId)),
+    ),
 );
 
 /* -------------------------------- Writes -------------------------------- */
@@ -103,7 +221,7 @@ if (!config.readOnly) {
       inputSchema: { projectId, ...createFeatureSchema.shape },
     },
     ({ projectId, ...body }) =>
-      run(() => api.post(apiPaths.projects.features(projectId), body)),
+      runBoard(() => api.post<Project>(apiPaths.projects.features(projectId), body)),
   );
 
   server.registerTool(
@@ -115,7 +233,15 @@ if (!config.readOnly) {
       inputSchema: { projectId, featureId, ...updateFeatureSchema.shape },
     },
     ({ projectId, featureId, ...body }) =>
-      run(() => api.patch(apiPaths.projects.feature(projectId, featureId), body)),
+      run(async () =>
+        findFeature(
+          await api.patch<Project>(
+            apiPaths.projects.feature(projectId, featureId),
+            body,
+          ),
+          featureId,
+        ),
+      ),
   );
 
   server.registerTool(
@@ -130,8 +256,10 @@ if (!config.readOnly) {
       },
     },
     ({ projectId, orderedIds }) =>
-      run(() =>
-        api.post(apiPaths.projects.featuresReorder(projectId), { orderedIds }),
+      runBoard(() =>
+        api.post<Project>(apiPaths.projects.featuresReorder(projectId), {
+          orderedIds,
+        }),
       ),
   );
 
@@ -144,7 +272,7 @@ if (!config.readOnly) {
       inputSchema: { projectId, ...createTaskSchema.shape },
     },
     ({ projectId, ...body }) =>
-      run(() => api.post(apiPaths.projects.tasks(projectId), body)),
+      runBoard(() => api.post<Project>(apiPaths.projects.tasks(projectId), body)),
   );
 
   server.registerTool(
@@ -156,7 +284,12 @@ if (!config.readOnly) {
       inputSchema: { projectId, taskId, ...updateTaskSchema.shape },
     },
     ({ projectId, taskId, ...body }) =>
-      run(() => api.patch(apiPaths.projects.task(projectId, taskId), body)),
+      run(async () =>
+        findTask(
+          await api.patch<Project>(apiPaths.projects.task(projectId, taskId), body),
+          taskId,
+        ),
+      ),
   );
 
   server.registerTool(
@@ -167,7 +300,14 @@ if (!config.readOnly) {
       inputSchema: { projectId, taskId, status: taskStatusSchema },
     },
     ({ projectId, taskId, status }) =>
-      run(() => api.patch(apiPaths.projects.task(projectId, taskId), { status })),
+      run(async () =>
+        findTask(
+          await api.patch<Project>(apiPaths.projects.task(projectId, taskId), {
+            status,
+          }),
+          taskId,
+        ),
+      ),
   );
 
   server.registerTool(
@@ -185,8 +325,13 @@ if (!config.readOnly) {
       },
     },
     ({ projectId, taskId, assigneeIds }) =>
-      run(() =>
-        api.patch(apiPaths.projects.task(projectId, taskId), { assigneeIds }),
+      run(async () =>
+        findTask(
+          await api.patch<Project>(apiPaths.projects.task(projectId, taskId), {
+            assigneeIds,
+          }),
+          taskId,
+        ),
       ),
   );
 
@@ -198,7 +343,53 @@ if (!config.readOnly) {
       inputSchema: { projectId, taskId, ...createSubtaskSchema.shape },
     },
     ({ projectId, taskId, ...body }) =>
-      run(() => api.post(apiPaths.projects.subtasks(projectId, taskId), body)),
+      run(async () =>
+        findTask(
+          await api.post<Project>(
+            apiPaths.projects.subtasks(projectId, taskId),
+            body,
+          ),
+          taskId,
+        ),
+      ),
+  );
+
+  server.registerTool(
+    'toggle_subtask',
+    {
+      title: 'Update subtask',
+      description:
+        'Check off (or rename) a checklist subtask. Get the subtaskId from get_project (task.subtasks). Pass done and/or title.',
+      inputSchema: {
+        projectId,
+        taskId,
+        subtaskId,
+        done: z.boolean().optional().describe('Mark done/undone'),
+        title: z.string().min(1).max(200).optional().describe('Rename it'),
+      },
+    },
+    ({ projectId, taskId, subtaskId, ...body }) =>
+      run(async () =>
+        findTask(
+          await api.patch<Project>(
+            apiPaths.projects.subtask(projectId, taskId, subtaskId),
+            body,
+          ),
+          taskId,
+        ),
+      ),
+  );
+
+  server.registerTool(
+    'create_channel',
+    {
+      title: 'Create channel',
+      description:
+        'Create a discussion channel. visibility "internal" = team-only, "client" = shared with clients.',
+      inputSchema: { projectId, ...createChannelSchema.shape },
+    },
+    ({ projectId, ...body }) =>
+      run(() => api.post(apiPaths.projects.channels(projectId), body)),
   );
 
   server.registerTool(
@@ -209,7 +400,15 @@ if (!config.readOnly) {
       inputSchema: { projectId, taskId, ...createCommentSchema.shape },
     },
     ({ projectId, taskId, ...body }) =>
-      run(() => api.post(apiPaths.projects.comments(projectId, taskId), body)),
+      run(async () =>
+        findTask(
+          await api.post<Project>(
+            apiPaths.projects.comments(projectId, taskId),
+            body,
+          ),
+          taskId,
+        ),
+      ),
   );
 
   server.registerTool(

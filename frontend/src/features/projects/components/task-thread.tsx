@@ -53,6 +53,12 @@ export function TaskThread({
               <div className={styles.commentBody}>
                 <div className={styles.commentHead}>
                   <span className={styles.commentAuthor}>{ev.author}</span>
+                  {ev.agentName && (
+                    <span className={styles.viaAgent}>
+                      <Icon name="ai" size={10} />
+                      {ev.agentName}
+                    </span>
+                  )}
                   <span className={styles.eventTime}>
                     {formatDateTime(ev.createdAt)}
                   </span>
@@ -65,6 +71,12 @@ export function TaskThread({
               <Icon name="clock" size={13} tone="neutral" />
               <span className={styles.activityText}>
                 <strong>{ev.author}</strong> {ev.body}
+                {ev.agentName && (
+                  <span className={styles.viaAgent}>
+                    <Icon name="ai" size={10} />
+                    {ev.agentName}
+                  </span>
+                )}
               </span>
               <span className={styles.eventTime}>
                 {formatDateTime(ev.createdAt)}

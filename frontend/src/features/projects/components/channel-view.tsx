@@ -245,6 +245,12 @@ export function ChannelView({
                       {!isMine && (
                         <span className={styles.messageAuthor}>{m.author}</span>
                       )}
+                      {m.agentName && (
+                        <span className={styles.viaAgent}>
+                          <Icon name="ai" size={10} />
+                          {m.agentName}
+                        </span>
+                      )}
                       <span className={styles.messageTime}>
                         {formatTime(m.createdAt)}
                       </span>

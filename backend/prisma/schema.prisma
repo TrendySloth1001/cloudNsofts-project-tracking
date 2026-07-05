@@ -111,6 +111,8 @@ model ProjectClient {
   company   String?
   createdAt DateTime @default(now())
 
+  @@index([email])
+  @@index([projectId, email])
   @@map("project_clients")
 }
 
@@ -125,6 +127,8 @@ model ProjectMember {
   featureOwnerships  FeatureOwner[]
   createdAt DateTime   @default(now())
 
+  @@index([email])
+  @@index([projectId, email])
   @@map("project_members")
 }
 
@@ -151,6 +155,8 @@ model Task {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
+  @@index([projectId])
+  @@index([featureId])
   @@map("tasks")
 }
 
@@ -177,6 +183,7 @@ model Subtask {
   position  Int      @default(0)
   createdAt DateTime @default(now())
 
+  @@index([taskId])
   @@map("subtasks")
 }
 
@@ -191,9 +198,12 @@ model TaskEvent {
   taskId    String
   kind      TaskEventKind @default(comment)
   author    String
+  // Name of the coding agent (PAT) that performed this, when done via an agent.
+  agentName String?
   body      String
   createdAt DateTime      @default(now())
 
+  @@index([taskId, createdAt])
   @@map("task_events")
 }
 
@@ -207,6 +217,7 @@ model Milestone {
   done      Boolean  @default(false)
   createdAt DateTime @default(now())
 
+  @@index([projectId])
   @@map("milestones")
 }
 
@@ -238,6 +249,7 @@ model Feature {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
+  @@index([projectId])
   @@map("features")
 }
 
@@ -272,6 +284,7 @@ model Channel {
   members     ChannelMember[]
   createdAt   DateTime          @default(now())
 
+  @@index([projectId])
   @@map("channels")
 }
 
@@ -283,6 +296,8 @@ model Message {
   // Stable author identity (login email) for "delete own message"; null on
   // messages that predate this column.
   authorEmail String?
+  // Name of the coding agent (PAT) that posted this, when posted via an agent.
+  agentName   String?
   body        String
   // Optional shared task/feature (at most one set). SetNull so deleting the
   // target keeps the message; the card renders a "no longer available" state.

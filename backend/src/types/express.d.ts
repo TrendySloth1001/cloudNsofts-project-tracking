@@ -8,6 +8,8 @@ declare global {
       authUser?: AuthUser;
       // Set by `requireProjectAccess` for routes under `/projects/:id`.
       projectRole?: ProjectRole;
+      // Name of the coding agent (PAT) when the request is agent-authenticated.
+      agentName?: string;
     }
   }
 }

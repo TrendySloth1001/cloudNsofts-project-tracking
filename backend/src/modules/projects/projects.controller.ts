@@ -119,6 +119,7 @@ export const projectsController = {
         req.params.taskId,
         input,
         actorName(req),
+        req.agentName ?? null,
       ),
     );
   }),
@@ -173,6 +174,7 @@ export const projectsController = {
           req.params.taskId,
           actorName(req),
           input,
+          req.agentName ?? null,
         ),
       );
   }),

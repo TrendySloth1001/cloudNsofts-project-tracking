@@ -20,6 +20,15 @@ const envSchema = z.object({
   // Secret used to sign auth tokens. Override with a strong value in production.
   AUTH_SECRET: z.string().min(16).default('dev-insecure-secret-change-me!!'),
   AUTH_TOKEN_TTL: z.string().default('7d'),
+
+  // Optional Redis URL. When set, Socket.IO uses the Redis adapter so realtime
+  // fans out across multiple backend instances (horizontal scale). Unset =
+  // single-node in-memory fanout.
+  REDIS_URL: z.string().url().optional(),
+
+  // Per-token (or per-IP) API rate limit.
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
 });
 
 const parsed = envSchema.safeParse(process.env);

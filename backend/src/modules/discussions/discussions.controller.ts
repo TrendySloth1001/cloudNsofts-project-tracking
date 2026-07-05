@@ -89,6 +89,7 @@ export const discussionsController = {
           req.params.channelId,
           requireUser(req),
           input,
+          req.agentName ?? null,
         ),
       );
   }),

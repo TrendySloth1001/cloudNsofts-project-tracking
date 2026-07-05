@@ -66,6 +66,7 @@ function toTaskEvent(e: TaskEventRow): TaskEvent {
     id: e.id,
     kind: e.kind,
     author: e.author,
+    agentName: e.agentName ?? null,
     body: e.body,
     createdAt: e.createdAt.toISOString(),
   };
@@ -82,7 +83,8 @@ function toTask(t: TaskRow): Task {
     featureId: t.featureId,
     dueDate: t.dueDate,
     subtasks: t.subtasks.map(toSubtask),
-    events: t.events.map(toTaskEvent),
+    // Loaded newest-first (capped page); show oldest-first in the thread.
+    events: [...t.events].reverse().map(toTaskEvent),
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
   };

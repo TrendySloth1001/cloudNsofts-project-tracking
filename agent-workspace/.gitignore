@@ -1,0 +1,3 @@
+# Local config holds a real access token — never commit it.
+# Copy .mcp.json.example → .mcp.json and fill in your token.
+.mcp.json

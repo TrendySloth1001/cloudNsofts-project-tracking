@@ -55,6 +55,7 @@ function toMessage(m: {
   id: string;
   author: string;
   authorEmail: string | null;
+  agentName: string | null;
   body: string;
   attachedTaskId: string | null;
   attachedFeatureId: string | null;
@@ -64,6 +65,7 @@ function toMessage(m: {
     id: m.id,
     author: m.author,
     authorEmail: m.authorEmail,
+    agentName: m.agentName ?? null,
     body: m.body,
     attachment: m.attachedTaskId
       ? { kind: 'task', id: m.attachedTaskId }
@@ -237,6 +239,7 @@ export const discussionsService = {
     channelId: string,
     user: AuthUser,
     input: PostMessageInput,
+    agentName: string | null = null,
   ): Promise<Message> {
     await ensureChannelAccess(projectId, channelId, user);
 
@@ -261,6 +264,7 @@ export const discussionsService = {
         channelId,
         author: user.name,
         authorEmail: user.email,
+        agentName,
         body: input.body,
         attachedTaskId:
           attachment?.kind === 'task' ? attachment.id : null,
@@ -279,11 +283,12 @@ export const discussionsService = {
           taskId: attachment.id,
           kind: 'activity',
           author: user.name,
+          agentName,
           body: `shared this in #${channel?.name ?? 'a channel'}`,
         },
       });
     }
-    await notificationsService.notify({
+    void notificationsService.notify({
       kind: 'message_posted',
       title: 'New message',
       body: `${user.name} posted in #${channel?.name ?? 'a channel'}`,

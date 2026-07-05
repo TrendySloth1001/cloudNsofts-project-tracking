@@ -1,5 +1,6 @@
 import type { Server as HttpServer } from 'node:http';
 import { Server as SocketIOServer, type Socket } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
 import {
   WS_EVENTS,
   channelRoomSchema,
@@ -11,6 +12,7 @@ import {
 } from '@cnsofts/shared';
 import { env } from './env';
 import { prisma } from './prisma';
+import { createRedis } from './redis';
 import { authService } from '../modules/auth/auth.service';
 import { canAccessProject } from '../modules/auth/access';
 
@@ -30,6 +32,15 @@ export function initRealtime(httpServer: HttpServer): SocketIOServer {
     // WebSocket-only: skip the HTTP long-poll handshake (no sticky sessions).
     transports: ['websocket'],
   });
+
+  // With REDIS_URL set, fan events out across instances via the Redis adapter,
+  // so a message emitted on one backend reaches sockets held by another. Unset
+  // = single-node in-memory fanout (fine for one instance).
+  if (env.REDIS_URL) {
+    const pubClient = createRedis();
+    const subClient = pubClient.duplicate();
+    io.adapter(createAdapter(pubClient, subClient));
+  }
 
   // Reject any socket without a valid bearer token in the connect handshake.
   io.use((socket, next) => {

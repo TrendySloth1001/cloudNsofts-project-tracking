@@ -46,6 +46,9 @@ function safeEqual(a: string, b: string): boolean {
 /** Personal Access Tokens carry this prefix so they're told apart from JWTs. */
 const PAT_PREFIX = 'cnsofts_pat_';
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** Only refresh a token's `lastUsedAt` once per this window (keeps it off the
+ *  per-request write path). */
+const LASTUSED_THROTTLE_MS = 5 * 60 * 1000;
 
 /** sha-256 hex of a token — only this is stored (the plaintext is shown once). */
 function hashToken(raw: string): string {
@@ -192,8 +195,11 @@ export const authService = {
     });
   },
 
-  /** Verify a PAT against the DB and reconstruct the acting principal. */
-  async verifyApiToken(raw: string): Promise<AuthUser> {
+  /** Verify a PAT against the DB and reconstruct the acting principal. Also
+   *  returns the token's name so actions can be attributed to the agent. */
+  async verifyApiToken(
+    raw: string,
+  ): Promise<{ user: AuthUser; tokenName: string }> {
     const row = await prisma.apiToken.findUnique({
       where: { tokenHash: hashToken(raw) },
     });
@@ -206,10 +212,17 @@ export const authService = {
     }
     const principal = await principalFromId(row.userId);
     if (!principal) throw HttpError.unauthorized('Invalid or expired token');
-    // Best-effort last-used stamp; never block the request on it.
-    void prisma.apiToken
-      .update({ where: { id: row.id }, data: { lastUsedAt: new Date() } })
-      .catch(() => undefined);
-    return principal;
+    // Stamp last-used at most once per throttle window — otherwise this would be
+    // a DB write on every single agent request. Best-effort, never blocking.
+    const now = Date.now();
+    if (
+      !row.lastUsedAt ||
+      now - row.lastUsedAt.getTime() > LASTUSED_THROTTLE_MS
+    ) {
+      void prisma.apiToken
+        .update({ where: { id: row.id }, data: { lastUsedAt: new Date(now) } })
+        .catch(() => undefined);
+    }
+    return { user: principal, tokenName: row.name };
   },
 };

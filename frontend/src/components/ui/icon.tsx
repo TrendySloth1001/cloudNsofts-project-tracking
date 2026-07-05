@@ -61,6 +61,11 @@ import {
   Layers01Icon,
   PinIcon,
   PinOffIcon,
+  Key01Icon,
+  Shield01Icon,
+  TerminalIcon,
+  PlugSocketIcon,
+  CodeIcon,
 } from '@hugeicons/core-free-icons';
 
 /**
@@ -129,6 +134,11 @@ export const icons = {
   layers: Layers01Icon,
   pin: PinIcon,
   pinOff: PinOffIcon,
+  key: Key01Icon,
+  shield: Shield01Icon,
+  terminal: TerminalIcon,
+  plug: PlugSocketIcon,
+  code: CodeIcon,
 } satisfies Record<string, IconSvgElement>;
 
 export type IconName = keyof typeof icons;

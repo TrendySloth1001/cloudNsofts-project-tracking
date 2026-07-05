@@ -207,6 +207,8 @@ export interface TaskEvent {
   id: string;
   kind: TaskEventKind;
   author: string;
+  /** Coding-agent name when performed via an agent (else null). */
+  agentName: string | null;
   body: string;
   createdAt: string;
 }
@@ -316,7 +318,11 @@ export const createTaskSchema = z.object({
   priority: taskPrioritySchema.default('medium'),
   assigneeIds: z.array(z.string().min(1)).default([]),
   featureId: z.string().nullable().default(null),
-  dueDate: z.string().nullable().default(null),
+  dueDate: z
+    .string()
+    .nullable()
+    .default(null)
+    .describe('Due date as YYYY-MM-DD (e.g. "2026-07-15"), or null to clear'),
 });
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 
@@ -327,14 +333,21 @@ export const createFeatureSchema = z.object({
   description: z.string().trim().max(2000).default(''),
   status: featureStatusSchema.default('planned'),
   ownerIds: z.array(z.string().min(1)).default([]),
-  targetDate: z.string().nullable().default(null),
+  targetDate: z
+    .string()
+    .nullable()
+    .default(null)
+    .describe('Target date as YYYY-MM-DD (e.g. "2026-07-15"), or null to clear'),
 });
 export type CreateFeatureInput = z.infer<typeof createFeatureSchema>;
 // `pinned` lives only on update (a quick toggle), so the create/edit form never
 // resets it.
-export const updateFeatureSchema = createFeatureSchema
-  .partial()
-  .extend({ pinned: z.boolean().optional() });
+export const updateFeatureSchema = createFeatureSchema.partial().extend({
+  pinned: z.boolean().optional(),
+  /** Optional optimistic-concurrency guard: the feature's last-known
+   *  `updatedAt`. If it no longer matches, the update is rejected (409). */
+  expectedUpdatedAt: z.string().optional(),
+});
 export type UpdateFeatureInput = z.infer<typeof updateFeatureSchema>;
 
 /** Reorder swimlanes: the full, final ordering of the project's features;
@@ -343,7 +356,12 @@ export const reorderFeaturesSchema = z.object({
   orderedIds: z.array(z.string().min(1)),
 });
 export type ReorderFeaturesInput = z.infer<typeof reorderFeaturesSchema>;
-export const updateTaskSchema = createTaskSchema.partial();
+export const updateTaskSchema = createTaskSchema.partial().extend({
+  /** Optional optimistic-concurrency guard: the task's last-known `updatedAt`.
+   *  If it no longer matches (someone else changed it), the update is
+   *  rejected with a 409 so the caller can re-read and retry. */
+  expectedUpdatedAt: z.string().optional(),
+});
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 
 /** Reorder (and optionally move) tasks within a status column. `orderedIds` is
@@ -413,6 +431,8 @@ export interface Message {
   author: string;
   /** Login email of the author (null on messages predating this field). */
   authorEmail: string | null;
+  /** Coding-agent name when posted via an agent (else null). */
+  agentName: string | null;
   body: string;
   /** Shared task/feature reference (null = plain text message). */
   attachment: MessageAttachment | null;

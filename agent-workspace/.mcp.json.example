@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "cnsofts": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${CLAUDE_PROJECT_DIR:-.}/server/index.mjs"],
+      "env": {
+        "CNSOFTS_API_URL": "https://qjhcp0ph-4000.inc1.devtunnels.ms",
+        "CNSOFTS_TOKEN": "PASTE_YOUR_cnsofts_pat_TOKEN_HERE"
+      }
+    }
+  }
+}

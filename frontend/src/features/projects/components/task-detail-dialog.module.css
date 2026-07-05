@@ -179,6 +179,20 @@
   font-weight: var(--weight-semibold);
   color: var(--color-text);
 }
+/* "via <agent>" tag — marks content written by a coding agent. */
+.viaAgent {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: var(--space-1);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--color-primary-subtle);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--color-primary);
+  white-space: nowrap;
+}
 .commentText {
   font-size: var(--text-sm);
   color: var(--color-text-secondary);
