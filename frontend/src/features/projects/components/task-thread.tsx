@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { TaskEvent } from '@cnsofts/shared';
-import { Button, Icon } from '@/components/ui';
+import { Button, Icon, Markdown } from '@/components/ui';
 import { UserAvatar } from '@/features/profile/components/user-avatar';
 import { projectStore } from '../projects.store';
 import { formatDateTime } from '../task-utils';
@@ -63,7 +63,7 @@ export function TaskThread({
                     {formatDateTime(ev.createdAt)}
                   </span>
                 </div>
-                <p className={styles.commentText}>{ev.body}</p>
+                <Markdown className={styles.commentText}>{ev.body}</Markdown>
               </div>
             </div>
           ) : (

@@ -2,6 +2,9 @@ import type { Request, Response, NextFunction } from 'express';
 import { HttpError } from '../../shared/http/http-error';
 import { authService } from './auth.service';
 
+/** HTTP methods a read-only token is allowed to use. */
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
 /**
  * Rejects the request with 401 unless it carries a valid bearer token — either
  * a short-lived JWT (browser sessions) or a Personal Access Token (`cnsofts_pat_…`,
@@ -23,10 +26,23 @@ export function requireAuth(
   if (authService.isApiToken(token)) {
     authService
       .verifyApiToken(token)
-      .then(({ user, tokenName }) => {
+      .then(({ user, tokenName, scope, projectIds, canDelete }) => {
+        // Read-only tokens may only make safe (non-mutating) requests.
+        if (scope === 'read_only' && !SAFE_METHODS.has(req.method)) {
+          throw HttpError.forbidden(
+            'This token is read-only and cannot make changes.',
+          );
+        }
+        // Destructive ops require the token to opt into delete access.
+        if (req.method === 'DELETE' && !canDelete) {
+          throw HttpError.forbidden(
+            'This token is not allowed to delete. Generate one with delete access.',
+          );
+        }
         req.authUser = user;
         // Attribute agent-performed writes to the token's name ("via <agent>").
         req.agentName = tokenName;
+        req.tokenScope = { scope, projectIds, canDelete };
         next();
       })
       .catch(next);

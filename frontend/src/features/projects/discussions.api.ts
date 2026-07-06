@@ -7,6 +7,8 @@ import {
   type ListMessagesQuery,
   type Message,
   type PostMessageInput,
+  type ScheduledMessage,
+  type ScheduleMessageInput,
 } from '@cnsofts/shared';
 import { apiClient } from '@/lib/api-client';
 
@@ -46,6 +48,24 @@ export const discussionsApi = {
   deleteMessage: (projectId: string, channelId: string, messageId: string) =>
     apiClient.delete<void>(
       apiPaths.projects.channelMessage(projectId, channelId, messageId),
+    ),
+
+  listScheduled: (projectId: string, channelId: string) =>
+    apiClient.get<ScheduledMessage[]>(
+      apiPaths.projects.channelScheduled(projectId, channelId),
+    ),
+  scheduleMessage: (
+    projectId: string,
+    channelId: string,
+    input: ScheduleMessageInput,
+  ) =>
+    apiClient.post<ScheduledMessage>(
+      apiPaths.projects.channelScheduled(projectId, channelId),
+      input,
+    ),
+  cancelScheduled: (projectId: string, channelId: string, scheduledId: string) =>
+    apiClient.delete<void>(
+      apiPaths.projects.channelScheduledItem(projectId, channelId, scheduledId),
     ),
 
   listMembers: (projectId: string, channelId: string) =>

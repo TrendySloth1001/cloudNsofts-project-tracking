@@ -11067,7 +11067,8 @@ var require_dist2 = __commonJS({
   "../shared/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.USER_ROLE_LABELS = exports.apiPaths = exports.API_ROUTES = exports.listMessagesQuerySchema = exports.channelRoomSchema = exports.WS_EVENTS = exports.notificationKindSchema = exports.updateProjectSchema = exports.createMilestoneSchema = exports.postMessageSchema = exports.createChannelSchema = exports.addChannelMemberSchema = exports.messageAttachmentSchema = exports.CHANNEL_VISIBILITY_LABELS = exports.channelVisibilitySchema = exports.createCommentSchema = exports.updateSubtaskSchema = exports.createSubtaskSchema = exports.reorderTasksSchema = exports.updateTaskSchema = exports.reorderFeaturesSchema = exports.updateFeatureSchema = exports.createFeatureSchema = exports.createTaskSchema = exports.updateMemberRoleSchema = exports.addMemberSchema = exports.addClientSchema = exports.createProjectSchema = exports.FEATURE_STATUS_ORDER = exports.FEATURE_STATUS_LABELS = exports.featureStatusSchema = exports.taskEventKindSchema = exports.TASK_PRIORITY_LABELS = exports.taskPrioritySchema = exports.TASK_STATUS_ORDER = exports.TASK_STATUS_LABELS = exports.taskStatusSchema = exports.projectRoleSchema = exports.MEMBER_ROLE_LABELS = exports.memberRoleSchema = exports.PROJECT_STATUS_LABELS = exports.projectStatusSchema = exports.updateUserSchema = exports.createUserSchema = exports.userRoleSchema = exports.createApiTokenSchema = exports.loginSchema = void 0;
+    exports.searchConversationsQuerySchema = exports.listMessagesQuerySchema = exports.channelRoomSchema = exports.WS_EVENTS = exports.notificationKindSchema = exports.updateProjectSchema = exports.createMilestoneSchema = exports.scheduleMessageSchema = exports.scheduledMessageStatusSchema = exports.postMessageSchema = exports.createChannelSchema = exports.addChannelMemberSchema = exports.messageAttachmentSchema = exports.CHANNEL_VISIBILITY_LABELS = exports.channelVisibilitySchema = exports.createCommentSchema = exports.updateSubtaskSchema = exports.createSubtaskSchema = exports.reorderTasksSchema = exports.updateTaskSchema = exports.reorderFeaturesSchema = exports.updateFeatureSchema = exports.createFeatureSchema = exports.createTaskSchema = exports.updateMemberRoleSchema = exports.addMemberSchema = exports.addClientSchema = exports.createProjectSchema = exports.FEATURE_STATUS_ORDER = exports.FEATURE_STATUS_LABELS = exports.featureStatusSchema = exports.taskEventKindSchema = exports.TASK_PRIORITY_LABELS = exports.taskPrioritySchema = exports.TASK_STATUS_ORDER = exports.TASK_STATUS_LABELS = exports.taskStatusSchema = exports.projectRoleSchema = exports.MEMBER_ROLE_LABELS = exports.memberRoleSchema = exports.PROJECT_STATUS_LABELS = exports.projectStatusSchema = exports.updateUserSchema = exports.createUserSchema = exports.userRoleSchema = exports.updateApiTokenSchema = exports.createApiTokenSchema = exports.API_TOKEN_SCOPE_LABELS = exports.apiTokenScopeSchema = exports.loginSchema = void 0;
+    exports.USER_ROLE_LABELS = exports.apiPaths = exports.API_ROUTES = void 0;
     exports.projectAbilities = projectAbilities;
     exports.channelSlug = channelSlug;
     var zod_1 = require_zod();
@@ -11075,10 +11076,23 @@ var require_dist2 = __commonJS({
       email: zod_1.z.string().trim().toLowerCase().email("Enter a valid email address"),
       password: zod_1.z.string().min(1, "Password is required")
     });
+    exports.apiTokenScopeSchema = zod_1.z.enum(["full", "read_only"]);
+    exports.API_TOKEN_SCOPE_LABELS = {
+      full: "Full access",
+      read_only: "Read only"
+    };
     exports.createApiTokenSchema = zod_1.z.object({
       name: zod_1.z.string().trim().min(1, "Name is required").max(80),
+      scope: exports.apiTokenScopeSchema.default("full"),
+      /** Limit the token to these projects; omit/empty for all accessible ones. */
+      projectIds: zod_1.z.array(zod_1.z.string().min(1)).default([]),
+      /** Allow destructive (DELETE) operations. Off by default for safety. */
+      canDelete: zod_1.z.boolean().default(false),
       /** Optional lifetime in days; omit for a token that never expires. */
       expiresInDays: zod_1.z.coerce.number().int().positive().max(365).optional()
+    });
+    exports.updateApiTokenSchema = zod_1.z.object({
+      name: zod_1.z.string().trim().min(1, "Name is required").max(80)
     });
     exports.userRoleSchema = zod_1.z.enum(["ADMIN", "MEMBER", "VIEWER", "CLIENT"]);
     exports.createUserSchema = zod_1.z.object({
@@ -11252,6 +11266,24 @@ var require_dist2 = __commonJS({
       message: "Message is required",
       path: ["body"]
     });
+    exports.scheduledMessageStatusSchema = zod_1.z.enum([
+      "pending",
+      "sending",
+      "sent",
+      "canceled",
+      "failed"
+    ]);
+    exports.scheduleMessageSchema = zod_1.z.object({
+      body: zod_1.z.string().trim().max(4e3).default(""),
+      attachment: exports.messageAttachmentSchema.nullable().default(null),
+      scheduledFor: zod_1.z.string().datetime({ message: "Pick a valid date and time" })
+    }).refine((v) => v.body.length > 0 || v.attachment !== null, {
+      message: "Message is required",
+      path: ["body"]
+    }).refine((v) => new Date(v.scheduledFor).getTime() > Date.now(), {
+      message: "Schedule a time in the future",
+      path: ["scheduledFor"]
+    });
     exports.createMilestoneSchema = zod_1.z.object({
       title: zod_1.z.string().trim().min(1, "Title is required").max(160),
       dueDate: zod_1.z.string().nullable().default(null)
@@ -11286,6 +11318,12 @@ var require_dist2 = __commonJS({
       after: zod_1.z.string().optional(),
       limit: zod_1.z.coerce.number().int().min(1).max(100).default(50)
     });
+    exports.searchConversationsQuerySchema = zod_1.z.object({
+      q: zod_1.z.string().trim().min(1, "A search query is required").max(200),
+      /** Restrict to one channel (messages only) instead of the whole project. */
+      channelId: zod_1.z.string().optional(),
+      limit: zod_1.z.coerce.number().int().min(1).max(30).default(10)
+    });
     exports.API_ROUTES = {
       health: "/health",
       auth: "/api/auth",
@@ -11299,7 +11337,9 @@ var require_dist2 = __commonJS({
         login: () => `${exports.API_ROUTES.auth}/login`,
         me: () => `${exports.API_ROUTES.auth}/me`,
         tokens: () => `${exports.API_ROUTES.auth}/tokens`,
-        token: (id) => `${exports.API_ROUTES.auth}/tokens/${id}`
+        token: (id) => `${exports.API_ROUTES.auth}/tokens/${id}`,
+        tokenRotate: (id) => `${exports.API_ROUTES.auth}/tokens/${id}/rotate`,
+        agentActivity: () => `${exports.API_ROUTES.auth}/agent-activity`
       },
       users: {
         list: () => exports.API_ROUTES.users,
@@ -11327,6 +11367,10 @@ var require_dist2 = __commonJS({
         channel: (id, channelId2) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}`,
         channelMessages: (id, channelId2) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}/messages`,
         channelMessage: (id, channelId2, messageId) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}/messages/${messageId}`,
+        channelOverview: (id, channelId2) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}/overview`,
+        search: (id) => `${exports.API_ROUTES.projects}/${id}/search`,
+        channelScheduled: (id, channelId2) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}/scheduled`,
+        channelScheduledItem: (id, channelId2, scheduledId) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}/scheduled/${scheduledId}`,
         channelMembers: (id, channelId2) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}/members`,
         channelMember: (id, channelId2, memberId) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}/members/${memberId}`,
         milestones: (id) => `${exports.API_ROUTES.projects}/${id}/milestones`,
@@ -25662,6 +25706,34 @@ function compactProject(p) {
     tasks: p.tasks.map(compactTask)
   };
 }
+function leanMessage(m) {
+  const MAX = 240;
+  const truncated = m.body.length > MAX;
+  return {
+    id: m.id,
+    author: m.author,
+    agentName: m.agentName,
+    time: m.createdAt,
+    body: truncated ? `${m.body.slice(0, MAX).trimEnd()}\u2026` : m.body,
+    ...truncated ? { truncated: true } : {},
+    ...m.attachment ? { attachment: m.attachment } : {}
+  };
+}
+function compactFeature(p, f) {
+  return {
+    id: f.id,
+    name: f.name,
+    status: f.status,
+    pinned: f.pinned,
+    ownerIds: f.ownerIds,
+    targetDate: f.targetDate,
+    taskCount: p.tasks.filter((t) => t.featureId === f.id).length,
+    updatedAt: f.updatedAt
+  };
+}
+function newest(items) {
+  return items.reduce((a, b) => a.updatedAt >= b.updatedAt ? a : b);
+}
 function findTask(p, taskId2) {
   const t = p.tasks.find((x) => x.id === taskId2);
   if (!t) throw new Error(`Task ${taskId2} not found in project`);
@@ -25672,12 +25744,12 @@ function findFeature(p, featureId2) {
   if (!f) throw new Error(`Feature ${featureId2} not found in project`);
   return f;
 }
-var runBoard = (work) => run(async () => compactProject(await work()));
 var projectId = external_exports.string().min(1).describe("The project id");
 var taskId = external_exports.string().min(1).describe("The task id");
 var featureId = external_exports.string().min(1).describe("The feature id");
 var channelId = external_exports.string().min(1).describe("The channel id");
 var subtaskId = external_exports.string().min(1).describe("The subtask id");
+var MARKDOWN_HINT = 'Rendered as GitHub-flavored markdown \u2014 use **bold**, _italic_, `code`, `- ` lists, `> ` quotes and [links](url). For code or structured data (JSON, etc.) use a fenced block that OPENS with a language tag and keeps real indentation, e.g. ```json\\n{\\n  "a": 1\\n}\\n``` \u2014 do NOT escape characters, add trailing backslashes, or flatten indentation. Raw HTML is ignored.';
 var server = new McpServer(
   { name: "cnsofts", version: "0.1.0" },
   {
@@ -25692,7 +25764,23 @@ var server = new McpServer(
       "Only reference features, tasks, members, or channels that a read tool has",
       "actually returned. If something you expected is missing, re-read rather than",
       "guessing. When updating, read the item first so you preserve fields you are",
-      "not intentionally changing."
+      "not intentionally changing.",
+      "",
+      "CONVERSATIONS get long \u2014 reading a whole channel is slow and expensive.",
+      "Read like a human:",
+      "  \u2022 `get_channel_overview` first \u2014 counts, participants, last few previews.",
+      "  \u2022 `search_conversations` to find where a topic was discussed (searches",
+      "    channel messages AND task threads) instead of reading everything.",
+      "  \u2022 `read_channel` returns a small recent page with `nextCursor`; pass it as",
+      "    `before` to load older messages ONLY when you actually need them.",
+      "  \u2022 `get_message` fetches one full message when a preview was truncated.",
+      "",
+      "When you post a message, keep it SHORT. Do the work on the board and post a",
+      "one- or two-line update that points to it \u2014 never paste task lists, status",
+      "reports, or plans into chat; that content belongs on the board, not the",
+      "conversation.",
+      "",
+      `Message and task-comment bodies: ${MARKDOWN_HINT}`
     ].join("\n")
   }
 );
@@ -25759,14 +25847,71 @@ server.registerTool(
   ({ projectId: projectId2 }) => run(() => api.get(import_shared.apiPaths.projects.channels(projectId2)))
 );
 server.registerTool(
+  "get_channel_overview",
+  {
+    title: "Channel overview",
+    description: "Cheap orientation for a channel: message count, participants, first/last activity, and the last few message previews. Call this before read_channel to decide whether you even need to read more.",
+    inputSchema: { projectId, channelId }
+  },
+  ({ projectId: projectId2, channelId: channelId2 }) => run(() => api.get(import_shared.apiPaths.projects.channelOverview(projectId2, channelId2)))
+);
+server.registerTool(
+  "search_conversations",
+  {
+    title: "Search conversations",
+    description: "Full-text search a project\u2019s conversations \u2014 channel messages AND task threads \u2014 for a query. Returns the top ranked matches as short snippets with their location (channel or task). Use this to find context instead of reading whole channels.",
+    inputSchema: {
+      projectId,
+      query: external_exports.string().min(1).describe("What to search for"),
+      channelId: external_exports.string().optional().describe("Restrict to one channel (messages only)"),
+      limit: external_exports.coerce.number().int().min(1).max(30).default(10)
+    }
+  },
+  ({ projectId: projectId2, query, channelId: channelId2, limit }) => run(() => {
+    const params = new URLSearchParams({ q: query, limit: String(limit) });
+    if (channelId2) params.set("channelId", channelId2);
+    return api.get(`${import_shared.apiPaths.projects.search(projectId2)}?${params.toString()}`);
+  })
+);
+server.registerTool(
   "read_channel",
   {
     title: "Read channel messages",
-    description: "Read recent messages in a discussion channel (call list_channels first for the channelId). Use this to catch up on a conversation before replying.",
-    inputSchema: { projectId, channelId }
+    description: "Read a recent PAGE of a channel (default 20 newest). Returns lean, truncated messages plus `nextCursor`/`hasMore`; pass nextCursor back as `before` to load older messages. Prefer get_channel_overview / search_conversations first \u2014 do not page through a whole channel.",
+    inputSchema: {
+      projectId,
+      channelId,
+      limit: external_exports.coerce.number().int().min(1).max(50).default(20).describe("How many recent messages (max 50)"),
+      before: external_exports.string().optional().describe("A nextCursor from a previous call \u2014 loads older messages")
+    }
   },
-  ({ projectId: projectId2, channelId: channelId2 }) => run(
-    () => api.get(import_shared.apiPaths.projects.channelMessages(projectId2, channelId2))
+  ({ projectId: projectId2, channelId: channelId2, limit, before }) => run(async () => {
+    const qs = `?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ""}`;
+    const messages = await api.get(
+      `${import_shared.apiPaths.projects.channelMessages(projectId2, channelId2)}${qs}`
+    );
+    const hasMore = messages.length === limit;
+    return {
+      messages: messages.map(leanMessage),
+      // Oldest returned id — pass as `before` to page further back.
+      nextCursor: hasMore && messages.length > 0 ? messages[0].id : null,
+      hasMore
+    };
+  })
+);
+server.registerTool(
+  "get_message",
+  {
+    title: "Get message",
+    description: "Fetch one full (untruncated) message by id \u2014 use when a read_channel or search snippet was truncated and you need the whole thing.",
+    inputSchema: {
+      projectId,
+      channelId,
+      messageId: external_exports.string().min(1).describe("The message id")
+    }
+  },
+  ({ projectId: projectId2, channelId: channelId2, messageId }) => run(
+    () => api.get(import_shared.apiPaths.projects.channelMessage(projectId2, channelId2, messageId))
   )
 );
 if (!config2.readOnly) {
@@ -25777,7 +25922,13 @@ if (!config2.readOnly) {
       description: "Create a feature (kanban swimlane) in a project.",
       inputSchema: { projectId, ...import_shared.createFeatureSchema.shape }
     },
-    ({ projectId: projectId2, ...body }) => runBoard(() => api.post(import_shared.apiPaths.projects.features(projectId2), body))
+    ({ projectId: projectId2, ...body }) => run(async () => {
+      const p = await api.post(
+        import_shared.apiPaths.projects.features(projectId2),
+        body
+      );
+      return compactFeature(p, newest(p.features));
+    })
   );
   server.registerTool(
     "update_feature",
@@ -25786,15 +25937,13 @@ if (!config2.readOnly) {
       description: "Update a feature \u2014 name, description, status, owners, target date, or pinned.",
       inputSchema: { projectId, featureId, ...import_shared.updateFeatureSchema.shape }
     },
-    ({ projectId: projectId2, featureId: featureId2, ...body }) => run(
-      async () => findFeature(
-        await api.patch(
-          import_shared.apiPaths.projects.feature(projectId2, featureId2),
-          body
-        ),
-        featureId2
-      )
-    )
+    ({ projectId: projectId2, featureId: featureId2, ...body }) => run(async () => {
+      const p = await api.patch(
+        import_shared.apiPaths.projects.feature(projectId2, featureId2),
+        body
+      );
+      return compactFeature(p, findFeature(p, featureId2));
+    })
   );
   server.registerTool(
     "reorder_features",
@@ -25806,11 +25955,13 @@ if (!config2.readOnly) {
         orderedIds: external_exports.array(external_exports.string().min(1)).describe("Feature ids, in order")
       }
     },
-    ({ projectId: projectId2, orderedIds }) => runBoard(
-      () => api.post(import_shared.apiPaths.projects.featuresReorder(projectId2), {
-        orderedIds
-      })
-    )
+    ({ projectId: projectId2, orderedIds }) => run(async () => {
+      const p = await api.post(
+        import_shared.apiPaths.projects.featuresReorder(projectId2),
+        { orderedIds }
+      );
+      return p.features.map((f) => compactFeature(p, f));
+    })
   );
   server.registerTool(
     "create_task",
@@ -25819,7 +25970,25 @@ if (!config2.readOnly) {
       description: "Create a task on the board. First call get_project to get valid featureId (swimlane) and assigneeIds (member ids) \u2014 do not invent them.",
       inputSchema: { projectId, ...import_shared.createTaskSchema.shape }
     },
-    ({ projectId: projectId2, ...body }) => runBoard(() => api.post(import_shared.apiPaths.projects.tasks(projectId2), body))
+    ({ projectId: projectId2, ...body }) => run(async () => {
+      const p = await api.post(import_shared.apiPaths.projects.tasks(projectId2), body);
+      return compactTask(newest(p.tasks));
+    })
+  );
+  server.registerTool(
+    "reorder_tasks",
+    {
+      title: "Reorder tasks",
+      description: "Set the order of tasks within one status column. Pass the status and the full, final list of task ids in that column, in the desired order.",
+      inputSchema: { projectId, ...import_shared.reorderTasksSchema.shape }
+    },
+    ({ projectId: projectId2, ...body }) => run(async () => {
+      const p = await api.patch(
+        import_shared.apiPaths.projects.tasksReorder(projectId2),
+        body
+      );
+      return p.tasks.filter((t) => t.status === body.status).map(compactTask);
+    })
   );
   server.registerTool(
     "update_task",
@@ -25829,9 +25998,11 @@ if (!config2.readOnly) {
       inputSchema: { projectId, taskId, ...import_shared.updateTaskSchema.shape }
     },
     ({ projectId: projectId2, taskId: taskId2, ...body }) => run(
-      async () => findTask(
-        await api.patch(import_shared.apiPaths.projects.task(projectId2, taskId2), body),
-        taskId2
+      async () => compactTask(
+        findTask(
+          await api.patch(import_shared.apiPaths.projects.task(projectId2, taskId2), body),
+          taskId2
+        )
       )
     )
   );
@@ -25843,11 +26014,13 @@ if (!config2.readOnly) {
       inputSchema: { projectId, taskId, status: import_shared.taskStatusSchema }
     },
     ({ projectId: projectId2, taskId: taskId2, status }) => run(
-      async () => findTask(
-        await api.patch(import_shared.apiPaths.projects.task(projectId2, taskId2), {
-          status
-        }),
-        taskId2
+      async () => compactTask(
+        findTask(
+          await api.patch(import_shared.apiPaths.projects.task(projectId2, taskId2), {
+            status
+          }),
+          taskId2
+        )
       )
     )
   );
@@ -25863,11 +26036,13 @@ if (!config2.readOnly) {
       }
     },
     ({ projectId: projectId2, taskId: taskId2, assigneeIds }) => run(
-      async () => findTask(
-        await api.patch(import_shared.apiPaths.projects.task(projectId2, taskId2), {
-          assigneeIds
-        }),
-        taskId2
+      async () => compactTask(
+        findTask(
+          await api.patch(import_shared.apiPaths.projects.task(projectId2, taskId2), {
+            assigneeIds
+          }),
+          taskId2
+        )
       )
     )
   );
@@ -25924,16 +26099,18 @@ if (!config2.readOnly) {
     "comment_task",
     {
       title: "Comment on task",
-      description: "Post a comment on a task thread.",
+      description: `Post a comment on a task thread. ${MARKDOWN_HINT}`,
       inputSchema: { projectId, taskId, ...import_shared.createCommentSchema.shape }
     },
     ({ projectId: projectId2, taskId: taskId2, ...body }) => run(
-      async () => findTask(
-        await api.post(
-          import_shared.apiPaths.projects.comments(projectId2, taskId2),
-          body
-        ),
-        taskId2
+      async () => compactTask(
+        findTask(
+          await api.post(
+            import_shared.apiPaths.projects.comments(projectId2, taskId2),
+            body
+          ),
+          taskId2
+        )
       )
     )
   );
@@ -25945,7 +26122,7 @@ if (!config2.readOnly) {
       inputSchema: {
         projectId,
         channelId,
-        body: external_exports.string().max(4e3).optional().describe("Message text"),
+        body: external_exports.string().max(4e3).optional().describe(`Message text. ${MARKDOWN_HINT}`),
         attachment: import_shared.messageAttachmentSchema.nullable().optional().describe('Optional { kind: "task"|"feature", id } to share')
       }
     },
@@ -25953,12 +26130,12 @@ if (!config2.readOnly) {
       () => api.post(import_shared.apiPaths.projects.channelMessages(projectId2, channelId2), body)
     )
   );
-  if (config2.allowDelete) {
+  {
     server.registerTool(
       "delete_task",
       {
         title: "Delete task",
-        description: "Permanently delete a task.",
+        description: "Permanently delete a task. Requires a token with delete access enabled.",
         inputSchema: { projectId, taskId }
       },
       ({ projectId: projectId2, taskId: taskId2 }) => run(async () => {
@@ -25970,7 +26147,7 @@ if (!config2.readOnly) {
       "delete_feature",
       {
         title: "Delete feature",
-        description: "Permanently delete a feature (its tasks are unlinked).",
+        description: "Permanently delete a feature (its tasks are unlinked). Requires a token with delete access enabled.",
         inputSchema: { projectId, featureId }
       },
       ({ projectId: projectId2, featureId: featureId2 }) => run(async () => {

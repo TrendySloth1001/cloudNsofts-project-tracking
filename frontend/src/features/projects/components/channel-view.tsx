@@ -3,13 +3,22 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import {
   CHANNEL_VISIBILITY_LABELS,
+  MESSAGE_BODY_MAX_LENGTH,
   type Channel,
   type MessageAttachment,
 } from '@cnsofts/shared';
-import { Badge, Icon, IconButton, Spinner, useConfirm } from '@/components/ui';
+import {
+  Badge,
+  Icon,
+  IconButton,
+  Markdown,
+  Spinner,
+  useConfirm,
+} from '@/components/ui';
 import { UserAvatar } from '@/features/profile/components/user-avatar';
 import { usePermissions } from '@/features/auth/use-permissions';
 import { discussionsApi } from '../discussions.api';
+import { ApiRequestError, fieldErrorMessage } from '@/lib/api-client';
 import { useChannelMessages } from '../use-discussions';
 import { useProject } from '../use-projects';
 import { cx } from '@/lib/cx';
@@ -18,6 +27,11 @@ import {
   ChannelMembersDialog,
   type ChannelCandidate,
 } from './channel-members-dialog';
+import {
+  MessageComposer,
+  type MessageComposerHandle,
+} from './message-composer';
+import { ScheduledMessagesDialog } from './scheduled-messages-dialog';
 import { AttachPickerDialog } from './attach-picker-dialog';
 import { MessageAttachmentCard } from './message-attachment-card';
 import { TaskDetailDialog } from './task-detail-dialog';
@@ -51,7 +65,10 @@ export function ChannelView({
     useChannelMessages(projectId, channel.id);
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const composerRef = useRef<MessageComposerHandle>(null);
   // Composer attachment (a task/feature reference) + its display label.
   const [attach, setAttach] = useState<{
     ref: MessageAttachment;
@@ -82,10 +99,19 @@ export function ChannelView({
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
+  // Switching channels starts a fresh draft (the composer remounts via `key`).
+  useEffect(() => {
+    setBody('');
+    setAttach(null);
+  }, [channel.id]);
+
   async function submitMessage() {
     const text = body.trim();
-    if ((!text && !attach) || sending) return;
+    // Guard the empty and over-limit cases up front so a bad send never fires.
+    if ((!text && !attach) || text.length > MESSAGE_BODY_MAX_LENGTH || sending)
+      return;
     setSending(true);
+    setSendError(null);
     try {
       const message = await discussionsApi.postMessage(projectId, channel.id, {
         body: text,
@@ -94,6 +120,15 @@ export function ChannelView({
       append(message);
       setBody('');
       setAttach(null);
+      composerRef.current?.clear();
+    } catch (err) {
+      // Surface the reason and keep the draft so nothing typed is lost.
+      setSendError(
+        fieldErrorMessage(err, 'body') ??
+          (err instanceof ApiRequestError
+            ? err.message
+            : 'Could not send the message. Please try again.'),
+      );
     } finally {
       setSending(false);
     }
@@ -199,6 +234,9 @@ export function ChannelView({
                 !newDay &&
                 prev &&
                 prev.author === m.author &&
+                // An agent post and a human post from the same account sit on
+                // opposite sides, so they must never group together.
+                (prev.agentName ?? null) === (m.agentName ?? null) &&
                 new Date(m.createdAt).getTime() -
                   new Date(prev.createdAt).getTime() <
                   GROUP_WINDOW_MS;
@@ -209,8 +247,14 @@ export function ChannelView({
                   </span>
                 </div>
               ) : null;
-              // My own messages align right (messenger-style); everyone else left.
-              const isMine = !!m.authorEmail && !!email && m.authorEmail === email;
+              // My own messages align right (messenger-style); everyone else —
+              // including my coding agent — sits on the left as a distinct
+              // participant, so agent posts don't read as if I typed them.
+              const isMine =
+                !m.agentName &&
+                !!m.authorEmail &&
+                !!email &&
+                m.authorEmail === email;
               const deletable = canDeleteMessage(m.authorEmail);
               const deleteBtn = deletable ? (
                 <span className={styles.msgDelete}>
@@ -233,7 +277,9 @@ export function ChannelView({
               ) : null;
               const content = grouped ? (
                 <div className={cx(styles.messageCont, isMine && styles.mine)}>
-                  {m.body && <p className={styles.messageBody}>{m.body}</p>}
+                  {m.body && (
+                    <Markdown className={styles.messageBody}>{m.body}</Markdown>
+                  )}
                   {attachmentCard}
                   {deleteBtn}
                 </div>
@@ -255,7 +301,9 @@ export function ChannelView({
                         {formatTime(m.createdAt)}
                       </span>
                     </div>
-                    {m.body && <p className={styles.messageBody}>{m.body}</p>}
+                    {m.body && (
+                    <Markdown className={styles.messageBody}>{m.body}</Markdown>
+                  )}
                     {attachmentCard}
                   </div>
                   {deleteBtn}
@@ -296,40 +344,82 @@ export function ChannelView({
             />
           </div>
         )}
-        <div className={styles.composerBox}>
-          {project && (
-            <IconButton
-              icon="attachment"
-              label="Attach a task or feature"
-              variant="ghost"
-              size="sm"
-              onClick={() => setPickerOpen(true)}
-            />
-          )}
-          <textarea
-            className={styles.composerInput}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder={`Message #${channel.name}`}
-            rows={1}
-            disabled={sending}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                void submitMessage();
-              }
-            }}
-          />
-          <IconButton
-            icon="send"
-            label="Send"
-            variant={body.trim() || attach ? 'primary' : 'subtle'}
-            size="sm"
-            type="submit"
-            disabled={(!body.trim() && !attach) || sending}
-          />
-        </div>
+        <MessageComposer
+          key={channel.id}
+          ref={composerRef}
+          placeholder={`Message #${channel.name}`}
+          disabled={sending}
+          onChange={(value) => {
+            setBody(value);
+            if (sendError) setSendError(null);
+          }}
+          onSubmit={() => void submitMessage()}
+          leftSlot={
+            project ? (
+              <IconButton
+                icon="attachment"
+                label="Attach a task or feature"
+                variant="ghost"
+                size="sm"
+                onClick={() => setPickerOpen(true)}
+              />
+            ) : null
+          }
+          rightSlot={
+            <>
+              <IconButton
+                icon="calendar"
+                label="Schedule message"
+                variant="ghost"
+                size="sm"
+                onClick={() => setScheduleOpen(true)}
+              />
+              <IconButton
+                icon="send"
+                label="Send"
+                variant={body.trim() || attach ? 'primary' : 'subtle'}
+                size="sm"
+                type="submit"
+                disabled={
+                  (!body.trim() && !attach) ||
+                  body.length > MESSAGE_BODY_MAX_LENGTH ||
+                  sending
+                }
+              />
+            </>
+          }
+        />
+        {(sendError ||
+          body.length > MESSAGE_BODY_MAX_LENGTH - 200) && (
+          <div className={styles.composerFooter}>
+            <span className={styles.composerError}>{sendError}</span>
+            <span
+              className={cx(
+                styles.composerCount,
+                body.length > MESSAGE_BODY_MAX_LENGTH &&
+                  styles.composerCountOver,
+              )}
+            >
+              {body.length.toLocaleString()}/
+              {MESSAGE_BODY_MAX_LENGTH.toLocaleString()}
+            </span>
+          </div>
+        )}
       </form>
+
+      <ScheduledMessagesDialog
+        open={scheduleOpen}
+        onClose={() => setScheduleOpen(false)}
+        projectId={projectId}
+        channelId={channel.id}
+        draft={{ body, attachment: attach?.ref ?? null }}
+        onScheduled={() => {
+          setBody('');
+          setAttach(null);
+          composerRef.current?.clear();
+          setScheduleOpen(false);
+        }}
+      />
 
       {canManageChannels && (
         <ChannelMembersDialog

@@ -37,3 +37,4 @@ export { Modal, type ModalProps } from './modal';
 export { ConfirmProvider, useConfirm, type ConfirmOptions } from './confirm';
 export { Alert, type AlertProps, type AlertVariant } from './alert';
 export { Divider, type DividerProps } from './divider';
+export { Markdown, type MarkdownProps } from './markdown';

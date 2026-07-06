@@ -2,7 +2,7 @@
   display: flex;
   gap: var(--space-3);
   flex: 1;
-  min-height: 480px;
+  min-height: 0;
 }
 
 /* ------------------------------- Sidebar -------------------------------- */
@@ -325,10 +325,18 @@
 }
 .messageBody {
   max-width: min(560px, 82%);
+  min-width: 0;
   font-size: var(--text-md);
   color: var(--color-text);
-  white-space: pre-wrap;
+  /* The Markdown renderer owns whitespace (remark-breaks handles newlines); a
+     pre-wrap here would render its formatting indentation as blank lines. */
   word-break: break-word;
+}
+/* Code blocks and tables need room — give those messages a much wider bubble
+   than the readable prose cap, so code isn't crammed into a narrow column. */
+.messageBody:has(pre),
+.messageBody:has(table) {
+  max-width: min(920px, 94%);
 }
 .messageCont {
   position: relative;
@@ -496,6 +504,31 @@
 }
 .composerInput::placeholder {
   color: var(--color-text-placeholder);
+}
+/* Error + character-count row under the composer. */
+.composerFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  padding: 0 var(--space-1);
+}
+.composerError {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+}
+.composerCount {
+  flex: none;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+.composerCountOver {
+  color: var(--color-danger);
+  font-weight: var(--weight-semibold);
 }
 
 /* ----------------------------- Empty state ------------------------------ */

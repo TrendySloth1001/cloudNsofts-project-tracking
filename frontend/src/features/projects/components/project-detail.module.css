@@ -4,6 +4,15 @@
   min-height: 100%;
 }
 
+/* Discussion tab: bound the page to the viewport so the message list scrolls
+   inside its own panel (the header + channel list stay put) instead of the
+   whole page growing and scrolling away. */
+.discussionTab {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .loading {
   display: grid;
   place-items: center;

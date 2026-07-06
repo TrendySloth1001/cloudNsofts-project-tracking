@@ -1,4 +1,4 @@
-import type { AuthUser, ProjectRole } from '@cnsofts/shared';
+import type { ApiTokenScope, AuthUser, ProjectRole } from '@cnsofts/shared';
 
 // Expose the verified principal on the request for authenticated handlers.
 declare global {
@@ -10,6 +10,12 @@ declare global {
       projectRole?: ProjectRole;
       // Name of the coding agent (PAT) when the request is agent-authenticated.
       agentName?: string;
+      // Present only when authenticated via a PAT — drives scope enforcement.
+      tokenScope?: {
+        scope: ApiTokenScope;
+        projectIds: string[];
+        canDelete: boolean;
+      };
     }
   }
 }

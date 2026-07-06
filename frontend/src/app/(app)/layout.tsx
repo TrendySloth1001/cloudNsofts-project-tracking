@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ConfirmProvider, Icon, Spinner } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
 import { Sidebar } from '@/components/layout/sidebar';
+import { AccountMenu } from '@/components/layout/account-menu';
 import { authApi } from '@/features/auth/auth.api';
 import { useCurrentUser } from '@/features/auth/use-current-user';
 import styles from './app-layout.module.css';
@@ -44,13 +45,12 @@ export default function AppLayout({
 
         <Sidebar
           user={user}
-          onSignOut={signOut}
           open={menuOpen}
           onClose={() => setMenuOpen(false)}
         />
 
         <div className={styles.content}>
-          <div className={styles.mobileBar}>
+          <header className={styles.topBar}>
             <button
               type="button"
               className={styles.hamburger}
@@ -59,8 +59,13 @@ export default function AppLayout({
             >
               <Icon name="menu" size={22} />
             </button>
-            <Logo size="sm" />
-          </div>
+            <span className={styles.mobileBrand}>
+              <Logo size="sm" />
+            </span>
+            <div className={styles.topBarRight}>
+              <AccountMenu user={user} onSignOut={signOut} />
+            </div>
+          </header>
           <main className={styles.main}>{children}</main>
         </div>
       </div>

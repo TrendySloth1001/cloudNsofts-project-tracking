@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { createApp } from './app';
 import { env } from './infra/env';
 import { initRealtime } from './infra/realtime';
+import { startScheduler } from './infra/scheduler';
 
 const app = createApp();
 
@@ -11,4 +12,6 @@ initRealtime(httpServer);
 
 httpServer.listen(env.PORT, () => {
   console.log(`API + realtime listening on http://localhost:${env.PORT}`);
+  // Begin dispatching scheduled (send-later) messages.
+  startScheduler();
 });

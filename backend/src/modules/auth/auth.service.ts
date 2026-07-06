@@ -2,17 +2,22 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import {
+  apiTokenScopeSchema,
   userRoleSchema,
+  type AgentActivity,
+  type ApiTokenScope,
   type ApiTokenSummary,
   type AuthResponse,
   type AuthUser,
   type CreateApiTokenInput,
   type CreatedApiToken,
   type LoginInput,
+  type UpdateApiTokenInput,
 } from '@cnsofts/shared';
 import { env } from '../../infra/env';
 import { prisma } from '../../infra/prisma';
 import { HttpError } from '../../shared/http/http-error';
+import { projectScopeWhere } from './access';
 
 /**
  * Auth for an invite-only app. The bootstrap admin lives in env; all other
@@ -46,18 +51,27 @@ function safeEqual(a: string, b: string): boolean {
 /** Personal Access Tokens carry this prefix so they're told apart from JWTs. */
 const PAT_PREFIX = 'cnsofts_pat_';
 const DAY_MS = 24 * 60 * 60 * 1000;
-/** Only refresh a token's `lastUsedAt` once per this window (keeps it off the
- *  per-request write path). */
-const LASTUSED_THROTTLE_MS = 5 * 60 * 1000;
+/** How many recent agent actions the activity feed returns. */
+const ACTIVITY_LIMIT = 20;
 
 /** sha-256 hex of a token — only this is stored (the plaintext is shown once). */
 function hashToken(raw: string): string {
   return createHash('sha256').update(raw).digest('hex');
 }
 
+/** Normalize the stored scope string to the contract's union (default full). */
+function toScope(value: string): ApiTokenScope {
+  const parsed = apiTokenScopeSchema.safeParse(value);
+  return parsed.success ? parsed.data : 'full';
+}
+
 function toTokenSummary(row: {
   id: string;
   name: string;
+  scope: string;
+  projectIds: string[];
+  canDelete: boolean;
+  usageCount: number;
   createdAt: Date;
   lastUsedAt: Date | null;
   expiresAt: Date | null;
@@ -65,10 +79,28 @@ function toTokenSummary(row: {
   return {
     id: row.id,
     name: row.name,
+    scope: toScope(row.scope),
+    projectIds: row.projectIds,
+    canDelete: row.canDelete,
+    usageCount: row.usageCount,
     createdAt: row.createdAt.toISOString(),
     lastUsedAt: row.lastUsedAt ? row.lastUsedAt.toISOString() : null,
     expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
   };
+}
+
+/** Keep only the project ids the principal can actually access (drop foreign
+ *  ids so a token can't be scoped to a project the owner can't see). */
+async function scopedProjectIds(
+  principal: AuthUser,
+  ids: string[],
+): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const rows = await prisma.project.findMany({
+    where: { id: { in: ids }, ...projectScopeWhere(principal) },
+    select: { id: true },
+  });
+  return rows.map((r) => r.id);
 }
 
 /** Reconstruct a principal from a token's stored `userId` (role read live). */
@@ -163,11 +195,15 @@ export const authService = {
     const expiresAt = input.expiresInDays
       ? new Date(Date.now() + input.expiresInDays * DAY_MS)
       : null;
+    const projectIds = await scopedProjectIds(principal, input.projectIds);
     const row = await prisma.apiToken.create({
       data: {
         userId: principal.id,
         name: input.name,
         tokenHash: hashToken(raw),
+        scope: input.scope,
+        projectIds,
+        canDelete: input.canDelete,
         expiresAt,
       },
     });
@@ -183,6 +219,57 @@ export const authService = {
     return rows.map(toTokenSummary);
   },
 
+  /** Rename one of the principal's tokens (404 if it isn't theirs). */
+  async updateApiToken(
+    principal: AuthUser,
+    id: string,
+    input: UpdateApiTokenInput,
+  ): Promise<ApiTokenSummary> {
+    const row = await prisma.apiToken.findFirst({
+      where: { id, userId: principal.id, revokedAt: null },
+    });
+    if (!row) throw HttpError.notFound('Token not found');
+    const updated = await prisma.apiToken.update({
+      where: { id },
+      data: { name: input.name },
+    });
+    return toTokenSummary(updated);
+  },
+
+  /**
+   * Rotate a token: revoke the old secret and issue a new one that keeps the
+   * same name, scope, project restriction, and expiry. Returns the new plaintext
+   * (shown once) — so a leaked token can be replaced without reconfiguring.
+   */
+  async rotateApiToken(
+    principal: AuthUser,
+    id: string,
+  ): Promise<CreatedApiToken> {
+    const old = await prisma.apiToken.findFirst({
+      where: { id, userId: principal.id, revokedAt: null },
+    });
+    if (!old) throw HttpError.notFound('Token not found');
+    const raw = `${PAT_PREFIX}${randomBytes(32).toString('base64url')}`;
+    const [, created] = await prisma.$transaction([
+      prisma.apiToken.update({
+        where: { id },
+        data: { revokedAt: new Date() },
+      }),
+      prisma.apiToken.create({
+        data: {
+          userId: principal.id,
+          name: old.name,
+          tokenHash: hashToken(raw),
+          scope: old.scope,
+          projectIds: old.projectIds,
+          canDelete: old.canDelete,
+          expiresAt: old.expiresAt,
+        },
+      }),
+    ]);
+    return { token: raw, apiToken: toTokenSummary(created) };
+  },
+
   /** Revoke one of the principal's tokens (404 if it isn't theirs). */
   async revokeApiToken(principal: AuthUser, id: string): Promise<void> {
     const row = await prisma.apiToken.findFirst({
@@ -195,11 +282,16 @@ export const authService = {
     });
   },
 
-  /** Verify a PAT against the DB and reconstruct the acting principal. Also
-   *  returns the token's name so actions can be attributed to the agent. */
-  async verifyApiToken(
-    raw: string,
-  ): Promise<{ user: AuthUser; tokenName: string }> {
+  /** Verify a PAT against the DB and reconstruct the acting principal. Returns
+   *  the token's name (for "via <agent>" attribution) and its scope so the
+   *  middleware can enforce read-only / project restrictions. */
+  async verifyApiToken(raw: string): Promise<{
+    user: AuthUser;
+    tokenName: string;
+    scope: ApiTokenScope;
+    projectIds: string[];
+    canDelete: boolean;
+  }> {
     const row = await prisma.apiToken.findUnique({
       where: { tokenHash: hashToken(raw) },
     });
@@ -212,17 +304,91 @@ export const authService = {
     }
     const principal = await principalFromId(row.userId);
     if (!principal) throw HttpError.unauthorized('Invalid or expired token');
-    // Stamp last-used at most once per throttle window — otherwise this would be
-    // a DB write on every single agent request. Best-effort, never blocking.
-    const now = Date.now();
-    if (
-      !row.lastUsedAt ||
-      now - row.lastUsedAt.getTime() > LASTUSED_THROTTLE_MS
-    ) {
-      void prisma.apiToken
-        .update({ where: { id: row.id }, data: { lastUsedAt: new Date(now) } })
-        .catch(() => undefined);
-    }
-    return { user: principal, tokenName: row.name };
+    // Best-effort usage stamp — count the call and record last-used. Never
+    // blocks the request; a lost update just under-counts by one.
+    void prisma.apiToken
+      .update({
+        where: { id: row.id },
+        data: { usageCount: { increment: 1 }, lastUsedAt: new Date() },
+      })
+      .catch(() => undefined);
+    return {
+      user: principal,
+      tokenName: row.name,
+      scope: toScope(row.scope),
+      projectIds: row.projectIds,
+      canDelete: row.canDelete,
+    };
+  },
+
+  /** Recent actions performed by the principal's agents (PATs), newest first,
+   *  scoped to projects the principal can see. */
+  async getAgentActivity(principal: AuthUser): Promise<AgentActivity[]> {
+    const scope = projectScopeWhere(principal);
+    const [events, messages] = await Promise.all([
+      prisma.taskEvent.findMany({
+        where: { agentName: { not: null }, task: { project: scope } },
+        orderBy: { createdAt: 'desc' },
+        take: ACTIVITY_LIMIT,
+        select: {
+          id: true,
+          body: true,
+          agentName: true,
+          createdAt: true,
+          task: {
+            select: {
+              title: true,
+              projectId: true,
+              project: { select: { name: true } },
+            },
+          },
+        },
+      }),
+      prisma.message.findMany({
+        where: { agentName: { not: null }, channel: { project: scope } },
+        orderBy: { createdAt: 'desc' },
+        take: ACTIVITY_LIMIT,
+        select: {
+          id: true,
+          body: true,
+          agentName: true,
+          createdAt: true,
+          channel: {
+            select: {
+              name: true,
+              projectId: true,
+              project: { select: { name: true } },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const activity: AgentActivity[] = [
+      ...events.map((e) => ({
+        id: `evt_${e.id}`,
+        kind: 'task_event' as const,
+        agentName: e.agentName ?? 'agent',
+        projectId: e.task.projectId,
+        projectName: e.task.project.name,
+        summary: e.body,
+        context: e.task.title,
+        createdAt: e.createdAt.toISOString(),
+      })),
+      ...messages.map((m) => ({
+        id: `msg_${m.id}`,
+        kind: 'message' as const,
+        agentName: m.agentName ?? 'agent',
+        projectId: m.channel.projectId,
+        projectName: m.channel.project.name,
+        summary: m.body,
+        context: `#${m.channel.name}`,
+        createdAt: m.createdAt.toISOString(),
+      })),
+    ];
+
+    return activity
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, ACTIVITY_LIMIT);
   },
 };

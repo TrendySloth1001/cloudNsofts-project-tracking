@@ -45,6 +45,15 @@ model ApiToken {
   userId     String
   name       String
   tokenHash  String    @unique
+  // Access level: "full" (read + write) or "read_only" (safe/GET methods only).
+  scope      String    @default("full")
+  // When non-empty, the token may only act on these project ids; empty = all
+  // projects the owner can access.
+  projectIds String[]  @default([])
+  // Opt-in destructive access: without this, the token may not DELETE anything.
+  canDelete  Boolean   @default(false)
+  // Best-effort count of authenticated requests made with this token.
+  usageCount Int       @default(0)
   lastUsedAt DateTime?
   expiresAt  DateTime?
   revokedAt  DateTime?
@@ -281,11 +290,36 @@ model Channel {
   description String            @default("")
   visibility  ChannelVisibility @default(internal)
   messages    Message[]
+  scheduled   ScheduledMessage[]
   members     ChannelMember[]
   createdAt   DateTime          @default(now())
 
   @@index([projectId])
   @@map("channels")
+}
+
+// A message queued to post later. A backend poller claims due rows atomically
+// and sends them via the normal post path. Attachment ids are plain (no FK):
+// validated at send time.
+model ScheduledMessage {
+  id                String   @id @default(cuid())
+  channel           Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  channelId         String
+  author            String
+  authorEmail       String?
+  agentName         String?
+  body              String
+  attachedTaskId    String?
+  attachedFeatureId String?
+  scheduledFor      DateTime
+  // pending | sending | sent | canceled | failed
+  status            String   @default("pending")
+  sentMessageId     String?
+  createdAt         DateTime @default(now())
+
+  @@index([status, scheduledFor])
+  @@index([channelId])
+  @@map("scheduled_messages")
 }
 
 model Message {

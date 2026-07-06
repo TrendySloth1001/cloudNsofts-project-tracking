@@ -10,10 +10,12 @@ import {
   createSubtaskSchema,
   createTaskSchema,
   messageAttachmentSchema,
+  reorderTasksSchema,
   taskStatusSchema,
   updateFeatureSchema,
   updateTaskSchema,
   type Feature,
+  type Message,
   type Project,
   type Task,
 } from '@cnsofts/shared';
@@ -79,6 +81,40 @@ function compactProject(p: Project) {
   };
 }
 
+/** Truncate a message for a channel page — full body via get_message. */
+function leanMessage(m: Message) {
+  const MAX = 240;
+  const truncated = m.body.length > MAX;
+  return {
+    id: m.id,
+    author: m.author,
+    agentName: m.agentName,
+    time: m.createdAt,
+    body: truncated ? `${m.body.slice(0, MAX).trimEnd()}…` : m.body,
+    ...(truncated ? { truncated: true } : {}),
+    ...(m.attachment ? { attachment: m.attachment } : {}),
+  };
+}
+
+function compactFeature(p: Project, f: Feature) {
+  return {
+    id: f.id,
+    name: f.name,
+    status: f.status,
+    pinned: f.pinned,
+    ownerIds: f.ownerIds,
+    targetDate: f.targetDate,
+    taskCount: p.tasks.filter((t) => t.featureId === f.id).length,
+    updatedAt: f.updatedAt,
+  };
+}
+
+/** The most-recently-touched item — used to pick the just-created entity out of
+ *  the full project a write returns (ISO timestamps sort lexicographically). */
+function newest<T extends { updatedAt: string }>(items: T[]): T {
+  return items.reduce((a, b) => (a.updatedAt >= b.updatedAt ? a : b));
+}
+
 function findTask(p: Project, taskId: string): Task {
   const t = p.tasks.find((x) => x.id === taskId);
   if (!t) throw new Error(`Task ${taskId} not found in project`);
@@ -91,15 +127,20 @@ function findFeature(p: Project, featureId: string): Feature {
   return f;
 }
 
-/** Run a project-returning write and reply with the compact board. */
-const runBoard = (work: () => Promise<Project>): Promise<ToolResult> =>
-  run(async () => compactProject(await work()));
-
 const projectId = z.string().min(1).describe('The project id');
 const taskId = z.string().min(1).describe('The task id');
 const featureId = z.string().min(1).describe('The feature id');
 const channelId = z.string().min(1).describe('The channel id');
 const subtaskId = z.string().min(1).describe('The subtask id');
+
+// Message and comment bodies are stored verbatim and rendered as GitHub-
+// flavored markdown on the web app, so the agent can format its updates.
+const MARKDOWN_HINT =
+  'Rendered as GitHub-flavored markdown — use **bold**, _italic_, `code`, ' +
+  '`- ` lists, `> ` quotes and [links](url). For code or structured data ' +
+  '(JSON, etc.) use a fenced block that OPENS with a language tag and keeps ' +
+  'real indentation, e.g. ```json\\n{\\n  "a": 1\\n}\\n``` — do NOT escape ' +
+  'characters, add trailing backslashes, or flatten indentation. Raw HTML is ignored.';
 
 const server = new McpServer(
   { name: 'cnsofts', version: '0.1.0' },
@@ -116,6 +157,22 @@ const server = new McpServer(
       'actually returned. If something you expected is missing, re-read rather than',
       'guessing. When updating, read the item first so you preserve fields you are',
       'not intentionally changing.',
+      '',
+      'CONVERSATIONS get long — reading a whole channel is slow and expensive.',
+      'Read like a human:',
+      '  • `get_channel_overview` first — counts, participants, last few previews.',
+      '  • `search_conversations` to find where a topic was discussed (searches',
+      '    channel messages AND task threads) instead of reading everything.',
+      '  • `read_channel` returns a small recent page with `nextCursor`; pass it as',
+      '    `before` to load older messages ONLY when you actually need them.',
+      '  • `get_message` fetches one full message when a preview was truncated.',
+      '',
+      'When you post a message, keep it SHORT. Do the work on the board and post a',
+      'one- or two-line update that points to it — never paste task lists, status',
+      'reports, or plans into chat; that content belongs on the board, not the',
+      'conversation.',
+      '',
+      `Message and task-comment bodies: ${MARKDOWN_HINT}`,
     ].join('\n'),
   },
 );
@@ -197,16 +254,94 @@ server.registerTool(
 );
 
 server.registerTool(
+  'get_channel_overview',
+  {
+    title: 'Channel overview',
+    description:
+      'Cheap orientation for a channel: message count, participants, first/last activity, and the last few message previews. Call this before read_channel to decide whether you even need to read more.',
+    inputSchema: { projectId, channelId },
+  },
+  ({ projectId, channelId }) =>
+    run(() => api.get(apiPaths.projects.channelOverview(projectId, channelId))),
+);
+
+server.registerTool(
+  'search_conversations',
+  {
+    title: 'Search conversations',
+    description:
+      'Full-text search a project’s conversations — channel messages AND task threads — for a query. Returns the top ranked matches as short snippets with their location (channel or task). Use this to find context instead of reading whole channels.',
+    inputSchema: {
+      projectId,
+      query: z.string().min(1).describe('What to search for'),
+      channelId: z
+        .string()
+        .optional()
+        .describe('Restrict to one channel (messages only)'),
+      limit: z.coerce.number().int().min(1).max(30).default(10),
+    },
+  },
+  ({ projectId, query, channelId, limit }) =>
+    run(() => {
+      const params = new URLSearchParams({ q: query, limit: String(limit) });
+      if (channelId) params.set('channelId', channelId);
+      return api.get(`${apiPaths.projects.search(projectId)}?${params.toString()}`);
+    }),
+);
+
+server.registerTool(
   'read_channel',
   {
     title: 'Read channel messages',
     description:
-      'Read recent messages in a discussion channel (call list_channels first for the channelId). Use this to catch up on a conversation before replying.',
-    inputSchema: { projectId, channelId },
+      'Read a recent PAGE of a channel (default 20 newest). Returns lean, truncated messages plus `nextCursor`/`hasMore`; pass nextCursor back as `before` to load older messages. Prefer get_channel_overview / search_conversations first — do not page through a whole channel.',
+    inputSchema: {
+      projectId,
+      channelId,
+      limit: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(50)
+        .default(20)
+        .describe('How many recent messages (max 50)'),
+      before: z
+        .string()
+        .optional()
+        .describe('A nextCursor from a previous call — loads older messages'),
+    },
   },
-  ({ projectId, channelId }) =>
+  ({ projectId, channelId, limit, before }) =>
+    run(async () => {
+      const qs = `?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ''}`;
+      const messages = await api.get<Message[]>(
+        `${apiPaths.projects.channelMessages(projectId, channelId)}${qs}`,
+      );
+      const hasMore = messages.length === limit;
+      return {
+        messages: messages.map(leanMessage),
+        // Oldest returned id — pass as `before` to page further back.
+        nextCursor: hasMore && messages.length > 0 ? messages[0].id : null,
+        hasMore,
+      };
+    }),
+);
+
+server.registerTool(
+  'get_message',
+  {
+    title: 'Get message',
+    description:
+      'Fetch one full (untruncated) message by id — use when a read_channel or search snippet was truncated and you need the whole thing.',
+    inputSchema: {
+      projectId,
+      channelId,
+      messageId: z.string().min(1).describe('The message id'),
+    },
+  },
+  ({ projectId, channelId, messageId }) =>
     run(() =>
-      api.get(apiPaths.projects.channelMessages(projectId, channelId)),
+      api.get(apiPaths.projects.channelMessage(projectId, channelId, messageId)),
     ),
 );
 
@@ -221,7 +356,13 @@ if (!config.readOnly) {
       inputSchema: { projectId, ...createFeatureSchema.shape },
     },
     ({ projectId, ...body }) =>
-      runBoard(() => api.post<Project>(apiPaths.projects.features(projectId), body)),
+      run(async () => {
+        const p = await api.post<Project>(
+          apiPaths.projects.features(projectId),
+          body,
+        );
+        return compactFeature(p, newest(p.features));
+      }),
   );
 
   server.registerTool(
@@ -233,15 +374,13 @@ if (!config.readOnly) {
       inputSchema: { projectId, featureId, ...updateFeatureSchema.shape },
     },
     ({ projectId, featureId, ...body }) =>
-      run(async () =>
-        findFeature(
-          await api.patch<Project>(
-            apiPaths.projects.feature(projectId, featureId),
-            body,
-          ),
-          featureId,
-        ),
-      ),
+      run(async () => {
+        const p = await api.patch<Project>(
+          apiPaths.projects.feature(projectId, featureId),
+          body,
+        );
+        return compactFeature(p, findFeature(p, featureId));
+      }),
   );
 
   server.registerTool(
@@ -256,11 +395,13 @@ if (!config.readOnly) {
       },
     },
     ({ projectId, orderedIds }) =>
-      runBoard(() =>
-        api.post<Project>(apiPaths.projects.featuresReorder(projectId), {
-          orderedIds,
-        }),
-      ),
+      run(async () => {
+        const p = await api.post<Project>(
+          apiPaths.projects.featuresReorder(projectId),
+          { orderedIds },
+        );
+        return p.features.map((f) => compactFeature(p, f));
+      }),
   );
 
   server.registerTool(
@@ -272,7 +413,30 @@ if (!config.readOnly) {
       inputSchema: { projectId, ...createTaskSchema.shape },
     },
     ({ projectId, ...body }) =>
-      runBoard(() => api.post<Project>(apiPaths.projects.tasks(projectId), body)),
+      run(async () => {
+        const p = await api.post<Project>(apiPaths.projects.tasks(projectId), body);
+        return compactTask(newest(p.tasks));
+      }),
+  );
+
+  server.registerTool(
+    'reorder_tasks',
+    {
+      title: 'Reorder tasks',
+      description:
+        'Set the order of tasks within one status column. Pass the status and the full, final list of task ids in that column, in the desired order.',
+      inputSchema: { projectId, ...reorderTasksSchema.shape },
+    },
+    ({ projectId, ...body }) =>
+      run(async () => {
+        const p = await api.patch<Project>(
+          apiPaths.projects.tasksReorder(projectId),
+          body,
+        );
+        return p.tasks
+          .filter((t) => t.status === body.status)
+          .map(compactTask);
+      }),
   );
 
   server.registerTool(
@@ -285,9 +449,11 @@ if (!config.readOnly) {
     },
     ({ projectId, taskId, ...body }) =>
       run(async () =>
-        findTask(
-          await api.patch<Project>(apiPaths.projects.task(projectId, taskId), body),
-          taskId,
+        compactTask(
+          findTask(
+            await api.patch<Project>(apiPaths.projects.task(projectId, taskId), body),
+            taskId,
+          ),
         ),
       ),
   );
@@ -301,11 +467,13 @@ if (!config.readOnly) {
     },
     ({ projectId, taskId, status }) =>
       run(async () =>
-        findTask(
-          await api.patch<Project>(apiPaths.projects.task(projectId, taskId), {
-            status,
-          }),
-          taskId,
+        compactTask(
+          findTask(
+            await api.patch<Project>(apiPaths.projects.task(projectId, taskId), {
+              status,
+            }),
+            taskId,
+          ),
         ),
       ),
   );
@@ -326,11 +494,13 @@ if (!config.readOnly) {
     },
     ({ projectId, taskId, assigneeIds }) =>
       run(async () =>
-        findTask(
-          await api.patch<Project>(apiPaths.projects.task(projectId, taskId), {
-            assigneeIds,
-          }),
-          taskId,
+        compactTask(
+          findTask(
+            await api.patch<Project>(apiPaths.projects.task(projectId, taskId), {
+              assigneeIds,
+            }),
+            taskId,
+          ),
         ),
       ),
   );
@@ -396,17 +566,19 @@ if (!config.readOnly) {
     'comment_task',
     {
       title: 'Comment on task',
-      description: 'Post a comment on a task thread.',
+      description: `Post a comment on a task thread. ${MARKDOWN_HINT}`,
       inputSchema: { projectId, taskId, ...createCommentSchema.shape },
     },
     ({ projectId, taskId, ...body }) =>
       run(async () =>
-        findTask(
-          await api.post<Project>(
-            apiPaths.projects.comments(projectId, taskId),
-            body,
+        compactTask(
+          findTask(
+            await api.post<Project>(
+              apiPaths.projects.comments(projectId, taskId),
+              body,
+            ),
+            taskId,
           ),
-          taskId,
         ),
       ),
   );
@@ -420,7 +592,11 @@ if (!config.readOnly) {
       inputSchema: {
         projectId,
         channelId,
-        body: z.string().max(4000).optional().describe('Message text'),
+        body: z
+          .string()
+          .max(4000)
+          .optional()
+          .describe(`Message text. ${MARKDOWN_HINT}`),
         attachment: messageAttachmentSchema
           .nullable()
           .optional()
@@ -433,12 +609,15 @@ if (!config.readOnly) {
       ),
   );
 
-  if (config.allowDelete) {
+  // Destructive tools are always registered; the server rejects them unless the
+  // connected token was granted delete access (returns a clear 403 otherwise).
+  {
     server.registerTool(
       'delete_task',
       {
         title: 'Delete task',
-        description: 'Permanently delete a task.',
+        description:
+          'Permanently delete a task. Requires a token with delete access enabled.',
         inputSchema: { projectId, taskId },
       },
       ({ projectId, taskId }) =>
@@ -452,7 +631,8 @@ if (!config.readOnly) {
       'delete_feature',
       {
         title: 'Delete feature',
-        description: 'Permanently delete a feature (its tasks are unlinked).',
+        description:
+          'Permanently delete a feature (its tasks are unlinked). Requires a token with delete access enabled.',
         inputSchema: { projectId, featureId },
       },
       ({ projectId, featureId }) =>

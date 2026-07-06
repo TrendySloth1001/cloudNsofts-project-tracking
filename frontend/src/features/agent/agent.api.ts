@@ -1,9 +1,11 @@
 import {
   apiPaths,
+  type AgentActivity,
   type ApiTokenSummary,
   type AuthUser,
   type CreateApiTokenInput,
   type CreatedApiToken,
+  type UpdateApiTokenInput,
 } from '@cnsofts/shared';
 import { apiClient, ApiRequestError } from '@/lib/api-client';
 import { config } from '@/lib/config';
@@ -14,7 +16,13 @@ export const agentApi = {
     apiClient.get<{ tokens: ApiTokenSummary[] }>(apiPaths.auth.tokens()),
   create: (input: CreateApiTokenInput) =>
     apiClient.post<CreatedApiToken>(apiPaths.auth.tokens(), input),
+  rename: (id: string, input: UpdateApiTokenInput) =>
+    apiClient.patch<ApiTokenSummary>(apiPaths.auth.token(id), input),
+  rotate: (id: string) =>
+    apiClient.post<CreatedApiToken>(apiPaths.auth.tokenRotate(id), {}),
   revoke: (id: string) => apiClient.delete<void>(apiPaths.auth.token(id)),
+  activity: () =>
+    apiClient.get<{ activity: AgentActivity[] }>(apiPaths.auth.agentActivity()),
 
   /**
    * Verify a Personal Access Token by calling `/me` AS that token — proves the

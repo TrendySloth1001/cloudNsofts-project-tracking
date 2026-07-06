@@ -14,6 +14,26 @@ export class ApiRequestError extends Error {
 }
 
 /**
+ * Pull the first field-level validation message (e.g. `body`) out of a failed
+ * request's `details`, so the UI can show the real reason instead of the
+ * generic "Validation failed".
+ */
+export function fieldErrorMessage(err: unknown, field: string): string | null {
+  if (
+    err instanceof ApiRequestError &&
+    err.details &&
+    typeof err.details === 'object' &&
+    'fieldErrors' in err.details
+  ) {
+    const fieldErrors = (err.details as { fieldErrors?: Record<string, string[]> })
+      .fieldErrors;
+    const messages = fieldErrors?.[field];
+    if (Array.isArray(messages) && messages.length > 0) return messages[0];
+  }
+  return null;
+}
+
+/**
  * Base HTTP client. Prefixes the configured API URL, sends/receives JSON, and
  * normalizes error responses into `ApiRequestError`. Feature APIs build on this
  * rather than calling `fetch` directly.

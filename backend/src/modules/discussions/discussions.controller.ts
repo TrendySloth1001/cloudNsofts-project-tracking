@@ -3,6 +3,8 @@ import {
   createChannelSchema,
   listMessagesQuerySchema,
   postMessageSchema,
+  scheduleMessageSchema,
+  searchConversationsQuerySchema,
 } from '@cnsofts/shared';
 import { asyncHandler } from '../../shared/http/async-handler';
 import { validate } from '../../shared/http/validate';
@@ -98,6 +100,73 @@ export const discussionsController = {
       req.params.id,
       req.params.channelId,
       req.params.messageId,
+      requireUser(req),
+    );
+    res.status(204).end();
+  }),
+
+  getMessage: asyncHandler(async (req, res) => {
+    res.json(
+      await discussionsService.getMessage(
+        req.params.id,
+        req.params.channelId,
+        req.params.messageId,
+        requireUser(req),
+      ),
+    );
+  }),
+
+  channelOverview: asyncHandler(async (req, res) => {
+    res.json(
+      await discussionsService.getChannelOverview(
+        req.params.id,
+        req.params.channelId,
+        requireUser(req),
+      ),
+    );
+  }),
+
+  searchConversations: asyncHandler(async (req, res) => {
+    const query = validate(searchConversationsQuerySchema, req.query);
+    const results = await discussionsService.searchConversations(
+      req.params.id,
+      query,
+      requireUser(req),
+      req.projectRole ?? null,
+    );
+    res.json({ results });
+  }),
+
+  scheduleMessage: asyncHandler(async (req, res) => {
+    const input = validate(scheduleMessageSchema, req.body);
+    res
+      .status(201)
+      .json(
+        await discussionsService.createScheduledMessage(
+          req.params.id,
+          req.params.channelId,
+          requireUser(req),
+          input,
+          req.agentName ?? null,
+        ),
+      );
+  }),
+
+  listScheduled: asyncHandler(async (req, res) => {
+    res.json(
+      await discussionsService.listScheduledMessages(
+        req.params.id,
+        req.params.channelId,
+        requireUser(req),
+      ),
+    );
+  }),
+
+  cancelScheduled: asyncHandler(async (req, res) => {
+    await discussionsService.cancelScheduledMessage(
+      req.params.id,
+      req.params.channelId,
+      req.params.scheduledId,
       requireUser(req),
     );
     res.status(204).end();

@@ -1,73 +1,59 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  API_TOKEN_SCOPE_LABELS,
   USER_ROLE_LABELS,
+  type AgentActivity,
+  type ApiTokenScope,
+  type ApiTokenSummary,
   type AuthUser,
   type CreatedApiToken,
-  type ApiTokenSummary,
+  type Project,
 } from '@cnsofts/shared';
 import {
   Alert,
   Button,
+  Checkbox,
   Field,
   Icon,
   IconButton,
   Input,
+  Menu,
+  MultiSelect,
   Select,
   Spinner,
   Tabs,
   useConfirm,
+  type IconName,
+  type SelectOption,
 } from '@/components/ui';
 import { config } from '@/lib/config';
 import { ApiRequestError } from '@/lib/api-client';
+import { projectsApi } from '@/features/projects/projects.api';
 import { useAgentTokens } from '../use-agent-tokens';
+import { useAgentActivity } from '../use-agent-activity';
 import { agentApi } from '../agent.api';
+import {
+  CONNECT_CLIENTS,
+  EXAMPLE_PROMPTS,
+  MCP_TOOL_GROUPS,
+  REST_EXAMPLES,
+  TROUBLESHOOTING,
+  type ConnectClient,
+} from '../agent.content';
 import styles from './connect-agent-panel.module.css';
 
-const EXPIRY_OPTIONS = [
+const EXPIRY_OPTIONS: SelectOption[] = [
   { value: '', label: 'Never expires' },
   { value: '30', label: '30 days' },
   { value: '90', label: '90 days' },
   { value: '365', label: '1 year' },
 ];
 
-const CONNECT_METHODS = [
-  { value: 'cli', label: 'Claude Code', icon: 'terminal' as const },
-  { value: 'json', label: 'MCP config', icon: 'code' as const },
-  { value: 'env', label: 'Env vars', icon: 'key' as const },
-];
-
-const TOKEN_PLACEHOLDER = '<YOUR_TOKEN>';
-
-/** Build the connect snippet for a given method + token. */
-function snippetFor(method: string, token: string): string {
-  const apiUrl = config.apiUrl;
-  if (method === 'json') {
-    return JSON.stringify(
-      {
-        mcpServers: {
-          cnsofts: {
-            command: 'npx',
-            args: ['-y', '@cnsofts/mcp'],
-            env: { CNSOFTS_API_URL: apiUrl, CNSOFTS_TOKEN: token },
-          },
-        },
-      },
-      null,
-      2,
-    );
-  }
-  if (method === 'env') {
-    return `CNSOFTS_API_URL=${apiUrl}\nCNSOFTS_TOKEN=${token}`;
-  }
-  return [
-    'claude mcp add cnsofts \\',
-    `  -e CNSOFTS_API_URL=${apiUrl} \\`,
-    `  -e CNSOFTS_TOKEN=${token} \\`,
-    '  -- npx -y @cnsofts/mcp',
-  ].join('\n');
-}
+const SCOPE_OPTIONS: SelectOption[] = (
+  Object.entries(API_TOKEN_SCOPE_LABELS) as [ApiTokenScope, string][]
+).map(([value, label]) => ({ value, label }));
 
 const dateFmt = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -95,24 +81,30 @@ function isExpired(t: ApiTokenSummary): boolean {
   return t.expiresAt != null && new Date(t.expiresAt).getTime() < Date.now();
 }
 
-/** Days until expiry, flagged `soon` within a week. Null when no expiry/passed. */
-function expiryInfo(iso: string | null): { text: string; soon: boolean } | null {
-  if (!iso) return null;
-  const diff = new Date(iso).getTime() - Date.now();
-  if (diff <= 0) return null;
-  const days = Math.ceil(diff / 86_400_000);
-  return {
-    text: days <= 1 ? 'Expires today' : `Expires in ${days}d`,
-    soon: days <= 7,
-  };
+function downloadFile(name: string, content: string): void {
+  const blob = new Blob([content], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 /** Copy-to-clipboard control with a transient "Copied" state. */
-function CopyButton({ value, label }: { value: string; label: string }) {
+function CopyButton({
+  value,
+  label,
+  variant = 'outline',
+}: {
+  value: string;
+  label: string;
+  variant?: 'outline' | 'ghost';
+}) {
   const [copied, setCopied] = useState(false);
   return (
     <Button
-      variant="outline"
+      variant={variant}
       size="sm"
       leftIcon={copied ? 'check' : 'copy'}
       onClick={() => {
@@ -127,21 +119,44 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   );
 }
 
-/** Tabbed connect snippets (CLI / MCP JSON / env) with per-snippet copy. */
-function ConnectInstructions({ token }: { token: string }) {
-  const [method, setMethod] = useState('cli');
-  const snippet = snippetFor(method, token);
+/** Tabbed code snippets (MCP clients or REST languages), with copy + download. */
+function SnippetTabs({
+  clients,
+  token,
+}: {
+  clients: ConnectClient[];
+  token: string;
+}) {
+  const [sel, setSel] = useState(clients[0].value);
+  const active = clients.find((c) => c.value === sel) ?? clients[0];
+  const snippet = active.build(config.apiUrl, token);
   return (
     <div className={styles.connect}>
       <Tabs
         variant="pill"
-        items={CONNECT_METHODS}
-        value={method}
-        onValueChange={setMethod}
+        items={clients.map((c) => ({
+          value: c.value,
+          label: c.label,
+          icon: c.icon,
+        }))}
+        value={sel}
+        onValueChange={setSel}
       />
       <div className={styles.cmdRow}>
         <pre className={styles.cmd}>{snippet}</pre>
-        <CopyButton value={snippet} label="Copy" />
+        <div className={styles.cmdActions}>
+          <CopyButton value={snippet} label="Copy" />
+          {active.filename && (
+            <Button
+              variant="ghost"
+              size="sm"
+              leftIcon="attachment"
+              onClick={() => downloadFile(active.filename as string, snippet)}
+            >
+              Download
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -191,17 +206,256 @@ function VerifyButton({ token }: { token: string }) {
   );
 }
 
+/** One token row: status, scope/usage meta, and a rename/rotate/revoke menu. */
+function TokenRow({
+  token,
+  projectNames,
+  onRename,
+  onRotate,
+  onRevoke,
+}: {
+  token: ApiTokenSummary;
+  projectNames: (ids: string[]) => string;
+  onRename: (id: string, name: string) => Promise<void>;
+  onRotate: (token: ApiTokenSummary) => void;
+  onRevoke: (id: string, name: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(token.name);
+  const [saving, setSaving] = useState(false);
+  const expired = isExpired(token);
+
+  async function save() {
+    const next = draft.trim();
+    if (!next || next === token.name) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    try {
+      await onRename(token.id, next);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const scopeLabel = API_TOKEN_SCOPE_LABELS[token.scope];
+  const projectScope =
+    token.projectIds.length === 0
+      ? 'All projects'
+      : projectNames(token.projectIds);
+
+  return (
+    <li className={styles.tokenItem}>
+      <span
+        className={styles.statusDot}
+        data-expired={expired || undefined}
+        title={expired ? 'Expired' : 'Active'}
+      />
+      <div className={styles.tokenMain}>
+        {editing ? (
+          <div className={styles.renameRow}>
+            <Input
+              value={draft}
+              autoFocus
+              maxLength={80}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void save();
+                if (e.key === 'Escape') setEditing(false);
+              }}
+            />
+            <Button size="sm" loading={saving} onClick={() => void save()}>
+              Save
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setEditing(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <>
+            <span className={styles.tokenName}>
+              {token.name}
+              <span
+                className={styles.scopeTag}
+                data-ro={token.scope === 'read_only' || undefined}
+              >
+                {scopeLabel}
+              </span>
+              {token.canDelete && (
+                <span className={styles.deleteTag}>Can delete</span>
+              )}
+              {expired && <span className={styles.expiredTag}>Expired</span>}
+            </span>
+            <span className={styles.tokenMeta}>
+              <span title={projectScope}>
+                <Icon name="folder" size={13} /> {projectScope}
+              </span>
+              {' · '}
+              {token.usageCount} call{token.usageCount === 1 ? '' : 's'}
+              {' · '}
+              <span title={fmt(token.lastUsedAt)}>
+                used {relativeTime(token.lastUsedAt)}
+              </span>
+              {' · '}
+              {token.expiresAt ? (
+                <span title={fmt(token.expiresAt)}>
+                  {expired ? 'expired' : `expires ${fmt(token.expiresAt)}`}
+                </span>
+              ) : (
+                'no expiry'
+              )}
+            </span>
+          </>
+        )}
+      </div>
+      {!editing && (
+        <Menu
+          align="end"
+          portal
+          trigger={
+            <IconButton icon="moreVertical" label={`Manage ${token.name}`} variant="ghost" size="sm" />
+          }
+          items={[
+            { label: 'Rename', icon: 'edit', onSelect: () => { setDraft(token.name); setEditing(true); } },
+            { label: 'Rotate secret', icon: 'key', onSelect: () => onRotate(token) },
+            { separator: true },
+            { label: 'Revoke', icon: 'delete', danger: true, onSelect: () => onRevoke(token.id, token.name) },
+          ]}
+        />
+      )}
+    </li>
+  );
+}
+
+/** Recent agent actions feed. */
+function ActivityFeed({ reloadKey }: { reloadKey: number }) {
+  const { activity, loading } = useAgentActivity(reloadKey);
+  const iconFor = (a: AgentActivity): IconName =>
+    a.kind === 'message' ? 'chat' : 'tasks';
+
+  return (
+    <section className={styles.card}>
+      <h2 className={styles.cardTitle}>
+        <Icon name="clock" size={18} tone="brand" />
+        Recent agent activity
+      </h2>
+      {loading ? (
+        <div className={styles.loading}>
+          <Spinner size={20} />
+        </div>
+      ) : activity.length === 0 ? (
+        <p className={styles.empty}>
+          Nothing yet. Actions your agents take — moving tasks, posting messages
+          — will show up here.
+        </p>
+      ) : (
+        <ul className={styles.activityList}>
+          {activity.map((a) => (
+            <li key={a.id} className={styles.activityItem}>
+              <span className={styles.activityIcon}>
+                <Icon name={iconFor(a)} size={16} tone="brand" />
+              </span>
+              <div className={styles.activityMain}>
+                <p className={styles.activitySummary}>{a.summary}</p>
+                <span className={styles.activityMeta}>
+                  <strong>{a.agentName}</strong> · {a.context} · {a.projectName}{' '}
+                  · {relativeTime(a.createdAt)}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** MCP tool catalog + example prompts. */
+function ToolReference() {
+  return (
+    <section className={styles.card}>
+      <h2 className={styles.cardTitle}>
+        <Icon name="ai" size={18} tone="brand" />
+        What your agent can do
+      </h2>
+      <div className={styles.toolGroups}>
+        {MCP_TOOL_GROUPS.map((g) => (
+          <div key={g.title} className={styles.toolGroup}>
+            <div className={styles.toolGroupHead}>
+              <Icon name={g.icon} size={15} tone="neutral" />
+              <span className={styles.toolGroupTitle}>{g.title}</span>
+              <span className={styles.toolGroupNote}>{g.note}</span>
+            </div>
+            <div className={styles.toolChips}>
+              {g.tools.map((t) => (
+                <code key={t} className={styles.toolChip}>
+                  {t}
+                </code>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className={styles.cmdLabel}>Try asking your agent:</p>
+      <ul className={styles.promptList}>
+        {EXAMPLE_PROMPTS.map((p) => (
+          <li key={p} className={styles.promptItem}>
+            <span className={styles.promptText}>{p}</span>
+            <CopyButton value={p} label="Copy" variant="ghost" />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export function ConnectAgentPanel() {
-  const { tokens, loading, create, revoke } = useAgentTokens();
+  const { tokens, loading, create, rename, rotate, revoke } = useAgentTokens();
   const confirm = useConfirm();
 
+  const [projects, setProjects] = useState<Project[]>([]);
   const [name, setName] = useState('');
+  const [scope, setScope] = useState<ApiTokenScope>('full');
+  const [projectIds, setProjectIds] = useState<string[]>([]);
+  const [canDelete, setCanDelete] = useState(false);
   const [expiresIn, setExpiresIn] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
-  // The plaintext token is returned once, on creation — held in memory only.
+  // The plaintext token is returned once, on creation/rotation — memory only.
   const [fresh, setFresh] = useState<CreatedApiToken | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    projectsApi
+      .list()
+      .then((res) => {
+        if (alive) setProjects(res);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const projectOptions: SelectOption[] = useMemo(
+    () => projects.map((p) => ({ value: p.id, label: p.name })),
+    [projects],
+  );
+  const projectNames = useMemo(() => {
+    const byId = new Map(projects.map((p) => [p.id, p.name]));
+    return (ids: string[]): string => {
+      const names = ids.map((id) => byId.get(id) ?? 'Unknown');
+      if (names.length <= 2) return names.join(', ');
+      return `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
+    };
+  }, [projects]);
 
   async function onCreate() {
     const trimmed = name.trim();
@@ -211,11 +465,17 @@ export function ConnectAgentPanel() {
     try {
       const result = await create({
         name: trimmed,
+        scope,
+        projectIds,
+        canDelete: scope !== 'read_only' && canDelete,
         ...(expiresIn ? { expiresInDays: Number(expiresIn) } : {}),
       });
       setFresh(result);
       setRevealed(false);
       setName('');
+      setScope('full');
+      setProjectIds([]);
+      setCanDelete(false);
       setExpiresIn('');
     } catch (err) {
       setError(
@@ -226,6 +486,25 @@ export function ConnectAgentPanel() {
     } finally {
       setCreating(false);
     }
+  }
+
+  async function onRotate(token: ApiTokenSummary) {
+    const ok = await confirm({
+      title: 'Rotate token?',
+      message: (
+        <>
+          Rotate <strong>{token.name}</strong>? Its current secret stops working
+          immediately and you&apos;ll get a new one to copy.
+        </>
+      ),
+      confirmLabel: 'Rotate',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    const result = await rotate(token.id);
+    setFresh(result);
+    setRevealed(false);
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async function onRevoke(id: string, tokenName: string) {
@@ -244,11 +523,6 @@ export function ConnectAgentPanel() {
     await revoke(id);
     if (fresh?.apiToken.id === id) setFresh(null);
   }
-
-  const activeCount = tokens.filter((t) => !isExpired(t)).length;
-  const maskedToken = fresh
-    ? `${fresh.token.slice(0, 12)}${'•'.repeat(18)}${fresh.token.slice(-4)}`
-    : '';
 
   return (
     <div className={styles.panel}>
@@ -274,7 +548,9 @@ export function ConnectAgentPanel() {
           </p>
           <div className={styles.tokenRow}>
             <code className={styles.tokenValue}>
-              {revealed ? fresh.token : maskedToken}
+              {revealed
+                ? fresh.token
+                : `${fresh.token.slice(0, 12)}${'•'.repeat(18)}${fresh.token.slice(-4)}`}
             </code>
             <IconButton
               icon={revealed ? 'eyeOff' : 'eye'}
@@ -287,7 +563,7 @@ export function ConnectAgentPanel() {
           </div>
           <VerifyButton token={fresh.token} />
           <p className={styles.cmdLabel}>Connect your agent:</p>
-          <ConnectInstructions token={fresh.token} />
+          <SnippetTabs clients={CONNECT_CLIENTS} token={fresh.token} />
         </Alert>
       )}
 
@@ -309,6 +585,24 @@ export function ConnectAgentPanel() {
               }}
             />
           </Field>
+          <Field label="Access" className={styles.scopeField}>
+            <Select
+              value={scope}
+              onChange={(e) => setScope(e.target.value as ApiTokenScope)}
+              options={SCOPE_OPTIONS}
+            />
+          </Field>
+          <Field
+            label="Projects"
+            className={styles.projectsField}
+          >
+            <MultiSelect
+              options={projectOptions}
+              values={projectIds}
+              onValuesChange={setProjectIds}
+              placeholder="All my projects"
+            />
+          </Field>
           <Field label="Expiry" className={styles.expiryField}>
             <Select
               value={expiresIn}
@@ -317,6 +611,7 @@ export function ConnectAgentPanel() {
             />
           </Field>
           <Button
+            className={styles.generateBtn}
             leftIcon="add"
             onClick={() => void onCreate()}
             loading={creating}
@@ -325,6 +620,22 @@ export function ConnectAgentPanel() {
             Generate token
           </Button>
         </div>
+        <Checkbox
+          checked={canDelete}
+          disabled={scope === 'read_only'}
+          onChange={(e) => setCanDelete(e.target.checked)}
+          label="Allow deletes"
+          description="Let this token permanently delete tasks and features. Off by default."
+        />
+        <p className={styles.formHint}>
+          <Icon name="info" size={14} tone="neutral" />
+          {scope === 'read_only'
+            ? 'Read-only tokens can view boards and discussions but cannot make changes.'
+            : 'Full-access tokens can create and update work.'}{' '}
+          {projectIds.length === 0
+            ? 'Scoped to every project you can access.'
+            : `Limited to ${projectIds.length} project${projectIds.length === 1 ? '' : 's'}.`}
+        </p>
         {error && (
           <Alert variant="danger" className={styles.formError}>
             {error}
@@ -340,7 +651,9 @@ export function ConnectAgentPanel() {
             Active tokens
           </h2>
           {!loading && tokens.length > 0 && (
-            <span className={styles.count}>{activeCount} active</span>
+            <span className={styles.count}>
+              {tokens.filter((t) => !isExpired(t)).length} active
+            </span>
           )}
         </div>
         {loading ? (
@@ -353,57 +666,25 @@ export function ConnectAgentPanel() {
           </p>
         ) : (
           <ul className={styles.tokenList}>
-            {tokens.map((t) => {
-              const expired = isExpired(t);
-              const exp = expiryInfo(t.expiresAt);
-              return (
-                <li key={t.id} className={styles.tokenItem}>
-                  <span
-                    className={styles.statusDot}
-                    data-expired={expired || undefined}
-                    title={expired ? 'Expired' : 'Active'}
-                  />
-                  <div className={styles.tokenMain}>
-                    <span className={styles.tokenName}>
-                      {t.name}
-                      {expired && (
-                        <span className={styles.expiredTag}>Expired</span>
-                      )}
-                      {exp?.soon && (
-                        <span className={styles.soonTag}>{exp.text}</span>
-                      )}
-                    </span>
-                    <span className={styles.tokenMeta}>
-                      <span title={fmt(t.createdAt)}>
-                        Created {fmt(t.createdAt)}
-                      </span>
-                      {' · '}
-                      <span title={t.lastUsedAt ? fmt(t.lastUsedAt) : 'never'}>
-                        Last used {relativeTime(t.lastUsedAt)}
-                      </span>
-                      {' · '}
-                      {t.expiresAt ? (
-                        <span title={fmt(t.expiresAt)}>
-                          {expired ? 'Expired' : (exp?.text ?? `Expires ${fmt(t.expiresAt)}`)}
-                        </span>
-                      ) : (
-                        'No expiry'
-                      )}
-                    </span>
-                  </div>
-                  <IconButton
-                    icon="delete"
-                    label={`Revoke ${t.name}`}
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => void onRevoke(t.id, t.name)}
-                  />
-                </li>
-              );
-            })}
+            {tokens.map((t) => (
+              <TokenRow
+                key={t.id}
+                token={t}
+                projectNames={projectNames}
+                onRename={rename}
+                onRotate={onRotate}
+                onRevoke={onRevoke}
+              />
+            ))}
           </ul>
         )}
       </section>
+
+      {/* Agent activity */}
+      <ActivityFeed reloadKey={0} />
+
+      {/* Tool reference + prompts */}
+      <ToolReference />
 
       {/* Setup reference */}
       <section className={styles.card}>
@@ -413,16 +694,41 @@ export function ConnectAgentPanel() {
         </h2>
         <ol className={styles.steps}>
           <li>Generate a token above and copy it.</li>
-          <li>
-            Pick your setup below and run it, pasting the token in place of{' '}
-            <code className={styles.inline}>{TOKEN_PLACEHOLDER}</code>.
-          </li>
-          <li>
-            Your agent can now create features &amp; tasks, move and assign them,
-            and post channel messages — as you.
-          </li>
+          <li>Pick your client below and run the snippet (the token is baked in).</li>
+          <li>Restart your agent so it loads the new tools.</li>
         </ol>
-        <ConnectInstructions token={TOKEN_PLACEHOLDER} />
+        <SnippetTabs clients={CONNECT_CLIENTS} token="<YOUR_TOKEN>" />
+      </section>
+
+      {/* Any language — raw REST */}
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>
+          <Icon name="code" size={18} tone="brand" />
+          Use it from any language
+        </h2>
+        <p className={styles.formHint}>
+          <Icon name="info" size={14} tone="neutral" />
+          No MCP or Node required — the token is a standard Bearer credential.
+          Any language with an HTTP client (C#, Python, Go, JavaScript, …) can
+          call the same REST API the agent uses.
+        </p>
+        <SnippetTabs clients={REST_EXAMPLES} token="<YOUR_TOKEN>" />
+      </section>
+
+      {/* Troubleshooting */}
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>
+          <Icon name="help" size={18} tone="brand" />
+          Troubleshooting
+        </h2>
+        <dl className={styles.faq}>
+          {TROUBLESHOOTING.map((item) => (
+            <div key={item.q} className={styles.faqItem}>
+              <dt className={styles.faqQ}>{item.q}</dt>
+              <dd className={styles.faqA}>{item.a}</dd>
+            </div>
+          ))}
+        </dl>
       </section>
     </div>
   );

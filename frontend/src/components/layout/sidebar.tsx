@@ -4,11 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type { AuthUser } from '@cnsofts/shared';
-import { Icon, Menu } from '@/components/ui';
+import { Icon } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
 import { cx } from '@/lib/cx';
-import { UserAvatar } from '@/features/profile/components/user-avatar';
-import { profileStorage } from '@/lib/profile-storage';
 import { useProjects } from '@/features/projects/use-projects';
 import { CreateProjectDialog } from '@/features/projects/components/create-project-dialog';
 import { projectTint } from '@/features/projects/project-visuals';
@@ -17,21 +15,21 @@ import styles from './sidebar.module.css';
 
 export interface SidebarProps {
   user: AuthUser;
-  onSignOut: () => void;
   /** Mobile drawer open state. */
   open: boolean;
   onClose: () => void;
 }
 
-export function Sidebar({ user, onSignOut, open, onClose }: SidebarProps) {
+export function Sidebar({ user, open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { projects } = useProjects();
   const [createOpen, setCreateOpen] = useState(false);
-  const avatarId = profileStorage.getAvatar(user.id);
+  // Desktop rail collapse. In-memory only (no persisted client preference).
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <aside className={cx(styles.sidebar, open && styles.open)}>
+    <aside className={cx(styles.sidebar, open && styles.open, collapsed && styles.collapsed)}>
       <div className={styles.header}>
         <Link
           href="/"
@@ -39,9 +37,20 @@ export function Sidebar({ user, onSignOut, open, onClose }: SidebarProps) {
           aria-label="Home"
           onClick={onClose}
         >
-          <Logo size="sm" />
+          <Logo size="sm" markOnly={collapsed} />
         </Link>
-        <NotificationButton />
+        <span className={styles.bell}>
+          <NotificationButton />
+        </span>
+        <button
+          type="button"
+          className={styles.collapseToggle}
+          onClick={() => setCollapsed((v) => !v)}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          <Icon name="sidebar" size={18} />
+        </button>
       </div>
 
       <nav className={styles.nav}>
@@ -51,6 +60,7 @@ export function Sidebar({ user, onSignOut, open, onClose }: SidebarProps) {
           <Link
             href="/"
             onClick={onClose}
+            title={collapsed ? 'All projects' : undefined}
             className={cx(
               styles.navItem,
               styles.grow,
@@ -58,7 +68,7 @@ export function Sidebar({ user, onSignOut, open, onClose }: SidebarProps) {
             )}
           >
             <Icon name="home" size={18} tone="brand" />
-            <span>All projects</span>
+            <span className={styles.label}>All projects</span>
           </Link>
           {user.role === 'ADMIN' && (
             <button
@@ -84,6 +94,7 @@ export function Sidebar({ user, onSignOut, open, onClose }: SidebarProps) {
                   key={p.id}
                   href={`/projects/${p.id}`}
                   onClick={onClose}
+                  title={collapsed ? p.name : undefined}
                   className={cx(styles.projectItem, active && styles.active)}
                 >
                   <span
@@ -98,46 +109,31 @@ export function Sidebar({ user, onSignOut, open, onClose }: SidebarProps) {
         </div>
       </nav>
 
-      <div className={styles.bottom}>
-        {/* Single account row — Settings lives in its menu (no duplicate row). */}
-        <Menu
-          side="top"
-          align="start"
-          trigger={
-            <button type="button" className={styles.user}>
-              <UserAvatar
-                name={user.name}
-                seed={user.id}
-                avatarId={avatarId}
-                size={30}
-              />
-              <span className={styles.userMeta}>
-                <span className={styles.userName}>{user.name}</span>
-                <span className={styles.userEmail}>{user.email}</span>
-              </span>
-              <Icon name="chevronUp" size={15} className={styles.userChevron} />
-            </button>
-          }
-          items={[
-            {
-              label: 'Profile & settings',
-              icon: 'settings',
-              onSelect: () => router.push('/profile-setup'),
-            },
-            {
-              label: 'Connect coding agent',
-              icon: 'ai',
-              onSelect: () => router.push('/settings/agent'),
-            },
-            { separator: true },
-            {
-              label: 'Log out',
-              icon: 'logout',
-              danger: true,
-              onSelect: onSignOut,
-            },
-          ]}
-        />
+      <div className={styles.bottomNav}>
+        <Link
+          href="/profile-setup"
+          onClick={onClose}
+          title={collapsed ? 'Profile & settings' : undefined}
+          className={cx(
+            styles.navItem,
+            pathname === '/profile-setup' && styles.active,
+          )}
+        >
+          <Icon name="userCircle" size={18} tone="brand" />
+          <span className={styles.label}>Profile &amp; settings</span>
+        </Link>
+        <Link
+          href="/settings/agent"
+          onClick={onClose}
+          title={collapsed ? 'Connect coding agent' : undefined}
+          className={cx(
+            styles.navItem,
+            pathname.startsWith('/settings/agent') && styles.active,
+          )}
+        >
+          <Icon name="plug" size={18} tone="brand" />
+          <span className={styles.label}>Connect coding agent</span>
+        </Link>
       </div>
 
       <CreateProjectDialog

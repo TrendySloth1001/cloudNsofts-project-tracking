@@ -6,13 +6,13 @@
   flex-direction: column;
   background: var(--color-canvas);
   border-right: 1px solid var(--color-border);
+  transition: width var(--duration-normal) var(--ease-out);
 }
 
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
+  gap: var(--space-1);
   height: 64px;
   padding: 0 var(--space-3) 0 var(--space-4);
   flex: none;
@@ -20,9 +20,30 @@
 }
 .brand {
   display: inline-flex;
+  margin-right: auto;
 }
 .brand:hover {
   text-decoration: none;
+}
+.collapseToggle {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.collapseToggle:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+/* The collapse control is a desktop affordance; the drawer has its own overlay. */
+@media (max-width: 899px) {
+  .collapseToggle {
+    display: none;
+  }
 }
 
 .nav {
@@ -126,54 +147,44 @@
   box-shadow: var(--shadow-sm);
 }
 
-.bottom {
+/* Secondary nav pinned to the bottom (profile / connect agent). */
+.bottomNav {
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 2px;
   padding: var(--space-3);
   border-top: 1px solid var(--color-border);
 }
-.user {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  padding: var(--space-2);
-  border-radius: var(--radius-lg);
-  transition: background var(--duration-fast) var(--ease-out);
-}
-.user:hover {
-  background: var(--color-surface-hover);
-}
-.userMeta {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  text-align: left;
-  line-height: 1.25;
-}
-.userName {
-  min-width: 0;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  color: var(--color-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.userEmail {
-  min-width: 0;
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.userChevron {
-  flex: none;
-  color: var(--color-text-muted);
+
+/* Desktop collapsed rail — icons only. Gated to desktop so the mobile drawer
+   (which reuses this component) always shows full labels. */
+@media (min-width: 900px) {
+  .collapsed {
+    width: 72px;
+  }
+  .collapsed .header {
+    justify-content: center;
+    padding: 0;
+  }
+  .collapsed .brand,
+  .collapsed .bell {
+    display: none;
+  }
+  .collapsed .label,
+  .collapsed .projectName,
+  .collapsed .addBtn {
+    display: none;
+  }
+  .collapsed .navItem,
+  .collapsed .projectItem {
+    justify-content: center;
+    gap: 0;
+  }
+  .collapsed .projectDot {
+    width: 10px;
+    height: 10px;
+  }
 }
 
 /* Mobile: off-canvas drawer */
@@ -183,6 +194,7 @@
     top: 0;
     left: 0;
     z-index: var(--z-modal);
+    width: min(84vw, 300px);
     transform: translateX(-100%);
     transition: transform var(--duration-normal) var(--ease-out);
     box-shadow: var(--shadow-xl);

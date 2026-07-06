@@ -29,10 +29,25 @@ export interface AuthResponse {
 
 /* ----------------------------- Access tokens ---------------------------- */
 
+/** Access level a token grants: full read+write, or read-only (safe methods). */
+export const apiTokenScopeSchema = z.enum(['full', 'read_only']);
+export type ApiTokenScope = z.infer<typeof apiTokenScopeSchema>;
+
+export const API_TOKEN_SCOPE_LABELS: Record<ApiTokenScope, string> = {
+  full: 'Full access',
+  read_only: 'Read only',
+};
+
 /** A Personal Access Token as listed to its owner (never includes the secret). */
 export interface ApiTokenSummary {
   id: string;
   name: string;
+  scope: ApiTokenScope;
+  /** Project ids the token is limited to; empty = all the owner can access. */
+  projectIds: string[];
+  /** Whether the token may perform destructive (DELETE) operations. */
+  canDelete: boolean;
+  usageCount: number;
   createdAt: string;
   lastUsedAt: string | null;
   expiresAt: string | null;
@@ -40,15 +55,40 @@ export interface ApiTokenSummary {
 
 export const createApiTokenSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(80),
+  scope: apiTokenScopeSchema.default('full'),
+  /** Limit the token to these projects; omit/empty for all accessible ones. */
+  projectIds: z.array(z.string().min(1)).default([]),
+  /** Allow destructive (DELETE) operations. Off by default for safety. */
+  canDelete: z.boolean().default(false),
   /** Optional lifetime in days; omit for a token that never expires. */
   expiresInDays: z.coerce.number().int().positive().max(365).optional(),
 });
 export type CreateApiTokenInput = z.infer<typeof createApiTokenSchema>;
 
+/** Rename an existing token (the only mutable field). */
+export const updateApiTokenSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(80),
+});
+export type UpdateApiTokenInput = z.infer<typeof updateApiTokenSchema>;
+
 /** Mint response — the plaintext token is returned exactly once, at creation. */
 export interface CreatedApiToken {
   token: string;
   apiToken: ApiTokenSummary;
+}
+
+/** A recent action performed by a coding agent (PAT), for the owner's feed. */
+export interface AgentActivity {
+  id: string;
+  kind: 'task_event' | 'message';
+  agentName: string;
+  projectId: string;
+  projectName: string;
+  /** Human summary of what happened (e.g. the event/message body). */
+  summary: string;
+  /** Where it happened — a task title or "#channel". */
+  context: string;
+  createdAt: string;
 }
 
 /* -------------------------------- Users --------------------------------- */
@@ -480,9 +520,12 @@ export const createChannelSchema = z.object({
 });
 export type CreateChannelInput = z.infer<typeof createChannelSchema>;
 
+/** Max length of a channel message / scheduled message body. */
+export const MESSAGE_BODY_MAX_LENGTH = 4000;
+
 export const postMessageSchema = z
   .object({
-    body: z.string().trim().max(4000).default(''),
+    body: z.string().trim().max(MESSAGE_BODY_MAX_LENGTH).default(''),
     attachment: messageAttachmentSchema.nullable().default(null),
   })
   .refine((v) => v.body.length > 0 || v.attachment !== null, {
@@ -490,6 +533,51 @@ export const postMessageSchema = z
     path: ['body'],
   });
 export type PostMessageInput = z.infer<typeof postMessageSchema>;
+
+/* --------------------------- Scheduled messages ------------------------- */
+
+export const scheduledMessageStatusSchema = z.enum([
+  'pending',
+  'sending',
+  'sent',
+  'canceled',
+  'failed',
+]);
+export type ScheduledMessageStatus = z.infer<
+  typeof scheduledMessageStatusSchema
+>;
+
+/** Queue a message to post later. `scheduledFor` is an ISO datetime (UTC). */
+export const scheduleMessageSchema = z
+  .object({
+    body: z.string().trim().max(MESSAGE_BODY_MAX_LENGTH).default(''),
+    attachment: messageAttachmentSchema.nullable().default(null),
+    scheduledFor: z
+      .string()
+      .datetime({ message: 'Pick a valid date and time' }),
+  })
+  .refine((v) => v.body.length > 0 || v.attachment !== null, {
+    message: 'Message is required',
+    path: ['body'],
+  })
+  .refine((v) => new Date(v.scheduledFor).getTime() > Date.now(), {
+    message: 'Schedule a time in the future',
+    path: ['scheduledFor'],
+  });
+export type ScheduleMessageInput = z.infer<typeof scheduleMessageSchema>;
+
+/** A pending/queued message as shown to its channel. */
+export interface ScheduledMessage {
+  id: string;
+  channelId: string;
+  author: string;
+  agentName: string | null;
+  body: string;
+  attachment: MessageAttachment | null;
+  scheduledFor: string;
+  status: ScheduledMessageStatus;
+  createdAt: string;
+}
 
 export const createMilestoneSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(160),
@@ -581,6 +669,57 @@ export const listMessagesQuerySchema = z.object({
 });
 export type ListMessagesQuery = z.infer<typeof listMessagesQuerySchema>;
 
+/* ------------------------- Conversation search -------------------------- */
+
+/** Search a project's conversations (channel messages + task threads) so an
+ *  agent can find relevant context instead of ingesting whole threads. */
+export const searchConversationsQuerySchema = z.object({
+  q: z.string().trim().min(1, 'A search query is required').max(200),
+  /** Restrict to one channel (messages only) instead of the whole project. */
+  channelId: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(30).default(10),
+});
+export type SearchConversationsQuery = z.infer<
+  typeof searchConversationsQuerySchema
+>;
+
+/** A single full-text match, from either a channel message or a task thread. */
+export interface ConversationSearchResult {
+  id: string;
+  kind: 'message' | 'task_event';
+  /** Truncated body of the matched item. */
+  snippet: string;
+  author: string;
+  agentName: string | null;
+  createdAt: string;
+  /** Where it lives — one locus is set depending on `kind`. */
+  channelId: string | null;
+  channelName: string | null;
+  taskId: string | null;
+  taskTitle: string | null;
+}
+
+/** A lightweight message preview (truncated body) for overviews/search. */
+export interface MessagePreview {
+  id: string;
+  author: string;
+  agentName: string | null;
+  snippet: string;
+  createdAt: string;
+}
+
+/** Cheap orientation for a channel — counts + endpoints + a few recents, so an
+ *  agent can decide whether to read deeper before spending tokens. */
+export interface ChannelOverview {
+  channelId: string;
+  name: string;
+  messageCount: number;
+  participants: string[];
+  firstMessageAt: string | null;
+  lastMessageAt: string | null;
+  recent: MessagePreview[];
+}
+
 /* ----------------------------- API responses ---------------------------- */
 
 /** Shape of every error response returned by the API. */
@@ -614,6 +753,8 @@ export const apiPaths = {
     me: () => `${API_ROUTES.auth}/me`,
     tokens: () => `${API_ROUTES.auth}/tokens`,
     token: (id: string) => `${API_ROUTES.auth}/tokens/${id}`,
+    tokenRotate: (id: string) => `${API_ROUTES.auth}/tokens/${id}/rotate`,
+    agentActivity: () => `${API_ROUTES.auth}/agent-activity`,
   },
   users: {
     list: () => API_ROUTES.users,
@@ -652,6 +793,13 @@ export const apiPaths = {
       `${API_ROUTES.projects}/${id}/channels/${channelId}/messages`,
     channelMessage: (id: string, channelId: string, messageId: string) =>
       `${API_ROUTES.projects}/${id}/channels/${channelId}/messages/${messageId}`,
+    channelOverview: (id: string, channelId: string) =>
+      `${API_ROUTES.projects}/${id}/channels/${channelId}/overview`,
+    search: (id: string) => `${API_ROUTES.projects}/${id}/search`,
+    channelScheduled: (id: string, channelId: string) =>
+      `${API_ROUTES.projects}/${id}/channels/${channelId}/scheduled`,
+    channelScheduledItem: (id: string, channelId: string, scheduledId: string) =>
+      `${API_ROUTES.projects}/${id}/channels/${channelId}/scheduled/${scheduledId}`,
     channelMembers: (id: string, channelId: string) =>
       `${API_ROUTES.projects}/${id}/channels/${channelId}/members`,
     channelMember: (id: string, channelId: string, memberId: string) =>

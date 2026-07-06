@@ -72,6 +72,15 @@ export function requireProjectAccess(
 ): void {
   void (async () => {
     const user = requireUser(req);
+    // A project-scoped PAT may only reach the projects it was limited to.
+    const scope = req.tokenScope;
+    if (
+      scope &&
+      scope.projectIds.length > 0 &&
+      !scope.projectIds.includes(req.params.id)
+    ) {
+      throw HttpError.forbidden('This token is not scoped to that project.');
+    }
     const role = await getProjectRole(user, req.params.id);
     if (!role) throw HttpError.notFound('Project not found');
     req.projectRole = role;

@@ -34,11 +34,36 @@ discussionsRoutes.delete(
   discussionsController.removeMember,
 );
 
+// Cheap channel orientation for agents (counts, participants, recent previews).
+discussionsRoutes.get(
+  '/:channelId/overview',
+  discussionsController.channelOverview,
+);
+
 discussionsRoutes.get('/:channelId/messages', discussionsController.listMessages);
+// A single full (untruncated) message by id.
+discussionsRoutes.get(
+  '/:channelId/messages/:messageId',
+  discussionsController.getMessage,
+);
 // Any channel member can post; access is enforced by membership in the service.
 discussionsRoutes.post(
   '/:channelId/messages',
   discussionsController.postMessage,
+);
+
+// Scheduled (send-later) messages — any channel member; cancel is author/admin.
+discussionsRoutes.get(
+  '/:channelId/scheduled',
+  discussionsController.listScheduled,
+);
+discussionsRoutes.post(
+  '/:channelId/scheduled',
+  discussionsController.scheduleMessage,
+);
+discussionsRoutes.delete(
+  '/:channelId/scheduled/:scheduledId',
+  discussionsController.cancelScheduled,
 );
 // Delete a message — the service allows the author or an admin.
 discussionsRoutes.delete(

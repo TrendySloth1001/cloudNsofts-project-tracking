@@ -37,10 +37,28 @@ export function useAgentTokens() {
     [],
   );
 
+  const rename = useCallback(async (id: string, name: string) => {
+    const updated = await agentApi.rename(id, { name });
+    setTokens((prev) => prev.map((t) => (t.id === id ? updated : t)));
+  }, []);
+
+  const rotate = useCallback(
+    async (id: string): Promise<CreatedApiToken> => {
+      // Rotation revokes `id` and mints a new token; swap it into the list.
+      const result = await agentApi.rotate(id);
+      setTokens((prev) => [
+        result.apiToken,
+        ...prev.filter((t) => t.id !== id),
+      ]);
+      return result;
+    },
+    [],
+  );
+
   const revoke = useCallback(async (id: string) => {
     await agentApi.revoke(id);
     setTokens((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  return { tokens, loading, create, revoke };
+  return { tokens, loading, create, rename, rotate, revoke };
 }

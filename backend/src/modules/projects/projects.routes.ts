@@ -6,6 +6,7 @@ import {
   requireRole,
 } from '../auth/access';
 import { discussionsRoutes } from '../discussions/discussions.routes';
+import { discussionsController } from '../discussions/discussions.controller';
 import { projectsController } from './projects.controller';
 
 export const projectsRoutes = Router();
@@ -26,6 +27,10 @@ const canDeleteProject = requireProjectAbility('canDeleteProject');
 
 // Project discussion channels + messages (nested; reads the parent `:id`).
 projectsRoutes.use('/:id/channels', discussionsRoutes);
+
+// Full-text search across the project's conversations (messages + task threads)
+// so agents find context instead of ingesting whole threads. Read-only.
+projectsRoutes.get('/:id/search', discussionsController.searchConversations);
 
 projectsRoutes.get('/', projectsController.list);
 // Creating a *new* project is a global-admin action (no project context yet).

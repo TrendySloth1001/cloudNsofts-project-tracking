@@ -1,0 +1,126 @@
+/* Message markdown — compact, token-styled, inherits the surrounding color. */
+.markdown {
+  font-size: inherit;
+  line-height: var(--leading-normal);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* Collapse the outer block margins so a single paragraph reads like plain text. */
+.markdown > :first-child {
+  margin-top: 0;
+}
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown p {
+  margin: var(--space-2) 0;
+}
+.markdown strong {
+  font-weight: var(--weight-semibold);
+}
+.markdown em {
+  font-style: italic;
+}
+.markdown del {
+  opacity: 0.7;
+}
+.markdown a {
+  color: var(--color-text-link);
+  text-decoration: underline;
+}
+.markdown ul,
+.markdown ol {
+  margin: var(--space-2) 0;
+  padding-left: var(--space-5);
+}
+.markdown li {
+  margin: 2px 0;
+}
+.markdown li > ul,
+.markdown li > ol {
+  margin: 2px 0;
+}
+/* Loose lists wrap each item's text in a <p>; keep those tight so blank-line-
+   separated items don't balloon into big gaps. */
+.markdown li p {
+  margin: 0;
+}
+.markdown blockquote {
+  margin: var(--space-2) 0;
+  padding: 2px var(--space-3);
+  border-left: 3px solid var(--color-border-strong);
+  color: var(--color-text-secondary);
+}
+/* Inline code only (a <code> not inside a <pre>) — a subtle pill. */
+.markdown :not(pre) > code {
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+/* Fenced blocks — a dark editor pane. Syntax colors come from the github-dark
+   hljs theme applied to `.hljs` spans; this styles the frame + scroll. */
+.markdown pre {
+  margin: var(--space-2) 0;
+  max-width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-code-border);
+  background: var(--color-code-surface);
+  /* Long lines scroll inside the block instead of overflowing the message. */
+  overflow-x: auto;
+}
+.markdown pre code {
+  display: inline-block;
+  min-width: 100%;
+  box-sizing: border-box;
+  padding: var(--space-3);
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  color: var(--color-text);
+  -webkit-text-size-adjust: 100%;
+}
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  margin: var(--space-3) 0 var(--space-2);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+}
+.markdown h1 {
+  font-size: var(--text-lg);
+}
+.markdown h2 {
+  font-size: var(--text-base);
+}
+.markdown h3 {
+  font-size: var(--text-md);
+}
+.markdown table {
+  margin: var(--space-2) 0;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.markdown th,
+.markdown td {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  text-align: left;
+}
+.markdown th {
+  background: var(--color-surface-sunken);
+  font-weight: var(--weight-semibold);
+}
+.markdown hr {
+  margin: var(--space-3) 0;
+  border: none;
+  border-top: 1px solid var(--color-border);
+}
+.markdown img {
+  max-width: 100%;
+}

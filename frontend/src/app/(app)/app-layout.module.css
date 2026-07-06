@@ -11,6 +11,7 @@
 }
 
 .content {
+  position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
@@ -18,7 +19,25 @@
   overflow: hidden;
 }
 
-.mobileBar {
+/* Desktop: the account menu floats in the top-right corner — no reserved bar,
+   so the page reclaims the full height. On mobile it becomes an in-flow bar
+   with the drawer toggle + brand (see the media query below). */
+.topBar {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-5);
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.topBarRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.hamburger,
+.mobileBrand {
   display: none;
 }
 
@@ -35,15 +54,17 @@
 }
 
 @media (max-width: 899px) {
-  .mobileBar {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
+  .topBar {
+    position: static;
     flex: none;
     height: 56px;
     padding: 0 var(--space-4);
+    gap: var(--space-3);
     background: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
+  }
+  .topBarRight {
+    margin-left: auto;
   }
   .hamburger {
     display: grid;
@@ -56,6 +77,9 @@
   }
   .hamburger:hover {
     background: var(--color-surface-hover);
+  }
+  .mobileBrand {
+    display: inline-flex;
   }
   .main {
     padding: var(--space-5) var(--space-4) var(--space-6);

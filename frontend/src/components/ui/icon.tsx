@@ -66,6 +66,12 @@ import {
   TerminalIcon,
   PlugSocketIcon,
   CodeIcon,
+  SourceCodeSquareIcon,
+  TextBoldIcon,
+  TextItalicIcon,
+  TextStrikethroughIcon,
+  QuoteDownIcon,
+  LeftToRightListBulletIcon,
 } from '@hugeicons/core-free-icons';
 
 /**
@@ -139,6 +145,12 @@ export const icons = {
   terminal: TerminalIcon,
   plug: PlugSocketIcon,
   code: CodeIcon,
+  codeBlock: SourceCodeSquareIcon,
+  bold: TextBoldIcon,
+  italic: TextItalicIcon,
+  strikethrough: TextStrikethroughIcon,
+  quote: QuoteDownIcon,
+  listBullet: LeftToRightListBulletIcon,
 } satisfies Record<string, IconSvgElement>;
 
 export type IconName = keyof typeof icons;

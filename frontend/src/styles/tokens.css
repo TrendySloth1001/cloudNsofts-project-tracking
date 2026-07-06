@@ -99,6 +99,9 @@
   --color-surface-hover: var(--gray-100);
   --color-surface-active: var(--gray-200);
   --color-overlay: rgba(16, 24, 40, 0.5);
+  /* Fenced code blocks: white pane with a light border (matches github hljs). */
+  --color-code-surface: var(--gray-0);
+  --color-code-border: var(--gray-200);
 
   /* Text */
   --color-text: var(--gray-900);

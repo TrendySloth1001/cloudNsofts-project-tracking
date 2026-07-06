@@ -76,6 +76,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
     <div
       className={cx(
         styles.page,
+        tab === 'discussion' && styles.discussionTab,
         tab === 'discussion' && chatDetail && styles.chatDetail,
       )}
     >
