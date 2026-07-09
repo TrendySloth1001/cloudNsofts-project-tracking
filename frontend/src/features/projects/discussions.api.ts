@@ -50,6 +50,11 @@ export const discussionsApi = {
       apiPaths.projects.channelMessage(projectId, channelId, messageId),
     ),
 
+  resolveChannel: (projectId: string, channelId: string, resolved: boolean) =>
+    apiClient.post<Channel>(apiPaths.projects.channelResolve(projectId, channelId), {
+      resolved,
+    }),
+
   listScheduled: (projectId: string, channelId: string) =>
     apiClient.get<ScheduledMessage[]>(
       apiPaths.projects.channelScheduled(projectId, channelId),

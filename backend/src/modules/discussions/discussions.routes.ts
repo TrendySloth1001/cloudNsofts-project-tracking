@@ -40,6 +40,14 @@ discussionsRoutes.get(
   discussionsController.channelOverview,
 );
 
+// Long-poll: block until someone replies / the conversation is resolved.
+discussionsRoutes.get('/:channelId/wait', discussionsController.waitForReply);
+// Mark the conversation resolved (or reopen it) — any channel member.
+discussionsRoutes.post(
+  '/:channelId/resolve',
+  discussionsController.resolveChannel,
+);
+
 discussionsRoutes.get('/:channelId/messages', discussionsController.listMessages);
 // A single full (untruncated) message by id.
 discussionsRoutes.get(

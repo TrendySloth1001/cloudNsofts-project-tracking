@@ -6,6 +6,7 @@ import {
   apiPaths,
   createChannelSchema,
   createCommentSchema,
+  createDocSchema,
   createFeatureSchema,
   createSubtaskSchema,
   createTaskSchema,
@@ -132,6 +133,7 @@ const taskId = z.string().min(1).describe('The task id');
 const featureId = z.string().min(1).describe('The feature id');
 const channelId = z.string().min(1).describe('The channel id');
 const subtaskId = z.string().min(1).describe('The subtask id');
+const docId = z.string().min(1).describe('The doc id');
 
 // Message and comment bodies are stored verbatim and rendered as GitHub-
 // flavored markdown on the web app, so the agent can format its updates.
@@ -171,6 +173,28 @@ const server = new McpServer(
       'one- or two-line update that points to it — never paste task lists, status',
       'reports, or plans into chat; that content belongs on the board, not the',
       'conversation.',
+      '',
+      'DOCS — a project has documentation pages (list_docs / get_doc / create_doc /',
+      'update_doc). This is where durable knowledge lives: architecture, onboarding,',
+      'decisions, a running status overview. When asked to "write it up", "document",',
+      'or leave a proper page for the team, put it in a doc — not a chat message.',
+      'Read the doc (get_doc) before update_doc; the body you send REPLACES the old.',
+      '',
+      'LIVE loop — ONLY for an ACTIVE back-and-forth: someone is at the keyboard',
+      'and a reply is expected within minutes. It is NOT a background watch — every',
+      'wake re-reads the whole conversation and costs tokens, so idle-watching is',
+      'expensive. When you are in an active exchange:',
+      '  1. post_message with your question or update.',
+      '  2. wait_for_reply(channelId, afterMessageId: <cursor>, timeoutSeconds: 30)',
+      '     — it BLOCKS server-side (free while blocked) until someone replies, the',
+      '     thread is resolved, or it times out.',
+      '  3. "reply": act on it, post_message back, wait_for_reply again with cursor.',
+      '  4. "timeout": call wait_for_reply again — but at most 3–4 times in a row.',
+      '  5. "resolved": STOP — post a short closing note and end.',
+      '  COST CAP (important): do NOT watch indefinitely. After ~3–4 consecutive',
+      '  timeouts (~2 min of silence) the person has stepped away — post a short',
+      '  "ping me when you\'re back" and STOP. NEVER schedule repeated wakeups or',
+      '  re-invoke yourself to keep a watch alive; let the person re-engage you.',
       '',
       `Message and task-comment bodies: ${MARKDOWN_HINT}`,
     ].join('\n'),
@@ -290,6 +314,44 @@ server.registerTool(
 );
 
 server.registerTool(
+  'wait_for_reply',
+  {
+    title: 'Wait for a reply',
+    description:
+      'BLOCK until someone replies in the channel, the conversation is marked resolved, or the wait times out. Returns { status: "reply"|"resolved"|"timeout", messages, resolvedBy, cursor }. Use it to hold a live back-and-forth: post_message → wait_for_reply → act on the reply → post_message → wait_for_reply, passing the returned `cursor` as `afterMessageId` each time. Stop when status is "resolved" (they are satisfied). On "timeout", call again to keep waiting. Never loop more than ~10 rounds without progress.',
+    inputSchema: {
+      projectId,
+      channelId,
+      afterMessageId: z
+        .string()
+        .optional()
+        .describe(
+          'The `cursor` from your previous wait (or a message id). Only activity newer than it is returned. Omit on the first wait to start from now.',
+        ),
+      timeoutSeconds: z.coerce
+        .number()
+        .int()
+        .min(5)
+        .max(55)
+        .default(25)
+        .describe(
+          'How long to block before returning status "timeout" (then call again to keep waiting). Keep ≤30 so the tool call stays responsive.',
+        ),
+    },
+  },
+  ({ projectId, channelId, afterMessageId, timeoutSeconds }) =>
+    run(() => {
+      const params = new URLSearchParams({
+        timeoutMs: String(timeoutSeconds * 1000),
+      });
+      if (afterMessageId) params.set('after', afterMessageId);
+      return api.get(
+        `${apiPaths.projects.channelWait(projectId, channelId)}?${params.toString()}`,
+      );
+    }),
+);
+
+server.registerTool(
   'read_channel',
   {
     title: 'Read channel messages',
@@ -343,6 +405,29 @@ server.registerTool(
     run(() =>
       api.get(apiPaths.projects.channelMessage(projectId, channelId, messageId)),
     ),
+);
+
+server.registerTool(
+  'list_docs',
+  {
+    title: 'List docs',
+    description:
+      "A project's documentation pages (id, title, when/who last edited) — metadata only, no body. Use this to orient before reading or writing a doc.",
+    inputSchema: { projectId },
+  },
+  ({ projectId }) => run(() => api.get(apiPaths.projects.docs(projectId))),
+);
+
+server.registerTool(
+  'get_doc',
+  {
+    title: 'Get doc',
+    description:
+      'Fetch one documentation page with its full markdown body. Read it before update_doc so you preserve the parts you are not changing.',
+    inputSchema: { projectId, docId },
+  },
+  ({ projectId, docId }) =>
+    run(() => api.get(apiPaths.projects.doc(projectId, docId))),
 );
 
 /* -------------------------------- Writes -------------------------------- */
@@ -560,6 +645,35 @@ if (!config.readOnly) {
     },
     ({ projectId, ...body }) =>
       run(() => api.post(apiPaths.projects.channels(projectId), body)),
+  );
+
+  server.registerTool(
+    'create_doc',
+    {
+      title: 'Create doc',
+      description:
+        `Create a documentation page in the project's Docs — long-form project docs (architecture, onboarding, decisions, status) the team and agents read to stay aware of what's going on. Give it a clear title and a markdown body. ${MARKDOWN_HINT}`,
+      inputSchema: { projectId, ...createDocSchema.shape },
+    },
+    ({ projectId, ...body }) =>
+      run(() => api.post(apiPaths.projects.docs(projectId), body)),
+  );
+
+  server.registerTool(
+    'update_doc',
+    {
+      title: 'Update doc',
+      description:
+        `Update a documentation page's title and/or body. Call get_doc first and send the full new body — it REPLACES the old one. ${MARKDOWN_HINT}`,
+      inputSchema: {
+        projectId,
+        docId,
+        title: createDocSchema.shape.title.optional(),
+        body: createDocSchema.shape.body.optional(),
+      },
+    },
+    ({ projectId, docId, ...body }) =>
+      run(() => api.patch(apiPaths.projects.doc(projectId, docId), body)),
   );
 
   server.registerTool(

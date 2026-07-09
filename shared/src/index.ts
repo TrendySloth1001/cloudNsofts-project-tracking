@@ -13,6 +13,25 @@ export const loginSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
+/** Minimum length for a new account password. */
+export const PASSWORD_MIN_LENGTH = 8;
+
+/** Public self-service signup (open registration). */
+export const signupSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(120),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email('Enter a valid email address')
+    .max(200),
+  password: z
+    .string()
+    .min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters`)
+    .max(200),
+});
+export type SignupInput = z.infer<typeof signupSchema>;
+
 /** The authenticated principal returned by the auth endpoints. */
 export interface AuthUser {
   id: string;
@@ -26,6 +45,41 @@ export interface AuthResponse {
   token: string;
   user: AuthUser;
 }
+
+/** The signed-in user's full, editable profile (returned by GET /auth/me). */
+export interface UserProfile extends AuthUser {
+  title: string;
+  bio: string;
+  skills: string[];
+  location: string;
+  timezone: string;
+  githubUrl: string;
+  websiteUrl: string;
+  linkedinUrl: string;
+}
+
+export const PROFILE_BIO_MAX_LENGTH = 2000;
+export const PROFILE_MAX_SKILLS = 40;
+
+const profileText = (max: number) => z.string().trim().max(max);
+
+/** Self-service profile update (PATCH /auth/me). Every field is optional; only
+ *  the ones present are changed. Identity (email, role) is not editable here. */
+export const updateProfileSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(120).optional(),
+  title: profileText(120).optional(),
+  bio: profileText(PROFILE_BIO_MAX_LENGTH).optional(),
+  skills: z
+    .array(z.string().trim().min(1).max(40))
+    .max(PROFILE_MAX_SKILLS)
+    .optional(),
+  location: profileText(120).optional(),
+  timezone: profileText(60).optional(),
+  githubUrl: profileText(200).optional(),
+  websiteUrl: profileText(200).optional(),
+  linkedinUrl: profileText(200).optional(),
+});
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
 /* ----------------------------- Access tokens ---------------------------- */
 
@@ -138,10 +192,16 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   completed: 'Completed',
 };
 
-export const memberRoleSchema = z.enum(['manager', 'member', 'viewer']);
+export const memberRoleSchema = z.enum([
+  'admin',
+  'manager',
+  'member',
+  'viewer',
+]);
 export type MemberRole = z.infer<typeof memberRoleSchema>;
 
 export const MEMBER_ROLE_LABELS: Record<MemberRole, string> = {
+  admin: 'Admin',
   manager: 'Manager',
   member: 'Member',
   viewer: 'Viewer',
@@ -178,7 +238,10 @@ export interface ProjectAbilities {
 
 /** The permission matrix. Viewer < Member < Manager < Admin (Client is aside,
  *  read-only). Referenced by the backend (enforcement) and the frontend (UI
- *  gating) so the rules live in exactly one place. */
+ *  gating) so the rules live in exactly one place. Whoever creates a project is
+ *  its `admin` (owner) — only an admin can edit or delete the whole project;
+ *  managers run the team/board/channels but can't delete it. The env platform
+ *  super-admin is `admin` on every project. */
 export function projectAbilities(role: ProjectRole): ProjectAbilities {
   const isAdmin = role === 'admin';
   const canManage = isAdmin || role === 'manager';
@@ -351,6 +414,42 @@ export const updateMemberRoleSchema = z.object({
 });
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;
 
+/* ------------------------------ Invitations ----------------------------- */
+
+export const invitationStatusSchema = z.enum([
+  'pending',
+  'accepted',
+  'declined',
+  'canceled',
+]);
+export type InvitationStatus = z.infer<typeof invitationStatusSchema>;
+
+/** An invitation of an email to a project. Shown both to the inviter (project
+ *  team panel) and to the invitee (their pending-invitations popup). */
+export interface Invitation {
+  id: string;
+  projectId: string;
+  projectName: string;
+  email: string;
+  role: MemberRole;
+  /** Display name of whoever sent the invite. */
+  invitedBy: string;
+  status: InvitationStatus;
+  createdAt: string;
+}
+
+/** Invite an email to a project with a role (manager/admin). */
+export const createInvitationSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email('A valid email is required')
+    .max(200),
+  role: memberRoleSchema.default('member'),
+});
+export type CreateInvitationInput = z.infer<typeof createInvitationSchema>;
+
 export const createTaskSchema = z.object({
   title: z.string().trim().min(1, 'Task title is required').max(200),
   description: z.string().trim().max(2000).default(''),
@@ -487,6 +586,9 @@ export interface Channel {
   messageCount: number;
   memberCount: number;
   createdAt: string;
+  /** ISO time the conversation was last marked resolved, or null if open. */
+  resolvedAt: string | null;
+  resolvedBy: string | null;
 }
 
 export interface ChannelWithMessages extends Channel {
@@ -578,6 +680,114 @@ export interface ScheduledMessage {
   status: ScheduledMessageStatus;
   createdAt: string;
 }
+
+/** Longest a single `wait_for_reply` long-poll may block before returning. */
+export const CHANNEL_WAIT_MAX_MS = 55_000;
+
+/** Query for the long-poll wait endpoint. */
+export const channelWaitQuerySchema = z.object({
+  /** Only return activity strictly newer than this message id (the cursor). */
+  after: z.string().trim().min(1).optional(),
+  /** How long to hold the request before returning `timeout` (ms). */
+  timeoutMs: z.coerce
+    .number()
+    .int()
+    .min(1000)
+    .max(CHANNEL_WAIT_MAX_MS)
+    .default(25_000),
+  /**
+   * When true, never return `resolved` — only new replies. A persistent
+   * responder uses this so it keeps answering new messages instead of getting
+   * stuck on a resolve (which is always newer than the message cursor).
+   */
+  ignoreResolved: z
+    .enum(['true', 'false'])
+    .optional()
+    .default('false')
+    .transform((v) => v === 'true'),
+});
+export type ChannelWaitQuery = z.infer<typeof channelWaitQuerySchema>;
+
+/** Why a `wait_for_reply` call returned. */
+export const channelWaitStatusSchema = z.enum(['reply', 'resolved', 'timeout']);
+export type ChannelWaitStatus = z.infer<typeof channelWaitStatusSchema>;
+
+/**
+ * Result of a wait: `reply` with the new messages (someone answered),
+ * `resolved` when a human marked the conversation answered (stop the loop), or
+ * `timeout` so the caller can re-arm. `cursor` is the newest message id seen.
+ */
+export interface ChannelWaitResult {
+  status: ChannelWaitStatus;
+  messages: Message[];
+  resolvedBy: string | null;
+  cursor: string | null;
+}
+
+/** Mark a channel conversation resolved (`true`) or reopen it (`false`). */
+export const resolveChannelSchema = z.object({
+  resolved: z.boolean().default(true),
+});
+export type ResolveChannelInput = z.infer<typeof resolveChannelSchema>;
+
+/* --------------------------------- Docs --------------------------------- */
+
+/** Longest a doc title / body may be. */
+export const DOC_TITLE_MAX_LENGTH = 120;
+export const DOC_BODY_MAX_LENGTH = 100_000;
+
+/** A project documentation page (markdown body). */
+export interface Doc {
+  id: string;
+  projectId: string;
+  title: string;
+  /** Markdown source, same wire format as messages. */
+  body: string;
+  position: number;
+  /** Display name of the original author. */
+  author: string;
+  /** Display name of whoever last edited it, or null if never edited. */
+  updatedBy: string | null;
+  /** Name of the coding agent that last wrote it, when written via an agent. */
+  agentName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Lightweight sidebar item — no body, since doc bodies can be large. */
+export interface DocSummary {
+  id: string;
+  title: string;
+  position: number;
+  updatedBy: string | null;
+  agentName: string | null;
+  updatedAt: string;
+}
+
+export const createDocSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1, 'A title is required')
+    .max(DOC_TITLE_MAX_LENGTH),
+  body: z.string().max(DOC_BODY_MAX_LENGTH).default(''),
+});
+export type CreateDocInput = z.infer<typeof createDocSchema>;
+
+export const updateDocSchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .min(1, 'A title is required')
+      .max(DOC_TITLE_MAX_LENGTH),
+    body: z.string().max(DOC_BODY_MAX_LENGTH),
+  })
+  .partial()
+  .refine((v) => v.title !== undefined || v.body !== undefined, {
+    message: 'Nothing to update',
+  });
+export type UpdateDocInput = z.infer<typeof updateDocSchema>;
 
 export const createMilestoneSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(160),
@@ -743,6 +953,7 @@ export const API_ROUTES = {
   users: '/api/users',
   projects: '/api/projects',
   notifications: '/api/notifications',
+  invitations: '/api/invitations',
 } as const;
 
 /** URL builders the frontend uses so no endpoint string is hardcoded. */
@@ -750,6 +961,7 @@ export const apiPaths = {
   health: () => API_ROUTES.health,
   auth: {
     login: () => `${API_ROUTES.auth}/login`,
+    signup: () => `${API_ROUTES.auth}/signup`,
     me: () => `${API_ROUTES.auth}/me`,
     tokens: () => `${API_ROUTES.auth}/tokens`,
     token: (id: string) => `${API_ROUTES.auth}/tokens/${id}`,
@@ -795,6 +1007,10 @@ export const apiPaths = {
       `${API_ROUTES.projects}/${id}/channels/${channelId}/messages/${messageId}`,
     channelOverview: (id: string, channelId: string) =>
       `${API_ROUTES.projects}/${id}/channels/${channelId}/overview`,
+    channelWait: (id: string, channelId: string) =>
+      `${API_ROUTES.projects}/${id}/channels/${channelId}/wait`,
+    channelResolve: (id: string, channelId: string) =>
+      `${API_ROUTES.projects}/${id}/channels/${channelId}/resolve`,
     search: (id: string) => `${API_ROUTES.projects}/${id}/search`,
     channelScheduled: (id: string, channelId: string) =>
       `${API_ROUTES.projects}/${id}/channels/${channelId}/scheduled`,
@@ -807,11 +1023,23 @@ export const apiPaths = {
     milestones: (id: string) => `${API_ROUTES.projects}/${id}/milestones`,
     milestone: (id: string, milestoneId: string) =>
       `${API_ROUTES.projects}/${id}/milestones/${milestoneId}`,
+    docs: (id: string) => `${API_ROUTES.projects}/${id}/docs`,
+    doc: (id: string, docId: string) =>
+      `${API_ROUTES.projects}/${id}/docs/${docId}`,
+    invitations: (id: string) => `${API_ROUTES.projects}/${id}/invitations`,
+    invitation: (id: string, inviteId: string) =>
+      `${API_ROUTES.projects}/${id}/invitations/${inviteId}`,
   },
   notifications: {
     list: () => API_ROUTES.notifications,
     read: (id: string) => `${API_ROUTES.notifications}/${id}/read`,
     readAll: () => `${API_ROUTES.notifications}/read-all`,
+  },
+  // The signed-in user's own pending invitations (accept / decline).
+  invitations: {
+    mine: () => API_ROUTES.invitations,
+    accept: (id: string) => `${API_ROUTES.invitations}/${id}/accept`,
+    decline: (id: string) => `${API_ROUTES.invitations}/${id}/decline`,
   },
 } as const;
 

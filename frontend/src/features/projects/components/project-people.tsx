@@ -1,18 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   MEMBER_ROLE_LABELS,
   memberRoleSchema,
+  type Invitation,
   type MemberRole,
   type ProjectClient,
   type ProjectMember,
 } from '@cnsofts/shared';
 import { Button, Divider, Icon, Menu, useConfirm } from '@/components/ui';
 import { UserAvatar } from '@/features/profile/components/user-avatar';
+import { invitationsApi } from '@/features/invitations/invitations.api';
 import { projectStore } from '../projects.store';
 import { MemberDialog } from './member-dialog';
 import { ClientDialog } from './client-dialog';
+import { InviteDialog } from './invite-dialog';
 import styles from './project-people.module.css';
 
 export interface ProjectPeopleProps {
@@ -31,7 +34,40 @@ export function ProjectPeople({
 }: ProjectPeopleProps) {
   const [memberOpen, setMemberOpen] = useState(false);
   const [clientOpen, setClientOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [invites, setInvites] = useState<Invitation[]>([]);
   const confirm = useConfirm();
+
+  // Load pending invitations for managers (viewers don't manage the roster).
+  useEffect(() => {
+    if (!canManage) return;
+    let alive = true;
+    invitationsApi
+      .listForProject(projectId)
+      .then(({ invitations }) => {
+        if (alive) setInvites(invitations);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [canManage, projectId]);
+
+  async function cancelInvite(invite: Invitation) {
+    const ok = await confirm({
+      title: 'Cancel invitation?',
+      message: (
+        <>
+          Cancel the invite to <strong>{invite.email}</strong>?
+        </>
+      ),
+      confirmLabel: 'Cancel invite',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    await invitationsApi.cancel(projectId, invite.id);
+    setInvites((prev) => prev.filter((i) => i.id !== invite.id));
+  }
 
   async function removeMember(member: ProjectMember) {
     const ok = await confirm({
@@ -186,10 +222,69 @@ export function ProjectPeople({
         </div>
       </div>
 
+      {canManage && (
+        <>
+          <Divider orientation="vertical" className={styles.divider} />
+
+          <div className={styles.group}>
+            <div className={styles.groupHead}>
+              <Icon name="mail" size={16} tone="warning" />
+              <span className={styles.groupTitle}>Invitations</span>
+              <span className={styles.count}>{invites.length}</span>
+              <span className={styles.grow} />
+              <Button
+                variant="ghost"
+                size="sm"
+                leftIcon="add"
+                onClick={() => setInviteOpen(true)}
+              >
+                Invite
+              </Button>
+            </div>
+            <div className={styles.chips}>
+              {invites.length === 0 ? (
+                <span className={styles.empty}>No pending invites.</span>
+              ) : (
+                invites.map((invite) => (
+                  <span key={invite.id} className={styles.chip}>
+                    <span className={styles.clientBadge}>@</span>
+                    <span className={styles.chipText}>
+                      <span className={styles.chipName}>{invite.email}</span>
+                      <span className={styles.chipSub}>
+                        {MEMBER_ROLE_LABELS[invite.role]} · pending
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.chipRemove}
+                      onClick={() => void cancelInvite(invite)}
+                      aria-label={`Cancel invite to ${invite.email}`}
+                    >
+                      <Icon name="close" size={13} />
+                    </button>
+                  </span>
+                ))
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
       <MemberDialog
         open={memberOpen}
         onClose={() => setMemberOpen(false)}
         projectId={projectId}
+      />
+      <InviteDialog
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        projectId={projectId}
+        onInvited={(invite) =>
+          setInvites((prev) => [
+            invite,
+            ...prev.filter((i) => i.id !== invite.id),
+          ])
+        }
       />
       <ClientDialog
         open={clientOpen}

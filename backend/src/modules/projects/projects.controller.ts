@@ -32,7 +32,7 @@ export const projectsController = {
   }),
   create: asyncHandler(async (req, res) => {
     const input = validate(createProjectSchema, req.body);
-    res.status(201).json(await projectsService.create(input));
+    res.status(201).json(await projectsService.create(input, requireUser(req)));
   }),
   getById: asyncHandler(async (req, res) => {
     res.json(await projectsService.getById(req.params.id));

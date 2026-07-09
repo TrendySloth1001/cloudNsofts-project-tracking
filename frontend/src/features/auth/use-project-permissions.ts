@@ -32,13 +32,16 @@ function resolveProjectRole(
   principal: Principal | null,
 ): ProjectRole | null {
   if (!principal) return null;
+  // Global admin is a superuser; everyone else's role is per-project.
   if (principal.role === 'ADMIN') return 'admin';
-  if (principal.role === 'CLIENT') return 'client';
   if (!project) return null;
   const email = principal.email.toLowerCase();
   const mine = project.members.find((m) => m.email.toLowerCase() === email);
-  // A visible project the caller isn't explicitly a member of → treat as viewer.
-  return mine ? mine.role : 'viewer';
+  if (mine) return mine.role;
+  const asClient = project.clients.find((c) => c.email.toLowerCase() === email);
+  if (asClient) return 'client';
+  // A visible project the caller isn't explicitly a member/client of → viewer.
+  return 'viewer';
 }
 
 /**

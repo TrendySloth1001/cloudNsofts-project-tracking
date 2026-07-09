@@ -122,12 +122,26 @@ export const projectsService = {
     return load(id);
   },
 
-  async create(input: CreateProjectInput): Promise<Project> {
+  async create(input: CreateProjectInput, creator: AuthUser): Promise<Project> {
     const created = await prisma.project.create({
       data: {
         name: input.name,
         description: input.description,
         status: input.status,
+        // The creator becomes the project's admin (its owner) so they can run
+        // it end-to-end, including editing/deleting it. The env platform
+        // super-admin is already an admin everywhere, so it needs no row.
+        ...(creator.role !== 'ADMIN'
+          ? {
+              members: {
+                create: {
+                  name: creator.name,
+                  email: creator.email,
+                  role: 'admin',
+                },
+              },
+            }
+          : {}),
       },
     });
     return load(created.id);

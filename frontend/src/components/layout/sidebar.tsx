@@ -4,12 +4,14 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type { AuthUser } from '@cnsofts/shared';
-import { Icon } from '@/components/ui';
+import { Icon, Menu } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
 import { cx } from '@/lib/cx';
 import { useProjects } from '@/features/projects/use-projects';
 import { CreateProjectDialog } from '@/features/projects/components/create-project-dialog';
 import { projectTint } from '@/features/projects/project-visuals';
+import { UserAvatar } from '@/features/profile/components/user-avatar';
+import { profileStorage } from '@/lib/profile-storage';
 import { NotificationButton } from './notification-button';
 import styles from './sidebar.module.css';
 
@@ -18,15 +20,18 @@ export interface SidebarProps {
   /** Mobile drawer open state. */
   open: boolean;
   onClose: () => void;
+  /** Sign the user out (from the account chip menu). */
+  onSignOut: () => void;
 }
 
-export function Sidebar({ user, open, onClose }: SidebarProps) {
+export function Sidebar({ user, open, onClose, onSignOut }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { projects } = useProjects();
   const [createOpen, setCreateOpen] = useState(false);
   // Desktop rail collapse. In-memory only (no persisted client preference).
   const [collapsed, setCollapsed] = useState(false);
+  const avatarId = profileStorage.getAvatar(user.id);
 
   return (
     <aside className={cx(styles.sidebar, open && styles.open, collapsed && styles.collapsed)}>
@@ -70,17 +75,15 @@ export function Sidebar({ user, open, onClose }: SidebarProps) {
             <Icon name="home" size={18} tone="brand" />
             <span className={styles.label}>All projects</span>
           </Link>
-          {user.role === 'ADMIN' && (
-            <button
-              type="button"
-              className={styles.addBtn}
-              onClick={() => setCreateOpen(true)}
-              aria-label="New project"
-              title="New project"
-            >
-              <Icon name="add" size={16} tone="brand" />
-            </button>
-          )}
+          <button
+            type="button"
+            className={styles.addBtn}
+            onClick={() => setCreateOpen(true)}
+            aria-label="New project"
+            title="New project"
+          >
+            <Icon name="add" size={16} tone="brand" />
+          </button>
         </div>
 
         <div className={styles.projectList}>
@@ -111,16 +114,16 @@ export function Sidebar({ user, open, onClose }: SidebarProps) {
 
       <div className={styles.bottomNav}>
         <Link
-          href="/profile-setup"
+          href="/settings"
           onClick={onClose}
-          title={collapsed ? 'Profile & settings' : undefined}
+          title={collapsed ? 'Settings' : undefined}
           className={cx(
             styles.navItem,
-            pathname === '/profile-setup' && styles.active,
+            pathname === '/settings' && styles.active,
           )}
         >
-          <Icon name="userCircle" size={18} tone="brand" />
-          <span className={styles.label}>Profile &amp; settings</span>
+          <Icon name="settings" size={18} tone="brand" />
+          <span className={styles.label}>Settings</span>
         </Link>
         <Link
           href="/settings/agent"
@@ -134,6 +137,54 @@ export function Sidebar({ user, open, onClose }: SidebarProps) {
           <Icon name="plug" size={18} tone="brand" />
           <span className={styles.label}>Connect coding agent</span>
         </Link>
+
+        {/* Account chip — the signed-in user + a menu (relocated here from the
+            floating top-right corner). */}
+        <Menu
+          align="start"
+          portal
+          trigger={
+            <button
+              type="button"
+              className={styles.account}
+              aria-label="Account menu"
+              title={user.name}
+            >
+              <UserAvatar
+                name={user.name}
+                seed={user.id}
+                avatarId={avatarId}
+                size={30}
+              />
+              <span className={styles.accountName}>{user.name}</span>
+            </button>
+          }
+          items={[
+            {
+              label: 'Profile',
+              icon: 'user',
+              onSelect: () => {
+                onClose();
+                router.push('/profile');
+              },
+            },
+            {
+              label: 'Settings',
+              icon: 'settings',
+              onSelect: () => {
+                onClose();
+                router.push('/settings');
+              },
+            },
+            { separator: true },
+            {
+              label: 'Log out',
+              icon: 'logout',
+              danger: true,
+              onSelect: onSignOut,
+            },
+          ]}
+        />
       </div>
 
       <CreateProjectDialog

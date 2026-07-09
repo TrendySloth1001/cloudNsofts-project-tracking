@@ -149,7 +149,23 @@ src/
 - Validate and normalize all untrusted input. Use constant-time comparison for
   credentials/tokens.
 - Never log secrets, tokens, or full credentials.
-- The app is **invite-only** — do not add self-service signup UI or endpoints.
+- **Signup is open** (policy changed 2026-07-09 at the owner's request; was
+  invite-only). Anyone may self-register via the public `/signup` page +
+  `POST /auth/signup`. **A new account starts with zero project access** — it
+  can see nothing until it is added to a project. Project access is granted only
+  through **invitations**: a project admin/manager invites an email to a project
+  with a role, and the invitee accepts. Never fabricate a membership; access
+  always flows through an accepted invitation (or an admin/manager adding one).
+- **Two-tier admin model** (roles are *per project*, not global):
+  - The **env `ADMIN_EMAIL`** is the single **platform super-admin** — `admin`
+    on every project, controls the whole platform. Reserved; not registerable.
+  - **Anyone can create a project**, and the creator becomes that project's
+    **`admin`** (owner) — the only role that can edit/delete the whole project.
+    Below it: `manager` (runs team/board/channels), `member` (edits the board),
+    `viewer` (read), `client` (read + client channels). A person can hold a
+    different role in each project (e.g. admin of one, client of another);
+    `getProjectRole` resolves it from that project's rosters, never the global
+    account role.
 
 ---
 

@@ -1,8 +1,0 @@
-.trigger {
-  display: inline-flex;
-  border-radius: var(--radius-full);
-  transition: box-shadow var(--duration-fast) var(--ease-out);
-}
-.trigger:hover {
-  box-shadow: 0 0 0 3px var(--color-surface-active);
-}

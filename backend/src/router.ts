@@ -5,6 +5,7 @@ import { authRoutes } from './modules/auth/auth.routes';
 import { usersRoutes } from './modules/users/users.routes';
 import { projectsRoutes } from './modules/projects/projects.routes';
 import { notificationsRoutes } from './modules/notifications/notifications.routes';
+import { invitationsRoutes } from './modules/invitations/invitations.routes';
 
 export interface RouteModule {
   /** Base mount path (from the shared single source of truth). */
@@ -23,4 +24,5 @@ export const routeRegistry: RouteModule[] = [
   { base: API_ROUTES.users, router: usersRoutes },
   { base: API_ROUTES.projects, router: projectsRoutes },
   { base: API_ROUTES.notifications, router: notificationsRoutes },
+  { base: API_ROUTES.invitations, router: invitationsRoutes },
 ];

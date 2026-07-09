@@ -1,0 +1,9 @@
+-- AlterTable
+ALTER TABLE "users" ADD COLUMN     "bio" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "githubUrl" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "linkedinUrl" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "location" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "skills" TEXT[] DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN     "timezone" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "title" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "websiteUrl" TEXT NOT NULL DEFAULT '';

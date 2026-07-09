@@ -6,6 +6,8 @@ import type {
   ChannelMember,
   ChannelOverview,
   ChannelVisibility,
+  ChannelWaitQuery,
+  ChannelWaitResult,
   ConversationSearchResult,
   CreateChannelInput,
   ListMessagesQuery,
@@ -20,6 +22,7 @@ import type {
 import { prisma } from '../../infra/prisma';
 import { HttpError } from '../../shared/http/http-error';
 import { realtime } from '../../infra/realtime';
+import { pulseChannel, waitForChannelPulse } from '../../infra/channel-events';
 import { notificationsService } from '../notifications/notifications.service';
 
 /** Truncate a body to a token-cheap preview for search/overview payloads. */
@@ -125,6 +128,8 @@ function toChannel(c: {
   description: string;
   visibility: ChannelVisibility;
   createdAt: Date;
+  resolvedAt: Date | null;
+  resolvedBy: string | null;
   _count: { messages: number; members: number };
 }): Channel {
   return {
@@ -135,6 +140,8 @@ function toChannel(c: {
     messageCount: c._count.messages,
     memberCount: c._count.members,
     createdAt: c.createdAt.toISOString(),
+    resolvedAt: c.resolvedAt ? c.resolvedAt.toISOString() : null,
+    resolvedBy: c.resolvedBy,
   };
 }
 
@@ -500,7 +507,131 @@ export const discussionsService = {
     });
     const message = toMessage(created);
     realtime.emitMessageCreated(projectId, channelId, message);
+    // Wake any agent parked on this channel in `wait_for_reply`.
+    pulseChannel(channelId);
     return message;
+  },
+
+  /**
+   * Mark the conversation resolved (someone is satisfied) or reopen it. A
+   * resolve newer than an agent's last message ends its `wait_for_reply` loop.
+   */
+  async resolveChannel(
+    projectId: string,
+    channelId: string,
+    user: AuthUser,
+    resolved: boolean,
+  ): Promise<Channel> {
+    await ensureChannelAccess(projectId, channelId, user);
+    const updated = await prisma.channel.update({
+      where: { id: channelId },
+      data: {
+        resolvedAt: resolved ? new Date() : null,
+        resolvedBy: resolved ? user.name : null,
+      },
+      include: channelInclude,
+    });
+    pulseChannel(channelId);
+    return toChannel(updated);
+  },
+
+  /**
+   * Long-poll: block until someone (not the calling agent) posts a reply, the
+   * conversation is resolved, or `timeoutMs` elapses. The agent re-arms with
+   * the returned `cursor` to keep the back-and-forth going.
+   */
+  async waitForReply(
+    projectId: string,
+    channelId: string,
+    user: AuthUser,
+    agentName: string | null,
+    query: ChannelWaitQuery,
+  ): Promise<ChannelWaitResult> {
+    await ensureChannelAccess(projectId, channelId, user);
+
+    // Establish the cursor: the given message, or the newest one right now so
+    // we only surface activity that happens AFTER the wait begins.
+    let cursor: string | null = null;
+    let cursorAt: Date;
+    if (query.after) {
+      const at = await prisma.message.findFirst({
+        where: { id: query.after, channelId },
+        select: { createdAt: true },
+      });
+      cursor = query.after;
+      cursorAt = at?.createdAt ?? new Date(0);
+    } else {
+      const newest = await prisma.message.findFirst({
+        where: { channelId },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, createdAt: true },
+      });
+      cursor = newest?.id ?? null;
+      cursorAt = newest?.createdAt ?? new Date();
+    }
+
+    const deadline = Date.now() + query.timeoutMs;
+    for (;;) {
+      const hit = await this.checkChannelActivity(
+        channelId,
+        cursorAt,
+        user,
+        agentName,
+        query.ignoreResolved,
+      );
+      if (hit) return hit;
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        return { status: 'timeout', messages: [], resolvedBy: null, cursor };
+      }
+      // Woken instantly by a local pulse, else polled every ≤2.5s.
+      await waitForChannelPulse(channelId, Math.min(remaining, 2500));
+    }
+  },
+
+  /** One check for reply/resolve after `cursorAt`; null if nothing yet. */
+  async checkChannelActivity(
+    channelId: string,
+    cursorAt: Date,
+    user: AuthUser,
+    agentName: string | null,
+    ignoreResolved = false,
+  ): Promise<ChannelWaitResult | null> {
+    // A resolve newer than the agent's last message ends the loop — unless the
+    // caller is a persistent responder that only wants new replies.
+    const channel = ignoreResolved
+      ? null
+      : await prisma.channel.findUnique({
+          where: { id: channelId },
+          select: { resolvedAt: true, resolvedBy: true },
+        });
+    if (channel?.resolvedAt && channel.resolvedAt > cursorAt) {
+      return {
+        status: 'resolved',
+        messages: [],
+        resolvedBy: channel.resolvedBy,
+        cursor: null,
+      };
+    }
+    // Messages after the cursor, minus the agent's own posts. Filtering in JS
+    // avoids SQL three-valued-logic pitfalls: a `NOT (email=x AND agentName=y)`
+    // wrongly drops human replies whose agentName is NULL.
+    const rows = await prisma.message.findMany({
+      where: { channelId, createdAt: { gt: cursorAt } },
+      orderBy: { createdAt: 'asc' },
+      take: 30,
+    });
+    const replies = rows.filter(
+      (m) =>
+        !(m.authorEmail === user.email && (m.agentName ?? null) === agentName),
+    );
+    if (replies.length === 0) return null;
+    return {
+      status: 'reply',
+      messages: replies.map(toMessage),
+      resolvedBy: null,
+      cursor: replies[replies.length - 1].id,
+    };
   },
 
   async removeMessage(

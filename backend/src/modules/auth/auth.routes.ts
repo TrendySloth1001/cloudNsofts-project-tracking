@@ -5,7 +5,9 @@ import { requireAuth } from './auth.middleware';
 export const authRoutes = Router();
 
 authRoutes.post('/login', authController.login);
+authRoutes.post('/signup', authController.signup);
 authRoutes.get('/me', requireAuth, authController.me);
+authRoutes.patch('/me', requireAuth, authController.updateMe);
 
 // Personal Access Tokens for coding agents — managed by the authed owner.
 authRoutes.post('/tokens', requireAuth, authController.createToken);

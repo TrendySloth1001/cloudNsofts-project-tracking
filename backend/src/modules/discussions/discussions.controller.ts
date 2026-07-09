@@ -1,8 +1,10 @@
 import {
   addChannelMemberSchema,
+  channelWaitQuerySchema,
   createChannelSchema,
   listMessagesQuerySchema,
   postMessageSchema,
+  resolveChannelSchema,
   scheduleMessageSchema,
   searchConversationsQuerySchema,
 } from '@cnsofts/shared';
@@ -122,6 +124,31 @@ export const discussionsController = {
         req.params.id,
         req.params.channelId,
         requireUser(req),
+      ),
+    );
+  }),
+
+  waitForReply: asyncHandler(async (req, res) => {
+    const query = validate(channelWaitQuerySchema, req.query);
+    res.json(
+      await discussionsService.waitForReply(
+        req.params.id,
+        req.params.channelId,
+        requireUser(req),
+        req.agentName ?? null,
+        query,
+      ),
+    );
+  }),
+
+  resolveChannel: asyncHandler(async (req, res) => {
+    const input = validate(resolveChannelSchema, req.body);
+    res.json(
+      await discussionsService.resolveChannel(
+        req.params.id,
+        req.params.channelId,
+        requireUser(req),
+        input.resolved,
       ),
     );
   }),

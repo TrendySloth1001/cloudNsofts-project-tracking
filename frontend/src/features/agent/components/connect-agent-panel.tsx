@@ -81,6 +81,14 @@ function isExpired(t: ApiTokenSummary): boolean {
   return t.expiresAt != null && new Date(t.expiresAt).getTime() < Date.now();
 }
 
+/** Whole days until a token expires, or null if it never expires / is expired. */
+function daysUntilExpiry(t: ApiTokenSummary): number | null {
+  if (t.expiresAt == null) return null;
+  const ms = new Date(t.expiresAt).getTime() - Date.now();
+  if (ms <= 0) return null;
+  return Math.ceil(ms / (24 * 60 * 60 * 1000));
+}
+
 function downloadFile(name: string, content: string): void {
   const blob = new Blob([content], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -224,6 +232,8 @@ function TokenRow({
   const [draft, setDraft] = useState(token.name);
   const [saving, setSaving] = useState(false);
   const expired = isExpired(token);
+  const daysLeft = daysUntilExpiry(token);
+  const expiringSoon = daysLeft != null && daysLeft <= 14;
 
   async function save() {
     const next = draft.trim();
@@ -291,6 +301,11 @@ function TokenRow({
                 <span className={styles.deleteTag}>Can delete</span>
               )}
               {expired && <span className={styles.expiredTag}>Expired</span>}
+              {expiringSoon && (
+                <span className={styles.expiringTag}>
+                  Expires in {daysLeft}d
+                </span>
+              )}
             </span>
             <span className={styles.tokenMeta}>
               <span title={projectScope}>
@@ -494,7 +509,9 @@ export function ConnectAgentPanel() {
       message: (
         <>
           Rotate <strong>{token.name}</strong>? Its current secret stops working
-          immediately and you&apos;ll get a new one to copy.
+          immediately — you&apos;ll get a new one to copy into your MCP config
+          (<code>agent-workspace/.mcp.json</code>), or the agent using it will
+          stop.
         </>
       ),
       confirmLabel: 'Rotate',

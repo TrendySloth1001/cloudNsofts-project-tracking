@@ -1,8 +1,10 @@
 import {
   apiPaths,
   type AuthResponse,
-  type AuthUser,
   type LoginInput,
+  type SignupInput,
+  type UpdateProfileInput,
+  type UserProfile,
 } from '@cnsofts/shared';
 import { apiClient } from '@/lib/api-client';
 import { authStorage } from '@/lib/auth-storage';
@@ -18,7 +20,19 @@ export const authApi = {
     return result;
   },
 
-  me: () => apiClient.get<{ user: AuthUser }>(apiPaths.auth.me()),
+  async signup(input: SignupInput): Promise<AuthResponse> {
+    const result = await apiClient.post<AuthResponse>(
+      apiPaths.auth.signup(),
+      input,
+    );
+    authStorage.set(result.token);
+    return result;
+  },
+
+  me: () => apiClient.get<{ user: UserProfile }>(apiPaths.auth.me()),
+
+  updateProfile: (input: UpdateProfileInput) =>
+    apiClient.patch<{ user: UserProfile }>(apiPaths.auth.me(), input),
 
   logout: () => authStorage.clear(),
 

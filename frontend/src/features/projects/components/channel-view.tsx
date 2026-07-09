@@ -68,6 +68,10 @@ export function ChannelView({
   const [sendError, setSendError] = useState<string | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [resolvedAt, setResolvedAt] = useState<string | null>(
+    channel.resolvedAt,
+  );
+  const [resolving, setResolving] = useState(false);
   const composerRef = useRef<MessageComposerHandle>(null);
   // Composer attachment (a task/feature reference) + its display label.
   const [attach, setAttach] = useState<{
@@ -103,7 +107,23 @@ export function ChannelView({
   useEffect(() => {
     setBody('');
     setAttach(null);
-  }, [channel.id]);
+    setResolvedAt(channel.resolvedAt);
+  }, [channel.id, channel.resolvedAt]);
+
+  async function toggleResolved() {
+    const next = !resolvedAt;
+    setResolving(true);
+    try {
+      const updated = await discussionsApi.resolveChannel(
+        projectId,
+        channel.id,
+        next,
+      );
+      setResolvedAt(updated.resolvedAt);
+    } finally {
+      setResolving(false);
+    }
+  }
 
   async function submitMessage() {
     const text = body.trim();
@@ -175,10 +195,23 @@ export function ChannelView({
           >
             {CHANNEL_VISIBILITY_LABELS[channel.visibility]}
           </Badge>
+          {resolvedAt && (
+            <Badge className={styles.channelBadge} variant="success" size="sm">
+              <Icon name="checkCircle" size={11} /> Resolved
+            </Badge>
+          )}
           {channel.description && (
             <span className={styles.channelDesc}>{channel.description}</span>
           )}
         </div>
+        <IconButton
+          icon={resolvedAt ? 'closeCircle' : 'checkCircle'}
+          label={resolvedAt ? 'Reopen conversation' : 'Mark conversation resolved'}
+          variant="ghost"
+          size="sm"
+          disabled={resolving}
+          onClick={() => void toggleResolved()}
+        />
         {canManageChannels && (
           <IconButton
             icon="user"

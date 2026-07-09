@@ -3,10 +3,11 @@ import { requireAuth } from '../auth/auth.middleware';
 import {
   requireProjectAbility,
   requireProjectAccess,
-  requireRole,
 } from '../auth/access';
 import { discussionsRoutes } from '../discussions/discussions.routes';
 import { discussionsController } from '../discussions/discussions.controller';
+import { docsRoutes } from '../docs/docs.routes';
+import { projectInvitationsRoutes } from '../invitations/invitations.routes';
 import { projectsController } from './projects.controller';
 
 export const projectsRoutes = Router();
@@ -28,13 +29,19 @@ const canDeleteProject = requireProjectAbility('canDeleteProject');
 // Project discussion channels + messages (nested; reads the parent `:id`).
 projectsRoutes.use('/:id/channels', discussionsRoutes);
 
+// Project documentation pages (nested; reads the parent `:id`).
+projectsRoutes.use('/:id/docs', docsRoutes);
+
+// Project invitations (nested; manager/admin manage the roster).
+projectsRoutes.use('/:id/invitations', projectInvitationsRoutes);
+
 // Full-text search across the project's conversations (messages + task threads)
 // so agents find context instead of ingesting whole threads. Read-only.
 projectsRoutes.get('/:id/search', discussionsController.searchConversations);
 
 projectsRoutes.get('/', projectsController.list);
-// Creating a *new* project is a global-admin action (no project context yet).
-projectsRoutes.post('/', requireRole('ADMIN'), projectsController.create);
+// Anyone signed in can create a project; the creator becomes its manager.
+projectsRoutes.post('/', projectsController.create);
 projectsRoutes.get('/:id', projectsController.getById);
 projectsRoutes.patch('/:id', canEditProject, projectsController.update);
 projectsRoutes.delete('/:id', canDeleteProject, projectsController.remove);

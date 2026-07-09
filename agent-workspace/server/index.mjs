@@ -11067,8 +11067,8 @@ var require_dist2 = __commonJS({
   "../shared/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.searchConversationsQuerySchema = exports.listMessagesQuerySchema = exports.channelRoomSchema = exports.WS_EVENTS = exports.notificationKindSchema = exports.updateProjectSchema = exports.createMilestoneSchema = exports.scheduleMessageSchema = exports.scheduledMessageStatusSchema = exports.postMessageSchema = exports.createChannelSchema = exports.addChannelMemberSchema = exports.messageAttachmentSchema = exports.CHANNEL_VISIBILITY_LABELS = exports.channelVisibilitySchema = exports.createCommentSchema = exports.updateSubtaskSchema = exports.createSubtaskSchema = exports.reorderTasksSchema = exports.updateTaskSchema = exports.reorderFeaturesSchema = exports.updateFeatureSchema = exports.createFeatureSchema = exports.createTaskSchema = exports.updateMemberRoleSchema = exports.addMemberSchema = exports.addClientSchema = exports.createProjectSchema = exports.FEATURE_STATUS_ORDER = exports.FEATURE_STATUS_LABELS = exports.featureStatusSchema = exports.taskEventKindSchema = exports.TASK_PRIORITY_LABELS = exports.taskPrioritySchema = exports.TASK_STATUS_ORDER = exports.TASK_STATUS_LABELS = exports.taskStatusSchema = exports.projectRoleSchema = exports.MEMBER_ROLE_LABELS = exports.memberRoleSchema = exports.PROJECT_STATUS_LABELS = exports.projectStatusSchema = exports.updateUserSchema = exports.createUserSchema = exports.userRoleSchema = exports.updateApiTokenSchema = exports.createApiTokenSchema = exports.API_TOKEN_SCOPE_LABELS = exports.apiTokenScopeSchema = exports.loginSchema = void 0;
-    exports.USER_ROLE_LABELS = exports.apiPaths = exports.API_ROUTES = void 0;
+    exports.DOC_BODY_MAX_LENGTH = exports.DOC_TITLE_MAX_LENGTH = exports.resolveChannelSchema = exports.channelWaitStatusSchema = exports.channelWaitQuerySchema = exports.CHANNEL_WAIT_MAX_MS = exports.scheduleMessageSchema = exports.scheduledMessageStatusSchema = exports.postMessageSchema = exports.MESSAGE_BODY_MAX_LENGTH = exports.createChannelSchema = exports.addChannelMemberSchema = exports.messageAttachmentSchema = exports.CHANNEL_VISIBILITY_LABELS = exports.channelVisibilitySchema = exports.createCommentSchema = exports.updateSubtaskSchema = exports.createSubtaskSchema = exports.reorderTasksSchema = exports.updateTaskSchema = exports.reorderFeaturesSchema = exports.updateFeatureSchema = exports.createFeatureSchema = exports.createTaskSchema = exports.updateMemberRoleSchema = exports.addMemberSchema = exports.addClientSchema = exports.createProjectSchema = exports.FEATURE_STATUS_ORDER = exports.FEATURE_STATUS_LABELS = exports.featureStatusSchema = exports.taskEventKindSchema = exports.TASK_PRIORITY_LABELS = exports.taskPrioritySchema = exports.TASK_STATUS_ORDER = exports.TASK_STATUS_LABELS = exports.taskStatusSchema = exports.projectRoleSchema = exports.MEMBER_ROLE_LABELS = exports.memberRoleSchema = exports.PROJECT_STATUS_LABELS = exports.projectStatusSchema = exports.updateUserSchema = exports.createUserSchema = exports.userRoleSchema = exports.updateApiTokenSchema = exports.createApiTokenSchema = exports.API_TOKEN_SCOPE_LABELS = exports.apiTokenScopeSchema = exports.loginSchema = void 0;
+    exports.USER_ROLE_LABELS = exports.apiPaths = exports.API_ROUTES = exports.searchConversationsQuerySchema = exports.listMessagesQuerySchema = exports.channelRoomSchema = exports.WS_EVENTS = exports.notificationKindSchema = exports.updateProjectSchema = exports.createMilestoneSchema = exports.updateDocSchema = exports.createDocSchema = void 0;
     exports.projectAbilities = projectAbilities;
     exports.channelSlug = channelSlug;
     var zod_1 = require_zod();
@@ -11259,8 +11259,9 @@ var require_dist2 = __commonJS({
       description: zod_1.z.string().trim().max(280).default(""),
       visibility: exports.channelVisibilitySchema.default("internal")
     });
+    exports.MESSAGE_BODY_MAX_LENGTH = 4e3;
     exports.postMessageSchema = zod_1.z.object({
-      body: zod_1.z.string().trim().max(4e3).default(""),
+      body: zod_1.z.string().trim().max(exports.MESSAGE_BODY_MAX_LENGTH).default(""),
       attachment: exports.messageAttachmentSchema.nullable().default(null)
     }).refine((v) => v.body.length > 0 || v.attachment !== null, {
       message: "Message is required",
@@ -11274,7 +11275,7 @@ var require_dist2 = __commonJS({
       "failed"
     ]);
     exports.scheduleMessageSchema = zod_1.z.object({
-      body: zod_1.z.string().trim().max(4e3).default(""),
+      body: zod_1.z.string().trim().max(exports.MESSAGE_BODY_MAX_LENGTH).default(""),
       attachment: exports.messageAttachmentSchema.nullable().default(null),
       scheduledFor: zod_1.z.string().datetime({ message: "Pick a valid date and time" })
     }).refine((v) => v.body.length > 0 || v.attachment !== null, {
@@ -11283,6 +11284,35 @@ var require_dist2 = __commonJS({
     }).refine((v) => new Date(v.scheduledFor).getTime() > Date.now(), {
       message: "Schedule a time in the future",
       path: ["scheduledFor"]
+    });
+    exports.CHANNEL_WAIT_MAX_MS = 55e3;
+    exports.channelWaitQuerySchema = zod_1.z.object({
+      /** Only return activity strictly newer than this message id (the cursor). */
+      after: zod_1.z.string().trim().min(1).optional(),
+      /** How long to hold the request before returning `timeout` (ms). */
+      timeoutMs: zod_1.z.coerce.number().int().min(1e3).max(exports.CHANNEL_WAIT_MAX_MS).default(25e3),
+      /**
+       * When true, never return `resolved` — only new replies. A persistent
+       * responder uses this so it keeps answering new messages instead of getting
+       * stuck on a resolve (which is always newer than the message cursor).
+       */
+      ignoreResolved: zod_1.z.enum(["true", "false"]).optional().default("false").transform((v) => v === "true")
+    });
+    exports.channelWaitStatusSchema = zod_1.z.enum(["reply", "resolved", "timeout"]);
+    exports.resolveChannelSchema = zod_1.z.object({
+      resolved: zod_1.z.boolean().default(true)
+    });
+    exports.DOC_TITLE_MAX_LENGTH = 120;
+    exports.DOC_BODY_MAX_LENGTH = 1e5;
+    exports.createDocSchema = zod_1.z.object({
+      title: zod_1.z.string().trim().min(1, "A title is required").max(exports.DOC_TITLE_MAX_LENGTH),
+      body: zod_1.z.string().max(exports.DOC_BODY_MAX_LENGTH).default("")
+    });
+    exports.updateDocSchema = zod_1.z.object({
+      title: zod_1.z.string().trim().min(1, "A title is required").max(exports.DOC_TITLE_MAX_LENGTH),
+      body: zod_1.z.string().max(exports.DOC_BODY_MAX_LENGTH)
+    }).partial().refine((v) => v.title !== void 0 || v.body !== void 0, {
+      message: "Nothing to update"
     });
     exports.createMilestoneSchema = zod_1.z.object({
       title: zod_1.z.string().trim().min(1, "Title is required").max(160),
@@ -11368,13 +11398,17 @@ var require_dist2 = __commonJS({
         channelMessages: (id, channelId2) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}/messages`,
         channelMessage: (id, channelId2, messageId) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}/messages/${messageId}`,
         channelOverview: (id, channelId2) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}/overview`,
+        channelWait: (id, channelId2) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}/wait`,
+        channelResolve: (id, channelId2) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}/resolve`,
         search: (id) => `${exports.API_ROUTES.projects}/${id}/search`,
         channelScheduled: (id, channelId2) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}/scheduled`,
         channelScheduledItem: (id, channelId2, scheduledId) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}/scheduled/${scheduledId}`,
         channelMembers: (id, channelId2) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}/members`,
         channelMember: (id, channelId2, memberId) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}/members/${memberId}`,
         milestones: (id) => `${exports.API_ROUTES.projects}/${id}/milestones`,
-        milestone: (id, milestoneId) => `${exports.API_ROUTES.projects}/${id}/milestones/${milestoneId}`
+        milestone: (id, milestoneId) => `${exports.API_ROUTES.projects}/${id}/milestones/${milestoneId}`,
+        docs: (id) => `${exports.API_ROUTES.projects}/${id}/docs`,
+        doc: (id, docId2) => `${exports.API_ROUTES.projects}/${id}/docs/${docId2}`
       },
       notifications: {
         list: () => exports.API_ROUTES.notifications,
@@ -25749,6 +25783,7 @@ var taskId = external_exports.string().min(1).describe("The task id");
 var featureId = external_exports.string().min(1).describe("The feature id");
 var channelId = external_exports.string().min(1).describe("The channel id");
 var subtaskId = external_exports.string().min(1).describe("The subtask id");
+var docId = external_exports.string().min(1).describe("The doc id");
 var MARKDOWN_HINT = 'Rendered as GitHub-flavored markdown \u2014 use **bold**, _italic_, `code`, `- ` lists, `> ` quotes and [links](url). For code or structured data (JSON, etc.) use a fenced block that OPENS with a language tag and keeps real indentation, e.g. ```json\\n{\\n  "a": 1\\n}\\n``` \u2014 do NOT escape characters, add trailing backslashes, or flatten indentation. Raw HTML is ignored.';
 var server = new McpServer(
   { name: "cnsofts", version: "0.1.0" },
@@ -25779,6 +25814,28 @@ var server = new McpServer(
       "one- or two-line update that points to it \u2014 never paste task lists, status",
       "reports, or plans into chat; that content belongs on the board, not the",
       "conversation.",
+      "",
+      "DOCS \u2014 a project has documentation pages (list_docs / get_doc / create_doc /",
+      "update_doc). This is where durable knowledge lives: architecture, onboarding,",
+      'decisions, a running status overview. When asked to "write it up", "document",',
+      "or leave a proper page for the team, put it in a doc \u2014 not a chat message.",
+      "Read the doc (get_doc) before update_doc; the body you send REPLACES the old.",
+      "",
+      "LIVE loop \u2014 ONLY for an ACTIVE back-and-forth: someone is at the keyboard",
+      "and a reply is expected within minutes. It is NOT a background watch \u2014 every",
+      "wake re-reads the whole conversation and costs tokens, so idle-watching is",
+      "expensive. When you are in an active exchange:",
+      "  1. post_message with your question or update.",
+      "  2. wait_for_reply(channelId, afterMessageId: <cursor>, timeoutSeconds: 30)",
+      "     \u2014 it BLOCKS server-side (free while blocked) until someone replies, the",
+      "     thread is resolved, or it times out.",
+      '  3. "reply": act on it, post_message back, wait_for_reply again with cursor.',
+      '  4. "timeout": call wait_for_reply again \u2014 but at most 3\u20134 times in a row.',
+      '  5. "resolved": STOP \u2014 post a short closing note and end.',
+      "  COST CAP (important): do NOT watch indefinitely. After ~3\u20134 consecutive",
+      "  timeouts (~2 min of silence) the person has stepped away \u2014 post a short",
+      `  "ping me when you're back" and STOP. NEVER schedule repeated wakeups or`,
+      "  re-invoke yourself to keep a watch alive; let the person re-engage you.",
       "",
       `Message and task-comment bodies: ${MARKDOWN_HINT}`
     ].join("\n")
@@ -25874,6 +25931,32 @@ server.registerTool(
   })
 );
 server.registerTool(
+  "wait_for_reply",
+  {
+    title: "Wait for a reply",
+    description: 'BLOCK until someone replies in the channel, the conversation is marked resolved, or the wait times out. Returns { status: "reply"|"resolved"|"timeout", messages, resolvedBy, cursor }. Use it to hold a live back-and-forth: post_message \u2192 wait_for_reply \u2192 act on the reply \u2192 post_message \u2192 wait_for_reply, passing the returned `cursor` as `afterMessageId` each time. Stop when status is "resolved" (they are satisfied). On "timeout", call again to keep waiting. Never loop more than ~10 rounds without progress.',
+    inputSchema: {
+      projectId,
+      channelId,
+      afterMessageId: external_exports.string().optional().describe(
+        "The `cursor` from your previous wait (or a message id). Only activity newer than it is returned. Omit on the first wait to start from now."
+      ),
+      timeoutSeconds: external_exports.coerce.number().int().min(5).max(55).default(25).describe(
+        'How long to block before returning status "timeout" (then call again to keep waiting). Keep \u226430 so the tool call stays responsive.'
+      )
+    }
+  },
+  ({ projectId: projectId2, channelId: channelId2, afterMessageId, timeoutSeconds }) => run(() => {
+    const params = new URLSearchParams({
+      timeoutMs: String(timeoutSeconds * 1e3)
+    });
+    if (afterMessageId) params.set("after", afterMessageId);
+    return api.get(
+      `${import_shared.apiPaths.projects.channelWait(projectId2, channelId2)}?${params.toString()}`
+    );
+  })
+);
+server.registerTool(
   "read_channel",
   {
     title: "Read channel messages",
@@ -25913,6 +25996,24 @@ server.registerTool(
   ({ projectId: projectId2, channelId: channelId2, messageId }) => run(
     () => api.get(import_shared.apiPaths.projects.channelMessage(projectId2, channelId2, messageId))
   )
+);
+server.registerTool(
+  "list_docs",
+  {
+    title: "List docs",
+    description: "A project's documentation pages (id, title, when/who last edited) \u2014 metadata only, no body. Use this to orient before reading or writing a doc.",
+    inputSchema: { projectId }
+  },
+  ({ projectId: projectId2 }) => run(() => api.get(import_shared.apiPaths.projects.docs(projectId2)))
+);
+server.registerTool(
+  "get_doc",
+  {
+    title: "Get doc",
+    description: "Fetch one documentation page with its full markdown body. Read it before update_doc so you preserve the parts you are not changing.",
+    inputSchema: { projectId, docId }
+  },
+  ({ projectId: projectId2, docId: docId2 }) => run(() => api.get(import_shared.apiPaths.projects.doc(projectId2, docId2)))
 );
 if (!config2.readOnly) {
   server.registerTool(
@@ -26094,6 +26195,29 @@ if (!config2.readOnly) {
       inputSchema: { projectId, ...import_shared.createChannelSchema.shape }
     },
     ({ projectId: projectId2, ...body }) => run(() => api.post(import_shared.apiPaths.projects.channels(projectId2), body))
+  );
+  server.registerTool(
+    "create_doc",
+    {
+      title: "Create doc",
+      description: `Create a documentation page in the project's Docs \u2014 long-form project docs (architecture, onboarding, decisions, status) the team and agents read to stay aware of what's going on. Give it a clear title and a markdown body. ${MARKDOWN_HINT}`,
+      inputSchema: { projectId, ...import_shared.createDocSchema.shape }
+    },
+    ({ projectId: projectId2, ...body }) => run(() => api.post(import_shared.apiPaths.projects.docs(projectId2), body))
+  );
+  server.registerTool(
+    "update_doc",
+    {
+      title: "Update doc",
+      description: `Update a documentation page's title and/or body. Call get_doc first and send the full new body \u2014 it REPLACES the old one. ${MARKDOWN_HINT}`,
+      inputSchema: {
+        projectId,
+        docId,
+        title: import_shared.createDocSchema.shape.title.optional(),
+        body: import_shared.createDocSchema.shape.body.optional()
+      }
+    },
+    ({ projectId: projectId2, docId: docId2, ...body }) => run(() => api.patch(import_shared.apiPaths.projects.doc(projectId2, docId2), body))
   );
   server.registerTool(
     "comment_task",

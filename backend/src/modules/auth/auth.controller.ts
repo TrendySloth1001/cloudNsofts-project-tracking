@@ -1,7 +1,9 @@
 import {
   createApiTokenSchema,
   loginSchema,
+  signupSchema,
   updateApiTokenSchema,
+  updateProfileSchema,
 } from '@cnsofts/shared';
 import { asyncHandler } from '../../shared/http/async-handler';
 import { validate } from '../../shared/http/validate';
@@ -14,9 +16,21 @@ export const authController = {
     res.json(await authService.login(input));
   }),
 
+  signup: asyncHandler(async (req, res) => {
+    const input = validate(signupSchema, req.body);
+    res.status(201).json(await authService.signup(input));
+  }),
+
   // Runs behind `requireAuth`, so the principal (JWT or PAT) is already resolved.
   me: asyncHandler(async (req, res) => {
-    res.json({ user: requireUser(req) });
+    res.json({ user: await authService.getProfile(requireUser(req)) });
+  }),
+
+  updateMe: asyncHandler(async (req, res) => {
+    const input = validate(updateProfileSchema, req.body);
+    res.json({
+      user: await authService.updateProfile(requireUser(req), input),
+    });
   }),
 
   /* --------------------------- Access tokens ---------------------------- */

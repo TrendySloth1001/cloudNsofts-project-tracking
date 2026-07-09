@@ -12,7 +12,10 @@ import {
   type CreateApiTokenInput,
   type CreatedApiToken,
   type LoginInput,
+  type SignupInput,
   type UpdateApiTokenInput,
+  type UpdateProfileInput,
+  type UserProfile,
 } from '@cnsofts/shared';
 import { env } from '../../infra/env';
 import { prisma } from '../../infra/prisma';
@@ -128,10 +131,114 @@ function issueToken(user: AuthUser): string {
   );
 }
 
+/** Empty profile defaults for a principal with no `users` row yet. */
+const EMPTY_PROFILE = {
+  title: '',
+  bio: '',
+  skills: [] as string[],
+  location: '',
+  timezone: '',
+  githubUrl: '',
+  websiteUrl: '',
+  linkedinUrl: '',
+} as const;
+
+type ProfileRow = {
+  name: string;
+  title: string;
+  bio: string;
+  skills: string[];
+  location: string;
+  timezone: string;
+  githubUrl: string;
+  websiteUrl: string;
+  linkedinUrl: string;
+};
+
+/** Merge the auth identity (email/role from the token) with the DB profile row.
+ *  Falls back to empty profile + identity name when no row exists yet (e.g. the
+ *  bootstrap admin before its first save). */
+function toProfile(user: AuthUser, row: ProfileRow | null): UserProfile {
+  if (!row) return { ...user, ...EMPTY_PROFILE };
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    // Once a row exists the name is self-edited there; else use the identity.
+    name: row.name || user.name,
+    title: row.title,
+    bio: row.bio,
+    skills: row.skills,
+    location: row.location,
+    timezone: row.timezone,
+    githubUrl: row.githubUrl,
+    websiteUrl: row.websiteUrl,
+    linkedinUrl: row.linkedinUrl,
+  };
+}
+
+/** Trim, drop blanks, and de-duplicate skills (case-insensitive), keeping order. */
+function normalizeSkills(skills: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of skills) {
+    const skill = raw.trim();
+    const key = skill.toLowerCase();
+    if (skill && !seen.has(key)) {
+      seen.add(key);
+      out.push(skill);
+    }
+  }
+  return out;
+}
+
 export const authService = {
   /** Hash a plaintext password for storage (used when provisioning users). */
   hashPassword(plain: string): Promise<string> {
     return bcrypt.hash(plain, BCRYPT_ROUNDS);
+  },
+
+  /** The signed-in user's full profile (identity + DB profile fields). */
+  async getProfile(user: AuthUser): Promise<UserProfile> {
+    const row = await prisma.user.findUnique({ where: { id: user.id } });
+    return toProfile(user, row);
+  },
+
+  /** Update the caller's own profile. Upserts the `users` row so the env
+   *  bootstrap admin (which has no row) gets one on first save. */
+  async updateProfile(
+    user: AuthUser,
+    input: UpdateProfileInput,
+  ): Promise<UserProfile> {
+    const data = {
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.title !== undefined ? { title: input.title } : {}),
+      ...(input.bio !== undefined ? { bio: input.bio } : {}),
+      ...(input.skills !== undefined
+        ? { skills: normalizeSkills(input.skills) }
+        : {}),
+      ...(input.location !== undefined ? { location: input.location } : {}),
+      ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+      ...(input.githubUrl !== undefined ? { githubUrl: input.githubUrl } : {}),
+      ...(input.websiteUrl !== undefined
+        ? { websiteUrl: input.websiteUrl }
+        : {}),
+      ...(input.linkedinUrl !== undefined
+        ? { linkedinUrl: input.linkedinUrl }
+        : {}),
+    };
+    const row = await prisma.user.upsert({
+      where: { id: user.id },
+      update: data,
+      create: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        name: input.name ?? user.name,
+        ...data,
+      },
+    });
+    return toProfile(user, row);
   },
 
   async login(input: LoginInput): Promise<AuthResponse> {
@@ -153,6 +260,37 @@ export const authService = {
     const matches = await bcrypt.compare(input.password, record.passwordHash);
     if (!matches) throw HttpError.unauthorized('Invalid email or password');
 
+    const user: AuthUser = {
+      id: record.id,
+      email: record.email,
+      name: record.name,
+      role: record.role,
+    };
+    return { token: issueToken(user), user };
+  },
+
+  /** Open self-service signup. New accounts are plain MEMBERs with no project
+   *  access until they accept an invitation (or an admin adds them). */
+  async signup(input: SignupInput): Promise<AuthResponse> {
+    // The bootstrap admin email is reserved.
+    if (safeEqual(input.email, env.ADMIN_EMAIL)) {
+      throw HttpError.conflict('That email is already registered.');
+    }
+    const existing = await prisma.user.findUnique({
+      where: { email: input.email },
+    });
+    if (existing) {
+      throw HttpError.conflict('That email is already registered.');
+    }
+    const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+    const record = await prisma.user.create({
+      data: {
+        email: input.email,
+        name: input.name,
+        role: 'MEMBER',
+        passwordHash,
+      },
+    });
     const user: AuthUser = {
       id: record.id,
       email: record.email,
@@ -295,15 +433,31 @@ export const authService = {
     const row = await prisma.apiToken.findUnique({
       where: { tokenHash: hashToken(raw) },
     });
-    if (
-      !row ||
-      row.revokedAt !== null ||
-      (row.expiresAt !== null && row.expiresAt.getTime() < Date.now())
-    ) {
-      throw HttpError.unauthorized('Invalid or expired token');
+    // Say WHY a token fails — the caller already holds the value, so a precise
+    // reason leaks nothing but saves them chasing the wrong problem (the common
+    // one being a revoke, not an expiry).
+    if (!row) {
+      throw HttpError.unauthorized(
+        'This access token is not recognized — it may have been deleted. Generate a new one on the Connect coding agent page and update your MCP config.',
+      );
+    }
+    if (row.revokedAt !== null) {
+      throw HttpError.unauthorized(
+        'This access token was revoked — regenerating or rotating a token invalidates the previous one. Copy the new token into your MCP config (agent-workspace/.mcp.json).',
+      );
+    }
+    if (row.expiresAt !== null && row.expiresAt.getTime() < Date.now()) {
+      const on = row.expiresAt.toISOString().slice(0, 10);
+      throw HttpError.unauthorized(
+        `This access token expired on ${on}. Generate a new one (choose "Never expires" for an always-on agent).`,
+      );
     }
     const principal = await principalFromId(row.userId);
-    if (!principal) throw HttpError.unauthorized('Invalid or expired token');
+    if (!principal) {
+      throw HttpError.unauthorized(
+        'The account this token belongs to no longer exists.',
+      );
+    }
     // Best-effort usage stamp — count the call and record last-used. Never
     // blocks the request; a lost update just under-counts by one.
     void prisma.apiToken

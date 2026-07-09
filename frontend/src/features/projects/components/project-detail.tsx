@@ -20,9 +20,10 @@ import { projectInitials, projectTint } from '../project-visuals';
 import { ProjectStatusBadge } from './project-status-badge';
 import { ProjectHome } from './project-home';
 import { ProjectDiscussion } from './project-discussion';
+import { ProjectDocs } from './project-docs';
 import styles from './project-detail.module.css';
 
-type ProjectTab = 'home' | 'discussion';
+type ProjectTab = 'home' | 'discussion' | 'docs';
 
 export function ProjectDetail({ projectId }: { projectId: string }) {
   const router = useRouter();
@@ -55,6 +56,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   }
 
   const currentProject = project;
+  // Discussion and docs both use the bounded, panel-scrolls-internally layout.
+  const panelTab = tab === 'discussion' || tab === 'docs';
 
   async function deleteProject() {
     const ok = await confirm({
@@ -76,16 +79,15 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
     <div
       className={cx(
         styles.page,
-        tab === 'discussion' && styles.discussionTab,
-        tab === 'discussion' && chatDetail && styles.chatDetail,
+        panelTab && styles.discussionTab,
+        panelTab && chatDetail && styles.chatDetail,
       )}
     >
-      <Link href="/" className={styles.back}>
-        <Icon name="chevronLeft" size={16} />
-        <span>Projects</span>
-      </Link>
-
       <div className={styles.head}>
+        <Link href="/" className={styles.back}>
+          <Icon name="chevronLeft" size={16} />
+          <span>Projects</span>
+        </Link>
         <div className={styles.headLeft}>
           <span
             className={styles.monogram}
@@ -97,12 +99,10 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             {projectInitials(project.name)}
           </span>
           <div className={styles.headText}>
-            <div className={styles.titleRow}>
-              <h1 className={styles.title}>{project.name}</h1>
-              <ProjectStatusBadge status={project.status} />
-            </div>
+            <h1 className={styles.title}>{project.name}</h1>
+            <ProjectStatusBadge status={project.status} />
             {project.description && (
-              <p className={styles.desc}>{project.description}</p>
+              <span className={styles.desc}>{project.description}</span>
             )}
           </div>
 
@@ -142,6 +142,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
               icon: 'chat',
               iconTone: 'info',
             },
+            { value: 'docs', label: 'Docs', icon: 'docs', iconTone: 'success' },
           ]}
         />
 
@@ -197,6 +198,13 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           }))}
           canManageChannels={perms.canManageChannels}
           onChatDetailChange={setChatDetail}
+        />
+      )}
+      {tab === 'docs' && (
+        <ProjectDocs
+          projectId={project.id}
+          canEdit={perms.canEditBoard}
+          onDetailChange={setChatDetail}
         />
       )}
     </div>

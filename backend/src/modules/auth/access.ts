@@ -16,10 +16,14 @@ export function requireUser(req: Request): AuthUser {
 }
 
 /**
- * The user's effective role *within a project*, or `null` if they can't see it:
- *  - ADMIN: `admin` (any project).
- *  - CLIENT: `client` if they're a client of it.
- *  - MEMBER/VIEWER: their `ProjectMember.role` (manager/member/viewer).
+ * The user's effective role *within a project*, or `null` if they can't see it.
+ * Roles are per-project (the same person can be a member of one project and a
+ * client of another), resolved from that project's rosters — not the global
+ * account role. The global ADMIN is the only exception: a superuser everywhere.
+ *  - ADMIN: `admin` on every project.
+ *  - a `ProjectMember` of this project: their `ProjectMember.role`.
+ *  - a `ProjectClient` of this project: `client`.
+ *  - otherwise: `null` (no access).
  */
 export async function getProjectRole(
   user: AuthUser,
@@ -29,17 +33,15 @@ export async function getProjectRole(
     const exists = await prisma.project.count({ where: { id: projectId } });
     return exists > 0 ? 'admin' : null;
   }
-  if (user.role === 'CLIENT') {
-    const isClient = await prisma.projectClient.count({
-      where: { projectId, email: user.email },
-    });
-    return isClient > 0 ? 'client' : null;
-  }
   const membership = await prisma.projectMember.findFirst({
     where: { projectId, email: user.email },
     select: { role: true },
   });
-  return membership ? membership.role : null;
+  if (membership) return membership.role;
+  const isClient = await prisma.projectClient.count({
+    where: { projectId, email: user.email },
+  });
+  return isClient > 0 ? 'client' : null;
 }
 
 /** Whether a user may see/enter a project (any role at all). */
@@ -50,13 +52,16 @@ export async function canAccessProject(
   return (await getProjectRole(user, projectId)) !== null;
 }
 
-/** Prisma `where` that scopes a project list to what the user may see. */
+/** Prisma `where` that scopes a project list to what the user may see — every
+ *  project where they're a member OR a client (admins see all). */
 export function projectScopeWhere(user: AuthUser) {
   if (user.role === 'ADMIN') return {};
-  if (user.role === 'CLIENT') {
-    return { clients: { some: { email: user.email } } };
-  }
-  return { members: { some: { email: user.email } } };
+  return {
+    OR: [
+      { members: { some: { email: user.email } } },
+      { clients: { some: { email: user.email } } },
+    ],
+  };
 }
 
 /**

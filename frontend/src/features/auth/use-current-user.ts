@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { AuthUser } from '@cnsofts/shared';
+import type { UserProfile } from '@cnsofts/shared';
 import { authApi } from './auth.api';
 
-/** Loads the signed-in user; redirects to /login when unauthenticated. */
+/** Loads the signed-in user (full profile); redirects to /login when
+ *  unauthenticated. */
 export function useCurrentUser() {
   const router = useRouter();
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

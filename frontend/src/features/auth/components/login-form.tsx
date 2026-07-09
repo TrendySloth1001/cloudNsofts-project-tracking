@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { loginSchema } from '@cnsofts/shared';
 import { Button, Divider, Input } from '@/components/ui';
@@ -115,10 +116,10 @@ export function LoginForm() {
       {notice && <p className={styles.notice}>{notice}</p>}
 
       <p className={styles.support}>
-        Trouble signing in?{' '}
-        <a href="#" className={styles.link}>
-          Contact support
-        </a>
+        New to CloudNSofts?{' '}
+        <Link href="/signup" className={styles.link}>
+          Create an account
+        </Link>
       </p>
     </div>
   );

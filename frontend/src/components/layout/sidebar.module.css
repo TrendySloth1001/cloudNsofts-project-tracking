@@ -157,6 +157,32 @@
   border-top: 1px solid var(--color-border);
 }
 
+/* Account chip — signed-in user + menu, pinned at the very bottom. */
+.account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  margin-top: var(--space-1);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  text-align: left;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.account:hover {
+  background: var(--color-surface-hover);
+}
+.accountName {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Desktop collapsed rail — icons only. Gated to desktop so the mobile drawer
    (which reuses this component) always shows full labels. */
 @media (min-width: 900px) {
@@ -184,6 +210,14 @@
   .collapsed .projectDot {
     width: 10px;
     height: 10px;
+  }
+  .collapsed .accountName {
+    display: none;
+  }
+  .collapsed .account {
+    justify-content: center;
+    gap: 0;
+    padding: var(--space-2);
   }
 }
 

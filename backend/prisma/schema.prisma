@@ -23,6 +23,16 @@ model User {
   role         UserRole @default(MEMBER)
   // bcrypt hash; null until the account is given a password (invite-provisioned).
   passwordHash String?
+  // Profile fields (self-service, edited via PATCH /auth/me). All default to
+  // empty so existing rows and the bootstrap admin work without backfill.
+  title        String   @default("")
+  bio          String   @default("")
+  skills       String[] @default([])
+  location     String   @default("")
+  timezone     String   @default("")
+  githubUrl    String   @default("")
+  websiteUrl   String   @default("")
+  linkedinUrl  String   @default("")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -72,6 +82,7 @@ enum ProjectStatus {
 }
 
 enum MemberRole {
+  admin
   manager
   member
   viewer
@@ -105,6 +116,8 @@ model Project {
   tasks       Task[]
   milestones  Milestone[]
   channels    Channel[]
+  docs        Doc[]
+  invitations Invitation[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
@@ -293,6 +306,10 @@ model Channel {
   scheduled   ScheduledMessage[]
   members     ChannelMember[]
   createdAt   DateTime          @default(now())
+  // Set when someone marks the conversation answered; the agent's wait loop
+  // treats a resolve newer than its last message as "stop, they're satisfied".
+  resolvedAt  DateTime?
+  resolvedBy  String?
 
   @@index([projectId])
   @@map("channels")
@@ -358,6 +375,55 @@ model ChannelMember {
   @@unique([channelId, email])
   @@index([email])
   @@map("channel_members")
+}
+
+// A project documentation page — long-form markdown the team and coding agents
+// write to keep everyone aware of what's going on. Bodies can be large, so the
+// list endpoint returns metadata only; the body is fetched per doc.
+model Doc {
+  id             String   @id @default(cuid())
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId      String
+  title          String
+  body           String   @default("")
+  // Manual ordering in the docs sidebar (lower = higher up).
+  position       Int      @default(0)
+  // Authorship (mirrors Message): display name + stable login email; agentName
+  // is set when a coding agent (PAT) authored/edited the page.
+  author         String
+  authorEmail    String?
+  updatedBy      String?
+  updatedByEmail String?
+  agentName      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([projectId])
+  @@map("docs")
+}
+
+// A pending invitation of an email to a project (with a role). Created by a
+// manager/admin; may predate the invitee's account ("pre-made"). On signup /
+// login the invitee sees their pending invitations and accepts → a
+// ProjectMember row is created. One row per (project, email); re-inviting a
+// declined/canceled email just flips it back to pending.
+model Invitation {
+  id             String     @id @default(cuid())
+  project        Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId      String
+  email          String
+  role           MemberRole @default(member)
+  // Display name + email of the inviter (for "invited by" in the UI).
+  invitedBy      String
+  invitedByEmail String?
+  // pending | accepted | declined | canceled
+  status         String     @default("pending")
+  createdAt      DateTime   @default(now())
+  respondedAt    DateTime?
+
+  @@unique([projectId, email])
+  @@index([email, status])
+  @@map("invitations")
 }
 
 // Enum values match the shared Zod contract (notificationKindSchema) exactly.

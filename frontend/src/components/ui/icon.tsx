@@ -72,6 +72,8 @@ import {
   TextStrikethroughIcon,
   QuoteDownIcon,
   LeftToRightListBulletIcon,
+  File01Icon,
+  BookOpen01Icon,
 } from '@hugeicons/core-free-icons';
 
 /**
@@ -151,6 +153,8 @@ export const icons = {
   strikethrough: TextStrikethroughIcon,
   quote: QuoteDownIcon,
   listBullet: LeftToRightListBulletIcon,
+  doc: File01Icon,
+  docs: BookOpen01Icon,
 } satisfies Record<string, IconSvgElement>;
 
 export type IconName = keyof typeof icons;

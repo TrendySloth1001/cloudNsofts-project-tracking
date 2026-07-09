@@ -22,7 +22,12 @@ const USER_NOT_FOUND = 'User not found';
  *  where domain rules and database access live. */
 export const usersService = {
   list() {
-    return prisma.user.findMany({ orderBy: { createdAt: 'desc' } });
+    // The bootstrap admin is an env principal; its `users` row (created lazily
+    // when it edits its own profile) is not a managed account, so hide it.
+    return prisma.user.findMany({
+      where: { id: { not: 'admin' } },
+      orderBy: { createdAt: 'desc' },
+    });
   },
 
   async getById(id: string) {

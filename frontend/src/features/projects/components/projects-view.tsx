@@ -10,7 +10,6 @@ import {
 } from '@cnsofts/shared';
 import { Button, Card, Icon, Input, Select, Spinner } from '@/components/ui';
 import { UserAvatar } from '@/features/profile/components/user-avatar';
-import { usePermissions } from '@/features/auth/use-permissions';
 import { useProjects } from '../use-projects';
 import { projectInitials, projectTint } from '../project-visuals';
 import { projectProgress } from '../task-utils';
@@ -34,7 +33,6 @@ function plural(n: number, word: string): string {
 
 export function ProjectsView() {
   const router = useRouter();
-  const { isAdmin } = usePermissions();
   const { projects: all, loading } = useProjects();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -62,11 +60,9 @@ export function ProjectsView() {
               : 'Create a project, then add its clients and team.'}
           </p>
         </div>
-        {isAdmin && (
-          <Button leftIcon="add" onClick={() => setDialogOpen(true)}>
-            New project
-          </Button>
-        )}
+        <Button leftIcon="add" onClick={() => setDialogOpen(true)}>
+          New project
+        </Button>
       </div>
 
       {all.length > 0 && (
@@ -100,15 +96,12 @@ export function ProjectsView() {
           </span>
           <p className={styles.emptyTitle}>No projects yet</p>
           <p className={styles.emptyText}>
-            {isAdmin
-              ? 'Create your first project to start adding clients and team members.'
-              : "You haven't been added to any projects yet."}
+            Create your first project to start adding clients and team members —
+            or wait to be invited to one.
           </p>
-          {isAdmin && (
-            <Button leftIcon="add" onClick={() => setDialogOpen(true)}>
-              New project
-            </Button>
-          )}
+          <Button leftIcon="add" onClick={() => setDialogOpen(true)}>
+            New project
+          </Button>
         </Card>
       ) : projects.length === 0 ? (
         <div className={styles.noResults}>
