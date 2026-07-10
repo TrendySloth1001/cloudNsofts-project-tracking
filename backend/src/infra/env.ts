@@ -29,6 +29,20 @@ const envSchema = z.object({
   // Per-token (or per-IP) API rate limit.
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
+
+  // S3-compatible object storage (MinIO in dev) for uploaded images. Bytes live
+  // here; only metadata rows live in Postgres. Defaults match docker-compose so
+  // the app works out of the box locally.
+  S3_ENDPOINT: z.string().url().default('http://localhost:9000'),
+  S3_REGION: z.string().default('us-east-1'),
+  S3_ACCESS_KEY: z.string().default('cloudnsofts'),
+  S3_SECRET_KEY: z.string().default('cloudnsofts123'),
+  S3_BUCKET: z.string().default('cnsofts-uploads'),
+
+  // Path to the bundled MCP server (single file) that the app serves for
+  // download, so remote devices can run it with `node` (no npm publish).
+  // Resolved relative to the process working directory.
+  MCP_BUNDLE_PATH: z.string().default('agent-workspace/server/index.mjs'),
 });
 
 const parsed = envSchema.safeParse(process.env);

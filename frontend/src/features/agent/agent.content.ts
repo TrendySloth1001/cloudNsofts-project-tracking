@@ -24,6 +24,10 @@ export const MCP_TOOL_GROUPS: {
       'get_task',
       'list_channels',
       'read_channel',
+      'search_conversations',
+      'list_docs',
+      'get_doc',
+      'view_image',
     ],
   },
   {
@@ -37,10 +41,23 @@ export const MCP_TOOL_GROUPS: {
       'assign_task',
       'add_subtask',
       'toggle_subtask',
+      'reorder_tasks',
       'create_feature',
       'update_feature',
       'reorder_features',
     ],
+  },
+  {
+    title: 'Roadmap',
+    icon: 'flag',
+    note: 'Full-access tokens only.',
+    tools: ['create_milestone', 'update_milestone', 'reorder_milestones'],
+  },
+  {
+    title: 'Docs & images',
+    icon: 'docs',
+    note: 'Full-access tokens only.',
+    tools: ['create_doc', 'update_doc', 'upload_image'],
   },
   {
     title: 'Discussions',
@@ -52,7 +69,7 @@ export const MCP_TOOL_GROUPS: {
     title: 'Delete',
     icon: 'delete',
     note: 'Off unless explicitly enabled.',
-    tools: ['delete_task', 'delete_feature'],
+    tools: ['delete_task', 'delete_feature', 'delete_milestone'],
   },
 ];
 
@@ -81,8 +98,9 @@ const mcpServersBlock = (apiUrl: string, token: string, key: string): string =>
     {
       [key]: {
         cnsofts: {
-          command: 'npx',
-          args: ['-y', '@cnsofts/mcp'],
+          // Run the downloaded bundle (see the download step above) — no npm.
+          command: 'node',
+          args: ['./cnsofts-mcp.mjs'],
           env: { CNSOFTS_API_URL: apiUrl, CNSOFTS_TOKEN: token },
         },
       },
@@ -102,7 +120,7 @@ export const CONNECT_CLIENTS: ConnectClient[] = [
         'claude mcp add cnsofts \\',
         `  -e CNSOFTS_API_URL=${apiUrl} \\`,
         `  -e CNSOFTS_TOKEN=${token} \\`,
-        '  -- npx -y @cnsofts/mcp',
+        '  -- node ./cnsofts-mcp.mjs',
       ].join('\n'),
   },
   {
@@ -207,6 +225,14 @@ export const REST_EXAMPLES: ConnectClient[] = [
 
 /** Short troubleshooting notes for the connect flow. */
 export const TROUBLESHOOTING: { q: string; a: string }[] = [
+  {
+    q: 'The agent can’t install the MCP server',
+    a: 'You don’t install from npm — download the single self-contained file first (`curl -fsSL <API URL>/api/agent/mcp-server.mjs -o cnsofts-mcp.mjs`), then point your client at `node ./cnsofts-mcp.mjs`. It needs only Node 20+.',
+  },
+  {
+    q: 'Works locally but not from another device',
+    a: 'Set the API base URL to one the agent’s device can actually reach — your tunnel or public URL, not `http://localhost`. The download command and the config both use that URL.',
+  },
   {
     q: 'Agent says the server isn’t connected',
     a: 'Restart the agent after adding the server — the tool registry is built once at startup.',

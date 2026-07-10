@@ -91,7 +91,17 @@ function toTask(t: TaskRow): Task {
 }
 
 function toMilestone(m: MilestoneRow): Milestone {
-  return { id: m.id, title: m.title, dueDate: m.dueDate, done: m.done };
+  return {
+    id: m.id,
+    title: m.title,
+    description: m.description,
+    dueDate: m.dueDate,
+    status: m.status,
+    position: m.position,
+    completedAt: m.completedAt ? m.completedAt.toISOString() : null,
+    createdAt: m.createdAt.toISOString(),
+    updatedAt: m.updatedAt.toISOString(),
+  };
 }
 
 /** Convert a Prisma project (with relations) into the shared API shape. */

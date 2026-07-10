@@ -56,6 +56,9 @@ export interface UserProfile extends AuthUser {
   githubUrl: string;
   websiteUrl: string;
   linkedinUrl: string;
+  /** True only for the env `ADMIN_EMAIL` platform super-admin — gates the
+   *  platform-wide storage admin surface. Derived server-side, never stored. */
+  isPlatformAdmin: boolean;
 }
 
 export const PROFILE_BIO_MAX_LENGTH = 2000;
@@ -333,11 +336,38 @@ export interface Task {
   updatedAt: string;
 }
 
+export const milestoneStatusSchema = z.enum([
+  'upcoming',
+  'in_progress',
+  'done',
+]);
+export type MilestoneStatus = z.infer<typeof milestoneStatusSchema>;
+export const MILESTONE_STATUS_LABELS: Record<MilestoneStatus, string> = {
+  upcoming: 'Upcoming',
+  in_progress: 'In progress',
+  done: 'Done',
+};
+export const MILESTONE_STATUS_ORDER: readonly MilestoneStatus[] = [
+  'upcoming',
+  'in_progress',
+  'done',
+];
+
+export const MILESTONE_TITLE_MAX_LENGTH = 160;
+export const MILESTONE_DESC_MAX_LENGTH = 2000;
+
+/** A checkpoint on the project roadmap — a client-facing deadline marker. */
 export interface Milestone {
   id: string;
   title: string;
+  description: string;
   dueDate: string | null;
-  done: boolean;
+  status: MilestoneStatus;
+  position: number;
+  /** Set when the checkpoint reached `done`; null otherwise. */
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /* -------------------------------- Features ------------------------------ */
@@ -558,9 +588,9 @@ export function channelSlug(name: string): string {
     .replace(/^-|-$/g, '');
 }
 
-/** A task or feature shared into a channel message. */
+/** A task, feature, or roadmap checkpoint shared into a channel message. */
 export const messageAttachmentSchema = z.object({
-  kind: z.enum(['task', 'feature']),
+  kind: z.enum(['task', 'feature', 'milestone']),
   id: z.string().min(1),
 });
 export type MessageAttachment = z.infer<typeof messageAttachmentSchema>;
@@ -789,11 +819,100 @@ export const updateDocSchema = z
   });
 export type UpdateDocInput = z.infer<typeof updateDocSchema>;
 
+/* -------------------------------- Images -------------------------------- */
+
+/** Image MIME types accepted by the uploader (raster formats embeddable in
+ *  markdown). The bytes are the request body; the Content-Type carries this. */
+export const IMAGE_ALLOWED_MIME = [
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+] as const;
+export type ImageMime = (typeof IMAGE_ALLOWED_MIME)[number];
+
+/** Max upload size (8 MB) — comfortable for screenshots, bounded for storage. */
+export const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+
+/** Metadata for an uploaded image. `url` is the public serve path (the bytes
+ *  live in object storage; this record is the DB-backed metadata). */
+export interface UploadedImage {
+  id: string;
+  projectId: string;
+  url: string;
+  mimeType: string;
+  size: number;
+  uploadedBy: string;
+  agentName: string | null;
+  createdAt: string;
+}
+
+/* ------------------------- Storage admin (audit) ------------------------ */
+
+/** A reclaimable image: a stored upload that no doc, message, task comment or
+ *  scheduled message references anymore, so deleting it is safe. Its `url`
+ *  still serves, so an admin can preview it before purging. */
+export interface StorageOrphanImage {
+  id: string;
+  projectId: string;
+  projectName: string;
+  url: string;
+  mimeType: string;
+  size: number;
+  uploadedBy: string;
+  agentName: string | null;
+  createdAt: string;
+}
+
+/** A stored object with no `images` row at all — a dangling blob (e.g. an
+ *  upload whose DB write failed). It has no serve URL. */
+export interface StorageDanglingObject {
+  key: string;
+  size: number;
+}
+
+/** Reconciliation report cross-referencing every stored image against the text
+ *  that could embed it. With a purge, `purged` counts what was reclaimed.
+ *  Platform-super-admin only. */
+export interface StorageAuditReport {
+  scanned: { images: number; objects: number };
+  orphanImages: StorageOrphanImage[];
+  danglingObjects: StorageDanglingObject[];
+  orphanCount: number;
+  orphanBytes: number;
+  purged: number;
+}
+
 export const createMilestoneSchema = z.object({
-  title: z.string().trim().min(1, 'Title is required').max(160),
+  title: z
+    .string()
+    .trim()
+    .min(1, 'Title is required')
+    .max(MILESTONE_TITLE_MAX_LENGTH),
+  description: z.string().trim().max(MILESTONE_DESC_MAX_LENGTH).default(''),
   dueDate: z.string().nullable().default(null),
+  status: milestoneStatusSchema.default('upcoming'),
 });
 export type CreateMilestoneInput = z.infer<typeof createMilestoneSchema>;
+
+export const updateMilestoneSchema = createMilestoneSchema
+  .partial()
+  .refine(
+    (v) =>
+      v.title !== undefined ||
+      v.description !== undefined ||
+      v.dueDate !== undefined ||
+      v.status !== undefined,
+    { message: 'Nothing to update' },
+  );
+export type UpdateMilestoneInput = z.infer<typeof updateMilestoneSchema>;
+
+/** Reorder checkpoints: the full, final ordering of the project's milestones;
+ *  each milestone is set to its index as the new position. */
+export const reorderMilestonesSchema = z.object({
+  orderedIds: z.array(z.string().min(1)),
+});
+export type ReorderMilestonesInput = z.infer<typeof reorderMilestonesSchema>;
 
 export const updateProjectSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
@@ -823,6 +942,8 @@ export interface Notification {
   body: string;
   /** Optional deep-link target so the UI can open the related project. */
   projectId: string | null;
+  /** Relative app path to open when the notification is clicked (deep-link). */
+  link: string | null;
   read: boolean;
   createdAt: string;
 }
@@ -833,6 +954,52 @@ export interface NotificationList {
   unread: number;
 }
 
+/** Human labels + descriptions for each kind (used in the feed and settings). */
+export const NOTIFICATION_KIND_LABELS: Record<NotificationKind, string> = {
+  task_created: 'New tasks',
+  task_completed: 'Task completed',
+  comment_added: 'Task comments',
+  message_posted: 'Channel messages',
+  member_added: 'People added',
+  system: 'System',
+};
+export const NOTIFICATION_KIND_DESCRIPTIONS: Record<NotificationKind, string> = {
+  task_created: 'A task is created in a project you’re on.',
+  task_completed: 'A task is marked done.',
+  comment_added: 'Someone comments on a task.',
+  message_posted: 'A new message is posted in a channel you’re in.',
+  member_added: 'A member or client is added to a project.',
+  system: 'Important account and platform notices.',
+};
+
+/** Kinds a user can mute/enable in settings. `system` is always delivered. */
+export const NOTIFICATION_PREF_KINDS: NotificationKind[] = [
+  'task_created',
+  'task_completed',
+  'comment_added',
+  'message_posted',
+  'member_added',
+];
+
+/** One preference toggle: whether a recipient wants this kind delivered. */
+export interface NotificationPreference {
+  kind: NotificationKind;
+  enabled: boolean;
+}
+
+/** GET /notifications/preferences payload — one entry per toggleable kind. */
+export interface NotificationPreferences {
+  items: NotificationPreference[];
+}
+
+export const updateNotificationPreferenceSchema = z.object({
+  kind: notificationKindSchema,
+  enabled: z.boolean(),
+});
+export type UpdateNotificationPreferenceInput = z.infer<
+  typeof updateNotificationPreferenceSchema
+>;
+
 /* ------------------------------- Realtime ------------------------------- */
 
 /** Socket.IO event names — the single source shared by server and client. */
@@ -841,6 +1008,8 @@ export const WS_EVENTS = {
   leaveChannel: 'channel:leave',
   messageCreated: 'message:created',
   messageDeleted: 'message:deleted',
+  /** Server → client: a new notification for the connected user. */
+  notificationCreated: 'notification:created',
 } as const;
 
 /** Client → server: (un)subscribe to a channel's live message room. */
@@ -868,6 +1037,13 @@ export interface MessageDeletedEvent {
 export interface ChannelJoinAck {
   ok: boolean;
   error?: string;
+}
+
+/** Server → client: a notification was created for the connected user. Carries
+ *  the new item plus the recipient's updated unread tally. */
+export interface NotificationCreatedEvent {
+  notification: Notification;
+  unread: number;
 }
 
 /** Cursor pagination for a channel's message history (message ids as cursors).
@@ -954,6 +1130,9 @@ export const API_ROUTES = {
   projects: '/api/projects',
   notifications: '/api/notifications',
   invitations: '/api/invitations',
+  images: '/api/images',
+  agent: '/api/agent',
+  storage: '/api/storage',
 } as const;
 
 /** URL builders the frontend uses so no endpoint string is hardcoded. */
@@ -1021,11 +1200,16 @@ export const apiPaths = {
     channelMember: (id: string, channelId: string, memberId: string) =>
       `${API_ROUTES.projects}/${id}/channels/${channelId}/members/${memberId}`,
     milestones: (id: string) => `${API_ROUTES.projects}/${id}/milestones`,
+    milestonesReorder: (id: string) =>
+      `${API_ROUTES.projects}/${id}/milestones/reorder`,
     milestone: (id: string, milestoneId: string) =>
       `${API_ROUTES.projects}/${id}/milestones/${milestoneId}`,
     docs: (id: string) => `${API_ROUTES.projects}/${id}/docs`,
     doc: (id: string, docId: string) =>
       `${API_ROUTES.projects}/${id}/docs/${docId}`,
+    // Upload an image to the project (auth + canEditBoard). Bytes go to object
+    // storage; the response carries the public serve URL.
+    images: (id: string) => `${API_ROUTES.projects}/${id}/images`,
     invitations: (id: string) => `${API_ROUTES.projects}/${id}/invitations`,
     invitation: (id: string, inviteId: string) =>
       `${API_ROUTES.projects}/${id}/invitations/${inviteId}`,
@@ -1034,12 +1218,29 @@ export const apiPaths = {
     list: () => API_ROUTES.notifications,
     read: (id: string) => `${API_ROUTES.notifications}/${id}/read`,
     readAll: () => `${API_ROUTES.notifications}/read-all`,
+    preferences: () => `${API_ROUTES.notifications}/preferences`,
   },
   // The signed-in user's own pending invitations (accept / decline).
   invitations: {
     mine: () => API_ROUTES.invitations,
     accept: (id: string) => `${API_ROUTES.invitations}/${id}/accept`,
     decline: (id: string) => `${API_ROUTES.invitations}/${id}/decline`,
+  },
+  // Public image serving (unguessable id). Embedded in markdown as an <img>
+  // src, so it must be reachable without the auth header.
+  images: {
+    serve: (imageId: string) => `${API_ROUTES.images}/${imageId}`,
+  },
+  // Public download of the self-contained MCP server bundle, so any device can
+  // fetch and run it with plain `node` (no npm publish needed). The PAT is
+  // supplied separately at runtime, so the bundle itself carries no secret.
+  agent: {
+    mcpServer: () => `${API_ROUTES.agent}/mcp-server.mjs`,
+  },
+  // Platform-super-admin storage reconciliation: audit (dry-run) and purge.
+  storage: {
+    audit: () => `${API_ROUTES.storage}/audit`,
+    auditPurge: () => `${API_ROUTES.storage}/audit/purge`,
   },
 } as const;
 

@@ -8,8 +8,10 @@ import {
   createSubtaskSchema,
   createTaskSchema,
   reorderFeaturesSchema,
+  reorderMilestonesSchema,
   reorderTasksSchema,
   updateFeatureSchema,
+  updateMilestoneSchema,
   updateMemberRoleSchema,
   updateProjectSchema,
   updateSubtaskSchema,
@@ -24,6 +26,11 @@ import { projectsService } from './projects.service';
 /** Display name of the authenticated actor, for activity/comment attribution. */
 function actorName(req: Request): string {
   return req.authUser?.name ?? 'Someone';
+}
+
+/** Email of the authenticated actor, so notifications skip their own actions. */
+function actorEmail(req: Request): string | undefined {
+  return req.authUser?.email;
 }
 
 export const projectsController = {
@@ -48,7 +55,11 @@ export const projectsController = {
 
   addClient: asyncHandler(async (req, res) => {
     const input = validate(addClientSchema, req.body);
-    res.status(201).json(await projectsService.addClient(req.params.id, input));
+    res
+      .status(201)
+      .json(
+        await projectsService.addClient(req.params.id, input, actorEmail(req)),
+      );
   }),
   removeClient: asyncHandler(async (req, res) => {
     res.json(
@@ -58,7 +69,11 @@ export const projectsController = {
 
   addMember: asyncHandler(async (req, res) => {
     const input = validate(addMemberSchema, req.body);
-    res.status(201).json(await projectsService.addMember(req.params.id, input));
+    res
+      .status(201)
+      .json(
+        await projectsService.addMember(req.params.id, input, actorEmail(req)),
+      );
   }),
   updateMember: asyncHandler(async (req, res) => {
     const input = validate(updateMemberRoleSchema, req.body);
@@ -103,7 +118,11 @@ export const projectsController = {
 
   addTask: asyncHandler(async (req, res) => {
     const input = validate(createTaskSchema, req.body);
-    res.status(201).json(await projectsService.addTask(req.params.id, input));
+    res
+      .status(201)
+      .json(
+        await projectsService.addTask(req.params.id, input, actorEmail(req)),
+      );
   }),
   reorderTasks: asyncHandler(async (req, res) => {
     const input = validate(reorderTasksSchema, req.body);
@@ -120,6 +139,7 @@ export const projectsController = {
         input,
         actorName(req),
         req.agentName ?? null,
+        actorEmail(req),
       ),
     );
   }),
@@ -175,6 +195,7 @@ export const projectsController = {
           actorName(req),
           input,
           req.agentName ?? null,
+          actorEmail(req),
         ),
       );
   }),
@@ -185,13 +206,19 @@ export const projectsController = {
       .status(201)
       .json(await projectsService.addMilestone(req.params.id, input));
   }),
-  toggleMilestone: asyncHandler(async (req, res) => {
+  updateMilestone: asyncHandler(async (req, res) => {
+    const input = validate(updateMilestoneSchema, req.body);
     res.json(
-      await projectsService.toggleMilestone(
+      await projectsService.updateMilestone(
         req.params.id,
         req.params.milestoneId,
+        input,
       ),
     );
+  }),
+  reorderMilestones: asyncHandler(async (req, res) => {
+    const input = validate(reorderMilestonesSchema, req.body);
+    res.json(await projectsService.reorderMilestones(req.params.id, input));
   }),
   removeMilestone: asyncHandler(async (req, res) => {
     res.json(

@@ -1,11 +1,19 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Notification } from '@cnsofts/shared';
+import {
+  WS_EVENTS,
+  type Notification,
+  type NotificationCreatedEvent,
+} from '@cnsofts/shared';
+import { acquireSocket, releaseSocket } from '@/features/realtime/socket';
 import { notificationsApi } from './notifications.api';
 
-/** How often the feed is refreshed while the app is open. */
-const POLL_MS = 20_000;
+/** Fallback reconciliation poll; realtime delivers new items immediately. */
+const POLL_MS = 60_000;
+
+/** Cap the in-memory feed so a live burst can't grow it without bound. */
+const MAX_ITEMS = 50;
 
 export interface UseNotifications {
   items: Notification[];
@@ -45,9 +53,30 @@ export function useNotifications(): UseNotifications {
     alive.current = true;
     void load();
     const id = setInterval(() => void load(), POLL_MS);
+
+    // Live delivery: the server pushes new notifications to our user room.
+    // Acquiring the shared socket here keeps it connected app-wide (the bell
+    // is always mounted), so notifications arrive without a refresh.
+    const socket = acquireSocket();
+    const onCreated = (event: NotificationCreatedEvent) => {
+      if (!alive.current) return;
+      const already = itemsRef.current.some(
+        (n) => n.id === event.notification.id,
+      );
+      const next = already
+        ? itemsRef.current
+        : [event.notification, ...itemsRef.current].slice(0, MAX_ITEMS);
+      itemsRef.current = next;
+      setItems(next);
+      setUnread(event.unread);
+    };
+    socket.on(WS_EVENTS.notificationCreated, onCreated);
+
     return () => {
       alive.current = false;
       clearInterval(id);
+      socket.off(WS_EVENTS.notificationCreated, onCreated);
+      releaseSocket();
     };
   }, [load]);
 

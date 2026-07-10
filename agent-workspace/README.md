@@ -17,6 +17,7 @@ agent-workspace/
   server/index.mjs      # the MCP server, bundled to one file (no node_modules)
   .mcp.json             # tells Claude Code to launch that server
   .claude/settings.json # sandbox: denies all local tools, auto-enables the server
+  .claude/skills/       # the `cloudnsofts` skill — the agent's full playbook
   CLAUDE.md             # the agent's operating manual (read-before-write, etc.)
 ```
 

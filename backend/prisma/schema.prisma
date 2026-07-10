@@ -117,6 +117,7 @@ model Project {
   milestones  Milestone[]
   channels    Channel[]
   docs        Doc[]
+  images      Image[]
   invitations Invitation[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -230,14 +231,30 @@ model TaskEvent {
 }
 
 
+// Enum values match the shared Zod contract (milestoneStatusSchema) exactly.
+enum MilestoneStatus {
+  upcoming
+  in_progress
+  done
+}
+
+// A checkpoint on the project roadmap — a client-facing deadline marker that
+// tracks what is delivered and when. Ordered manually via `position`.
 model Milestone {
-  id        String   @id @default(cuid())
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  projectId String
-  title     String
-  dueDate   String?
-  done      Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id          String          @id @default(cuid())
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  title       String
+  description String          @default("")
+  dueDate     String?
+  status      MilestoneStatus @default(upcoming)
+  // Manual ordering in the roadmap (lower = higher up).
+  position    Int             @default(0)
+  // Set when the checkpoint moves to `done`; cleared if it moves back.
+  completedAt DateTime?
+  sharedInMessages Message[]  @relation("MessageMilestone")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   @@index([projectId])
   @@map("milestones")
@@ -328,6 +345,7 @@ model ScheduledMessage {
   body              String
   attachedTaskId    String?
   attachedFeatureId String?
+  attachedMilestoneId String?
   scheduledFor      DateTime
   // pending | sending | sent | canceled | failed
   status            String   @default("pending")
@@ -356,6 +374,8 @@ model Message {
   attachedTaskId    String?
   attachedFeature   Feature? @relation("MessageFeature", fields: [attachedFeatureId], references: [id], onDelete: SetNull)
   attachedFeatureId String?
+  attachedMilestone   Milestone? @relation("MessageMilestone", fields: [attachedMilestoneId], references: [id], onDelete: SetNull)
+  attachedMilestoneId String?
   createdAt   DateTime @default(now())
 
   @@index([channelId, createdAt])
@@ -402,6 +422,26 @@ model Doc {
   @@map("docs")
 }
 
+// An uploaded image (doc screenshot, etc.). The bytes live in object storage
+// (MinIO/S3) under `key`; this row is the DB-backed metadata + project scope.
+// Served publicly by unguessable id via GET /api/images/:id.
+model Image {
+  id              String   @id @default(cuid())
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId       String
+  key             String   @unique
+  mimeType        String
+  size            Int
+  // Authorship (mirrors Doc): who uploaded it; agentName set when via a PAT.
+  uploadedBy      String
+  uploadedByEmail String?
+  agentName       String?
+  createdAt       DateTime @default(now())
+
+  @@index([projectId])
+  @@map("images")
+}
+
 // A pending invitation of an email to a project (with a role). Created by a
 // manager/admin; may predate the invitee's account ("pre-made"). On signup /
 // login the invitee sees their pending invitations and accepts → a
@@ -446,10 +486,25 @@ model Notification {
   title     String
   body      String           @default("")
   projectId String?
+  // Relative app path to open on click (e.g. /projects/<id>?tab=discussion).
+  link      String?
   read      Boolean          @default(false)
   createdAt DateTime         @default(now())
 
   @@index([userId, read])
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+// A recipient's per-kind delivery preference. Absence means "enabled" (the
+// default), so muting is opt-in and existing users need no backfill. `userId`
+// is the AuthUser id, mirroring Notification (the env admin has no users row).
+model NotificationPreference {
+  id      String           @id @default(cuid())
+  userId  String
+  kind    NotificationKind
+  enabled Boolean          @default(true)
+
+  @@unique([userId, kind])
+  @@map("notification_preferences")
 }

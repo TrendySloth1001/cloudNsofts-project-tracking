@@ -167,7 +167,7 @@ export function ProjectHome({
           <>
             <Button
               variant="outline"
-              leftIcon="flag"
+              leftIcon="layers"
               className={styles.newTaskBtn}
               onClick={() => setFeatureDialog({ open: true, feature: null })}
             >

@@ -8,10 +8,11 @@ import {
   type Task,
 } from '@cnsofts/shared';
 import { Badge, Icon } from '@/components/ui';
-import { featureProgress } from '../task-utils';
+import { featureProgress, formatDate } from '../task-utils';
 import { TaskPriorityBadge } from './task-priority-badge';
 import { TASK_STATUS_VARIANT } from './task-detail-dialog';
 import { FeatureStatusBadge } from './feature-status-badge';
+import { MilestoneStatusBadge } from './milestone-status-badge';
 import styles from './project-discussion.module.css';
 
 export interface MessageAttachmentCardProps {
@@ -39,13 +40,39 @@ export function MessageAttachmentCard({
     attachment.kind === 'feature'
       ? project?.features.find((f) => f.id === attachment.id)
       : undefined;
+  const milestone =
+    attachment.kind === 'milestone'
+      ? project?.milestones.find((m) => m.id === attachment.id)
+      : undefined;
 
-  if (!task && !feature) {
+  if (!task && !feature && !milestone) {
     return (
       <span className={styles.attachMissing}>
         <Icon name="closeCircle" size={14} />
-        This {attachment.kind} is no longer available.
+        This {attachment.kind === 'milestone' ? 'checkpoint' : attachment.kind}{' '}
+        is no longer available.
       </span>
+    );
+  }
+
+  if (milestone) {
+    return (
+      <div className={styles.attachCard}>
+        <span className={styles.attachIcon}>
+          <Icon name="flag" size={16} tone="warning" />
+        </span>
+        <span className={styles.attachMain}>
+          <span className={styles.attachTitle}>{milestone.title}</span>
+          <span className={styles.attachMeta}>
+            <MilestoneStatusBadge status={milestone.status} />
+            {milestone.dueDate && (
+              <span className={styles.attachProgress}>
+                Due {formatDate(milestone.dueDate)}
+              </span>
+            )}
+          </span>
+        </span>
+      </div>
     );
   }
 

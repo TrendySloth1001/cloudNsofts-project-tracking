@@ -10,9 +10,11 @@ import {
   type CreateTaskInput,
   type Project,
   type ReorderFeaturesInput,
+  type ReorderMilestonesInput,
   type ReorderTasksInput,
   type UpdateFeatureInput,
   type UpdateMemberRoleInput,
+  type UpdateMilestoneInput,
   type UpdateProjectInput,
   type UpdateSubtaskInput,
   type UpdateTaskInput,
@@ -84,8 +86,14 @@ export const projectsApi = {
 
   addMilestone: (id: string, input: CreateMilestoneInput) =>
     apiClient.post<Project>(apiPaths.projects.milestones(id), input),
-  toggleMilestone: (id: string, milestoneId: string) =>
-    apiClient.patch<Project>(apiPaths.projects.milestone(id, milestoneId), {}),
+  updateMilestone: (
+    id: string,
+    milestoneId: string,
+    patch: UpdateMilestoneInput,
+  ) =>
+    apiClient.patch<Project>(apiPaths.projects.milestone(id, milestoneId), patch),
+  reorderMilestones: (id: string, input: ReorderMilestonesInput) =>
+    apiClient.patch<Project>(apiPaths.projects.milestonesReorder(id), input),
   removeMilestone: (id: string, milestoneId: string) =>
     apiClient.delete<Project>(apiPaths.projects.milestone(id, milestoneId)),
 };

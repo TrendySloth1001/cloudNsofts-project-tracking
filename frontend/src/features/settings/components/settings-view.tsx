@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { AuthUser } from '@cnsofts/shared';
+import type { UserProfile } from '@cnsofts/shared';
 import {
   Badge,
   Button,
@@ -15,6 +15,7 @@ import {
   Switch,
 } from '@/components/ui';
 import { authApi } from '@/features/auth/auth.api';
+import { NotificationPreferencesCard } from '@/features/notifications/components/notification-preferences';
 import styles from './settings-view.module.css';
 
 /** A single preference row: label + description on the left, control on the right. */
@@ -51,7 +52,7 @@ function SoonToggle({ label }: { label: string }) {
   );
 }
 
-export function SettingsView({ user }: { user: AuthUser }) {
+export function SettingsView({ user }: { user: UserProfile }) {
   const router = useRouter();
 
   function signOut() {
@@ -87,24 +88,7 @@ export function SettingsView({ user }: { user: AuthUser }) {
         </CardBody>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Notifications</CardTitle>
-          <CardDescription>What you get pinged about.</CardDescription>
-        </CardHeader>
-        <CardBody>
-          <Row
-            label="Email notifications"
-            description="Summaries and important updates by email."
-            control={<SoonToggle label="Email notifications" />}
-          />
-          <Row
-            label="Mentions"
-            description="Notify me when someone @-mentions me."
-            control={<SoonToggle label="Mentions" />}
-          />
-        </CardBody>
-      </Card>
+      <NotificationPreferencesCard />
 
       <Card>
         <CardHeader>
@@ -140,6 +124,33 @@ export function SettingsView({ user }: { user: AuthUser }) {
           </Link>
         </CardBody>
       </Card>
+
+      {user.isPlatformAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Platform admin</CardTitle>
+            <CardDescription>
+              Tools for the whole platform, not just this account.
+            </CardDescription>
+          </CardHeader>
+          <CardBody>
+            <Link href="/settings/storage" className={styles.linkRow}>
+              <Icon name="image" size={18} tone="brand" />
+              <span className={styles.linkText}>
+                <span className={styles.rowLabel}>Storage</span>
+                <span className={styles.rowDesc}>
+                  Review and reclaim orphaned image uploads.
+                </span>
+              </span>
+              <Icon
+                name="chevronRight"
+                size={16}
+                className={styles.linkChevron}
+              />
+            </Link>
+          </CardBody>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

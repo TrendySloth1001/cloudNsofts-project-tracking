@@ -76,4 +76,11 @@ export const apiClient = {
   put: <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  /** Upload raw binary (e.g. an image) with an explicit Content-Type. */
+  upload: <T>(path: string, body: Blob, contentType: string) =>
+    request<T>(path, {
+      method: 'POST',
+      body,
+      headers: { 'Content-Type': contentType },
+    }),
 };

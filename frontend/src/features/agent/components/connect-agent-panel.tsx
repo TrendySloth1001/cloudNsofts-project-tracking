@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
+  apiPaths,
   API_TOKEN_SCOPE_LABELS,
   USER_ROLE_LABELS,
   type AgentActivity,
@@ -127,19 +128,46 @@ function CopyButton({
   );
 }
 
-/** Tabbed code snippets (MCP clients or REST languages), with copy + download. */
+/** Tabbed code snippets (MCP clients or REST languages), with copy + download.
+ *  `download` shows the "grab the MCP server" step first (MCP clients only). */
 function SnippetTabs({
   clients,
   token,
+  download = false,
 }: {
   clients: ConnectClient[];
   token: string;
+  download?: boolean;
 }) {
   const [sel, setSel] = useState(clients[0].value);
+  // The API base the agent's device must reach — defaults to this app's API,
+  // but on another machine you paste your tunnel/public URL here.
+  const [apiBase, setApiBase] = useState(config.apiUrl);
   const active = clients.find((c) => c.value === sel) ?? clients[0];
-  const snippet = active.build(config.apiUrl, token);
+  const snippet = active.build(apiBase, token);
+  const downloadCmd = `curl -fsSL ${apiBase}${apiPaths.agent.mcpServer()} -o cnsofts-mcp.mjs`;
   return (
     <div className={styles.connect}>
+      <Input
+        label="API base URL (must be reachable from the agent's device)"
+        value={apiBase}
+        onChange={(e) => setApiBase(e.target.value)}
+        placeholder="https://your-tunnel.devtunnels.ms"
+      />
+      {download && (
+        <>
+          <p className={styles.stepLabel}>
+            1. Download the MCP server (one file, no npm needed)
+          </p>
+          <div className={styles.cmdRow}>
+            <pre className={styles.cmd}>{downloadCmd}</pre>
+            <div className={styles.cmdActions}>
+              <CopyButton value={downloadCmd} label="Copy" />
+            </div>
+          </div>
+          <p className={styles.stepLabel}>2. Register it with your client</p>
+        </>
+      )}
       <Tabs
         variant="pill"
         items={clients.map((c) => ({
@@ -580,7 +608,7 @@ export function ConnectAgentPanel() {
           </div>
           <VerifyButton token={fresh.token} />
           <p className={styles.cmdLabel}>Connect your agent:</p>
-          <SnippetTabs clients={CONNECT_CLIENTS} token={fresh.token} />
+          <SnippetTabs clients={CONNECT_CLIENTS} token={fresh.token} download />
         </Alert>
       )}
 
@@ -714,7 +742,7 @@ export function ConnectAgentPanel() {
           <li>Pick your client below and run the snippet (the token is baked in).</li>
           <li>Restart your agent so it loads the new tools.</li>
         </ol>
-        <SnippetTabs clients={CONNECT_CLIENTS} token="<YOUR_TOKEN>" />
+        <SnippetTabs clients={CONNECT_CLIENTS} token="<YOUR_TOKEN>" download />
       </section>
 
       {/* Any language — raw REST */}

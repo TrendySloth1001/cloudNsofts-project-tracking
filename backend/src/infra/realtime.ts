@@ -9,6 +9,7 @@ import {
   type Message,
   type MessageCreatedEvent,
   type MessageDeletedEvent,
+  type NotificationCreatedEvent,
 } from '@cnsofts/shared';
 import { env } from './env';
 import { prisma } from './prisma';
@@ -19,6 +20,7 @@ import { canAccessProject } from '../modules/auth/access';
 let io: SocketIOServer | null = null;
 
 const roomKey = (channelId: string): string => `channel:${channelId}`;
+const userRoom = (userId: string): string => `user:${userId}`;
 
 /**
  * Attach a Socket.IO server to the HTTP server. Every socket is authenticated
@@ -55,6 +57,11 @@ export function initRealtime(httpServer: HttpServer): SocketIOServer {
   });
 
   io.on('connection', (socket: Socket) => {
+    // Every socket auto-joins its own user room, so notifications reach the
+    // connected user wherever they are in the app — no explicit subscribe.
+    const me = socket.data.user as AuthUser;
+    void socket.join(userRoom(me.id));
+
     socket.on(
       WS_EVENTS.joinChannel,
       async (payload: unknown, ack?: (res: ChannelJoinAck) => void) => {
@@ -118,5 +125,10 @@ export const realtime = {
   ): void {
     const event: MessageDeletedEvent = { projectId, channelId, messageId };
     io?.to(roomKey(channelId)).emit(WS_EVENTS.messageDeleted, event);
+  },
+
+  /** Push a new notification to one recipient's user room (if connected). */
+  emitNotification(userId: string, event: NotificationCreatedEvent): void {
+    io?.to(userRoom(userId)).emit(WS_EVENTS.notificationCreated, event);
   },
 };

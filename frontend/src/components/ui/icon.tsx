@@ -74,6 +74,10 @@ import {
   LeftToRightListBulletIcon,
   File01Icon,
   BookOpen01Icon,
+  Image01Icon,
+  ZoomInAreaIcon,
+  ZoomOutAreaIcon,
+  Download01Icon,
 } from '@hugeicons/core-free-icons';
 
 /**
@@ -155,6 +159,10 @@ export const icons = {
   listBullet: LeftToRightListBulletIcon,
   doc: File01Icon,
   docs: BookOpen01Icon,
+  image: Image01Icon,
+  zoomIn: ZoomInAreaIcon,
+  zoomOut: ZoomOutAreaIcon,
+  download: Download01Icon,
 } satisfies Record<string, IconSvgElement>;
 
 export type IconName = keyof typeof icons;

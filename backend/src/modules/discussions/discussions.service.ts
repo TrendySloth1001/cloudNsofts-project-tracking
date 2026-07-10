@@ -12,6 +12,7 @@ import type {
   CreateChannelInput,
   ListMessagesQuery,
   Message,
+  MessageAttachment,
   PostMessageInput,
   ProjectRole,
   ScheduledMessage,
@@ -68,6 +69,52 @@ async function ensureChannelAccess(
   }
 }
 
+type AttachmentIds = {
+  attachedTaskId: string | null;
+  attachedFeatureId: string | null;
+  attachedMilestoneId: string | null;
+};
+
+/** Resolve the attachment (at most one id set) from a row's columns. */
+function attachmentOf(ids: AttachmentIds): MessageAttachment | null {
+  if (ids.attachedTaskId) return { kind: 'task', id: ids.attachedTaskId };
+  if (ids.attachedFeatureId)
+    return { kind: 'feature', id: ids.attachedFeatureId };
+  if (ids.attachedMilestoneId)
+    return { kind: 'milestone', id: ids.attachedMilestoneId };
+  return null;
+}
+
+/** The message columns for an attachment (at most one id set). */
+function attachmentColumns(
+  attachment: MessageAttachment | null | undefined,
+): AttachmentIds {
+  return {
+    attachedTaskId: attachment?.kind === 'task' ? attachment.id : null,
+    attachedFeatureId: attachment?.kind === 'feature' ? attachment.id : null,
+    attachedMilestoneId:
+      attachment?.kind === 'milestone' ? attachment.id : null,
+  };
+}
+
+/** Verify the attachment target exists in the project; throws 400 if not. */
+async function assertAttachmentExists(
+  projectId: string,
+  attachment: MessageAttachment,
+): Promise<void> {
+  const exists =
+    attachment.kind === 'task'
+      ? await prisma.task.count({ where: { id: attachment.id, projectId } })
+      : attachment.kind === 'feature'
+        ? await prisma.feature.count({ where: { id: attachment.id, projectId } })
+        : await prisma.milestone.count({
+            where: { id: attachment.id, projectId },
+          });
+  if (exists === 0) {
+    throw HttpError.badRequest(`That ${attachment.kind} doesn't exist`);
+  }
+}
+
 function toMessage(m: {
   id: string;
   author: string;
@@ -76,6 +123,7 @@ function toMessage(m: {
   body: string;
   attachedTaskId: string | null;
   attachedFeatureId: string | null;
+  attachedMilestoneId: string | null;
   createdAt: Date;
 }): Message {
   return {
@@ -84,11 +132,7 @@ function toMessage(m: {
     authorEmail: m.authorEmail,
     agentName: m.agentName ?? null,
     body: m.body,
-    attachment: m.attachedTaskId
-      ? { kind: 'task', id: m.attachedTaskId }
-      : m.attachedFeatureId
-        ? { kind: 'feature', id: m.attachedFeatureId }
-        : null,
+    attachment: attachmentOf(m),
     createdAt: m.createdAt.toISOString(),
   };
 }
@@ -101,6 +145,7 @@ function toScheduledMessage(row: {
   body: string;
   attachedTaskId: string | null;
   attachedFeatureId: string | null;
+  attachedMilestoneId: string | null;
   scheduledFor: Date;
   status: string;
   createdAt: Date;
@@ -111,11 +156,7 @@ function toScheduledMessage(row: {
     author: row.author,
     agentName: row.agentName ?? null,
     body: row.body,
-    attachment: row.attachedTaskId
-      ? { kind: 'task', id: row.attachedTaskId }
-      : row.attachedFeatureId
-        ? { kind: 'feature', id: row.attachedFeatureId }
-        : null,
+    attachment: attachmentOf(row),
     scheduledFor: row.scheduledFor.toISOString(),
     status: row.status as ScheduledMessageStatus,
     createdAt: row.createdAt.toISOString(),
@@ -454,21 +495,9 @@ export const discussionsService = {
   ): Promise<Message> {
     await ensureChannelAccess(projectId, channelId, user);
 
-    // A shared task/feature must belong to this project.
+    // A shared task/feature/checkpoint must belong to this project.
     const attachment = input.attachment;
-    if (attachment) {
-      const exists =
-        attachment.kind === 'task'
-          ? await prisma.task.count({
-              where: { id: attachment.id, projectId },
-            })
-          : await prisma.feature.count({
-              where: { id: attachment.id, projectId },
-            });
-      if (exists === 0) {
-        throw HttpError.badRequest(`That ${attachment.kind} doesn't exist`);
-      }
-    }
+    if (attachment) await assertAttachmentExists(projectId, attachment);
 
     const created = await prisma.message.create({
       data: {
@@ -477,10 +506,7 @@ export const discussionsService = {
         authorEmail: user.email,
         agentName,
         body: input.body,
-        attachedTaskId:
-          attachment?.kind === 'task' ? attachment.id : null,
-        attachedFeatureId:
-          attachment?.kind === 'feature' ? attachment.id : null,
+        ...attachmentColumns(attachment),
       },
     });
     const channel = await prisma.channel.findUnique({
@@ -504,6 +530,9 @@ export const discussionsService = {
       title: 'New message',
       body: `${user.name} posted in #${channel?.name ?? 'a channel'}`,
       projectId,
+      link: `/projects/${projectId}?tab=discussion`,
+      audience: { scope: 'channel', channelId },
+      excludeEmail: user.email,
     });
     const message = toMessage(created);
     realtime.emitMessageCreated(projectId, channelId, message);
@@ -667,17 +696,7 @@ export const discussionsService = {
   ): Promise<ScheduledMessage> {
     await ensureChannelAccess(projectId, channelId, user);
     const attachment = input.attachment;
-    if (attachment) {
-      const exists =
-        attachment.kind === 'task'
-          ? await prisma.task.count({ where: { id: attachment.id, projectId } })
-          : await prisma.feature.count({
-              where: { id: attachment.id, projectId },
-            });
-      if (exists === 0) {
-        throw HttpError.badRequest(`That ${attachment.kind} doesn't exist`);
-      }
-    }
+    if (attachment) await assertAttachmentExists(projectId, attachment);
     const row = await prisma.scheduledMessage.create({
       data: {
         channelId,
@@ -685,9 +704,7 @@ export const discussionsService = {
         authorEmail: user.email,
         agentName,
         body: input.body,
-        attachedTaskId: attachment?.kind === 'task' ? attachment.id : null,
-        attachedFeatureId:
-          attachment?.kind === 'feature' ? attachment.id : null,
+        ...attachmentColumns(attachment),
         scheduledFor: new Date(input.scheduledFor),
       },
     });
@@ -763,12 +780,7 @@ export const discussionsService = {
           name: row.author,
           role: 'ADMIN',
         };
-        const attachment =
-          row.attachedTaskId != null
-            ? ({ kind: 'task', id: row.attachedTaskId } as const)
-            : row.attachedFeatureId != null
-              ? ({ kind: 'feature', id: row.attachedFeatureId } as const)
-              : null;
+        const attachment = attachmentOf(row);
         const message = await this.postMessage(
           row.channel.projectId,
           row.channelId,

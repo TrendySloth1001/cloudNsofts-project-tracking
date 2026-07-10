@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { readFile } from 'node:fs/promises';
+import { extname } from 'node:path';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
@@ -8,8 +10,10 @@ import {
   createCommentSchema,
   createDocSchema,
   createFeatureSchema,
+  createMilestoneSchema,
   createSubtaskSchema,
   createTaskSchema,
+  IMAGE_ALLOWED_MIME,
   messageAttachmentSchema,
   reorderTasksSchema,
   taskStatusSchema,
@@ -17,6 +21,7 @@ import {
   updateTaskSchema,
   type Feature,
   type Message,
+  type Milestone,
   type Project,
   type Task,
 } from '@cnsofts/shared';
@@ -39,6 +44,67 @@ async function run(work: () => Promise<unknown>): Promise<ToolResult> {
     const message = err instanceof Error ? err.message : String(err);
     return { content: [{ type: 'text', text: `Error: ${message}` }], isError: true };
   }
+}
+
+/** Map a file extension to an allowed image mime type. */
+const EXT_MIME: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+};
+
+/**
+ * Resolve image bytes + mime from a local file path, an http(s) URL, or a
+ * base64 `data` string. The point of `path` is to keep base64 out of the
+ * model's output: the server reads the file (or fetches the URL) itself, so the
+ * agent only passes a short path. Mime is taken from the explicit arg, else the
+ * URL response, else the file extension.
+ */
+async function loadImageBytes(input: {
+  path?: string;
+  data?: string;
+  mimeType?: string;
+}): Promise<{ buffer: Buffer; mimeType: string }> {
+  const { path, data, mimeType } = input;
+  if (!path && !data) {
+    throw new Error(
+      'Provide `path` (a local image file or an http(s) URL) or `data` (base64).',
+    );
+  }
+  let buffer: Buffer;
+  let mime = mimeType;
+  if (path) {
+    if (/^https?:\/\//i.test(path)) {
+      const res = await fetch(path);
+      if (!res.ok) {
+        throw new Error(`Could not fetch image (HTTP ${res.status}) from ${path}`);
+      }
+      buffer = Buffer.from(await res.arrayBuffer());
+      mime ??= res.headers.get('content-type')?.split(';')[0]?.trim() || undefined;
+    } else {
+      try {
+        buffer = await readFile(path);
+      } catch {
+        throw new Error(`Could not read image file at "${path}"`);
+      }
+    }
+    mime ??= EXT_MIME[extname(path).toLowerCase()];
+  } else {
+    buffer = Buffer.from(data as string, 'base64');
+  }
+  if (!mime) {
+    throw new Error(
+      `Could not determine the image type — pass mimeType (one of: ${IMAGE_ALLOWED_MIME.join(', ')}).`,
+    );
+  }
+  if (!(IMAGE_ALLOWED_MIME as readonly string[]).includes(mime)) {
+    throw new Error(
+      `Unsupported image type "${mime}". Allowed: ${IMAGE_ALLOWED_MIME.join(', ')}.`,
+    );
+  }
+  return { buffer, mimeType: mime };
 }
 
 /* ---- Lean projections: the API returns the full project (with all event
@@ -67,18 +133,15 @@ function compactProject(p: Project) {
     id: p.id,
     name: p.name,
     status: p.status,
-    members: p.members.map((m) => ({ id: m.id, name: m.name, role: m.role })),
-    features: p.features.map((f) => ({
-      id: f.id,
-      name: f.name,
-      status: f.status,
-      pinned: f.pinned,
-      ownerIds: f.ownerIds,
-      targetDate: f.targetDate,
-      taskCount: p.tasks.filter((t) => t.featureId === f.id).length,
-      updatedAt: f.updatedAt,
+    clients: p.clients.map((c) => ({
+      id: c.id,
+      name: c.name,
+      email: c.email,
     })),
+    members: p.members.map((m) => ({ id: m.id, name: m.name, role: m.role })),
+    features: p.features.map((f) => compactFeature(p, f)),
     tasks: p.tasks.map(compactTask),
+    milestones: p.milestones.map(compactMilestone),
   };
 }
 
@@ -110,6 +173,19 @@ function compactFeature(p: Project, f: Feature) {
   };
 }
 
+function compactMilestone(m: Milestone) {
+  return {
+    id: m.id,
+    title: m.title,
+    description: m.description,
+    status: m.status,
+    dueDate: m.dueDate,
+    position: m.position,
+    completedAt: m.completedAt,
+    updatedAt: m.updatedAt,
+  };
+}
+
 /** The most-recently-touched item — used to pick the just-created entity out of
  *  the full project a write returns (ISO timestamps sort lexicographically). */
 function newest<T extends { updatedAt: string }>(items: T[]): T {
@@ -128,12 +204,19 @@ function findFeature(p: Project, featureId: string): Feature {
   return f;
 }
 
+function findMilestone(p: Project, milestoneId: string): Milestone {
+  const m = p.milestones.find((x) => x.id === milestoneId);
+  if (!m) throw new Error(`Milestone ${milestoneId} not found in project`);
+  return m;
+}
+
 const projectId = z.string().min(1).describe('The project id');
 const taskId = z.string().min(1).describe('The task id');
 const featureId = z.string().min(1).describe('The feature id');
 const channelId = z.string().min(1).describe('The channel id');
 const subtaskId = z.string().min(1).describe('The subtask id');
 const docId = z.string().min(1).describe('The doc id');
+const milestoneId = z.string().min(1).describe('The milestone (checkpoint) id');
 
 // Message and comment bodies are stored verbatim and rendered as GitHub-
 // flavored markdown on the web app, so the agent can format its updates.
@@ -174,11 +257,28 @@ const server = new McpServer(
       'reports, or plans into chat; that content belongs on the board, not the',
       'conversation.',
       '',
+      'IMAGES — messages and docs can embed images as `![alt](/api/images/<id>)`.',
+      'When a client shares a screenshot, call `view_image` with that path (or the',
+      'bare id) to actually SEE it, so you understand what they are showing you.',
+      'To share your own screenshot, save it to a file and call `upload_image`',
+      'with its `path` (the server reads the bytes — never paste base64), then',
+      'include the returned markdown in a post_message body or a doc.',
+      '',
       'DOCS — a project has documentation pages (list_docs / get_doc / create_doc /',
       'update_doc). This is where durable knowledge lives: architecture, onboarding,',
       'decisions, a running status overview. When asked to "write it up", "document",',
       'or leave a proper page for the team, put it in a doc — not a chat message.',
       'Read the doc (get_doc) before update_doc; the body you send REPLACES the old.',
+      'Docs render markdown incl. # / ## / ### headings and images. To add an image',
+      '(e.g. a screenshot you captured), call `upload_image` with the file `path` —',
+      'it returns a ready `![alt](url)` snippet — then include that snippet in the',
+      'doc body you pass to create_doc / update_doc.',
+      '',
+      'ROADMAP — a project has a client-facing roadmap of checkpoints (milestones)',
+      'shown in get_project as `milestones`. Use create_milestone / update_milestone /',
+      'reorder_milestones (and delete_milestone) to keep delivery dates current. Each',
+      'checkpoint has a title, description, dueDate and a status (upcoming | in_progress',
+      '| done). Move a checkpoint to "done" as work ships so the client stays informed.',
       '',
       'LIVE loop — ONLY for an ACTIVE back-and-forth: someone is at the keyboard',
       'and a reply is expected within minutes. It is NOT a background watch — every',
@@ -405,6 +505,47 @@ server.registerTool(
     run(() =>
       api.get(apiPaths.projects.channelMessage(projectId, channelId, messageId)),
     ),
+);
+
+server.registerTool(
+  'view_image',
+  {
+    title: 'View image',
+    description:
+      'Fetch an image shared in a message or doc and return it so you can SEE it. Message/doc bodies embed images as `![alt](/api/images/<id>)`; pass that path or just the <id> here. Use it whenever a client shares a screenshot so you understand what they mean.',
+    inputSchema: {
+      image: z
+        .string()
+        .min(1)
+        .describe('An /api/images/<id> path (from a message body) or bare id'),
+    },
+  },
+  async ({ image }) => {
+    try {
+      const marker = '/api/images/';
+      const id = image.includes(marker)
+        ? image.slice(image.indexOf(marker) + marker.length).split(/[?#/]/)[0]
+        : image.trim();
+      const { data, contentType } = await api.getBinary(
+        apiPaths.images.serve(id),
+      );
+      return {
+        content: [
+          {
+            type: 'image' as const,
+            data: data.toString('base64'),
+            mimeType: contentType,
+          },
+        ],
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return {
+        content: [{ type: 'text' as const, text: `Error: ${message}` }],
+        isError: true,
+      };
+    }
+  },
 );
 
 server.registerTool(
@@ -677,6 +818,119 @@ if (!config.readOnly) {
   );
 
   server.registerTool(
+    'upload_image',
+    {
+      title: 'Upload image',
+      description:
+        'Upload an image to a project and get back a URL to embed in a doc or message. RECOMMENDED: pass `path` — a local image file you saved (e.g. a screenshot) or an http(s) URL — and the server reads the bytes itself, so you never paste base64. (`data` base64 still works as a fallback for agents without file access.) Returns `url` and a ready `markdown` `![alt](url)` snippet to drop into a create_doc / update_doc / post_message body.',
+      inputSchema: {
+        projectId,
+        path: z
+          .string()
+          .min(1)
+          .optional()
+          .describe(
+            'Preferred. A local image file path (e.g. ./shots/home.png) or an http(s) URL. The server reads/fetches the bytes — you never handle base64.',
+          ),
+        data: z
+          .string()
+          .min(1)
+          .optional()
+          .describe(
+            'Fallback only, when you have no file path: the raw image bytes base64-encoded. Prefer `path`.',
+          ),
+        mimeType: z
+          .enum(IMAGE_ALLOWED_MIME as unknown as [string, ...string[]])
+          .optional()
+          .describe(
+            'Usually inferred from the file extension or URL. Set only if it cannot be inferred. One of: image/png, image/jpeg, image/gif, image/webp.',
+          ),
+        alt: z.string().max(200).optional().describe('Alt text for the image'),
+      },
+    },
+    ({ projectId, path, data, mimeType, alt }) =>
+      run(async () => {
+        const { buffer, mimeType: mime } = await loadImageBytes({
+          path,
+          data,
+          mimeType,
+        });
+        const image = await api.postBinary<{
+          id: string;
+          url: string;
+          size: number;
+        }>(apiPaths.projects.images(projectId), buffer, mime);
+        return { ...image, markdown: `![${alt ?? 'image'}](${image.url})` };
+      }),
+  );
+
+  server.registerTool(
+    'create_milestone',
+    {
+      title: 'Create checkpoint',
+      description:
+        'Add a checkpoint to the project roadmap (a client-facing delivery marker). Provide a title, optional description, dueDate (YYYY-MM-DD), and status (upcoming | in_progress | done).',
+      inputSchema: { projectId, ...createMilestoneSchema.shape },
+    },
+    ({ projectId, ...body }) =>
+      run(async () => {
+        const p = await api.post<Project>(
+          apiPaths.projects.milestones(projectId),
+          body,
+        );
+        return compactMilestone(newest(p.milestones));
+      }),
+  );
+
+  server.registerTool(
+    'update_milestone',
+    {
+      title: 'Update checkpoint',
+      description:
+        'Update a roadmap checkpoint — title, description, dueDate, or status. Moving status to "done" stamps the delivered date; moving it back clears it.',
+      inputSchema: {
+        projectId,
+        milestoneId,
+        title: createMilestoneSchema.shape.title.optional(),
+        description: createMilestoneSchema.shape.description.optional(),
+        dueDate: createMilestoneSchema.shape.dueDate.optional(),
+        status: createMilestoneSchema.shape.status.optional(),
+      },
+    },
+    ({ projectId, milestoneId, ...body }) =>
+      run(async () => {
+        const p = await api.patch<Project>(
+          apiPaths.projects.milestone(projectId, milestoneId),
+          body,
+        );
+        return compactMilestone(findMilestone(p, milestoneId));
+      }),
+  );
+
+  server.registerTool(
+    'reorder_milestones',
+    {
+      title: 'Reorder checkpoints',
+      description:
+        'Set the roadmap order. Pass the full, final list of milestone ids in the desired order.',
+      inputSchema: {
+        projectId,
+        orderedIds: z
+          .array(z.string().min(1))
+          .describe('Milestone ids, in order'),
+      },
+    },
+    ({ projectId, orderedIds }) =>
+      run(async () => {
+        const p = await api.patch<Project>(
+          apiPaths.projects.milestonesReorder(projectId),
+          { orderedIds },
+        );
+        return p.milestones.map(compactMilestone);
+      }),
+  );
+
+  server.registerTool(
     'comment_task',
     {
       title: 'Comment on task',
@@ -702,7 +956,7 @@ if (!config.readOnly) {
     {
       title: 'Post channel message',
       description:
-        'Post a message to a discussion channel. Call list_channels first for the channelId; if attaching, use a real task/feature id from get_project.',
+        'Post a message to a discussion channel. Call list_channels first for the channelId; if attaching, use a real task/feature/milestone id from get_project.',
       inputSchema: {
         projectId,
         channelId,
@@ -714,7 +968,9 @@ if (!config.readOnly) {
         attachment: messageAttachmentSchema
           .nullable()
           .optional()
-          .describe('Optional { kind: "task"|"feature", id } to share'),
+          .describe(
+            'Optional { kind: "task"|"feature"|"milestone", id } to share',
+          ),
       },
     },
     ({ projectId, channelId, ...body }) =>
@@ -753,6 +1009,21 @@ if (!config.readOnly) {
         run(async () => {
           await api.delete(apiPaths.projects.feature(projectId, featureId));
           return 'Feature deleted.';
+        }),
+    );
+
+    server.registerTool(
+      'delete_milestone',
+      {
+        title: 'Delete checkpoint',
+        description:
+          'Permanently delete a roadmap checkpoint. Requires a token with delete access enabled.',
+        inputSchema: { projectId, milestoneId },
+      },
+      ({ projectId, milestoneId }) =>
+        run(async () => {
+          await api.delete(apiPaths.projects.milestone(projectId, milestoneId));
+          return 'Checkpoint deleted.';
         }),
     );
   }

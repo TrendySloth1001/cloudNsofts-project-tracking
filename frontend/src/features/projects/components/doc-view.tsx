@@ -1,24 +1,31 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DOC_BODY_MAX_LENGTH,
   DOC_TITLE_MAX_LENGTH,
+  IMAGE_ALLOWED_MIME,
   type Doc,
 } from '@cnsofts/shared';
 import {
   Button,
   Icon,
+  type IconName,
   IconButton,
+  ImageLightbox,
+  type LightboxImage,
   Markdown,
   Spinner,
   Tabs,
+  Tooltip,
   useConfirm,
 } from '@/components/ui';
 import { cx } from '@/lib/cx';
+import { extractMarkdownImages } from '@/lib/markdown-images';
 import { ApiRequestError, fieldErrorMessage } from '@/lib/api-client';
 import { formatDateTime } from '../task-utils';
 import { docsApi } from '../docs.api';
+import { imagesApi } from '../images.api';
 import styles from './project-docs.module.css';
 
 type EditPane = 'write' | 'preview';
@@ -55,6 +62,125 @@ export function DocView({
   const [body, setBody] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [lightbox, setLightbox] = useState<{
+    images: LightboxImage[];
+    index: number;
+  } | null>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Images embedded in the saved page (reader) and in the live draft (preview).
+  const readerImages = useMemo(
+    () => (doc ? extractMarkdownImages(doc.body) : []),
+    [doc],
+  );
+  const previewImages = useMemo(() => extractMarkdownImages(body), [body]);
+
+  function openLightbox(images: LightboxImage[], src: string) {
+    const i = images.findIndex((im) => im.src === src);
+    setLightbox({ images, index: i < 0 ? 0 : i });
+  }
+
+  // Restore focus + caret after a body edit that React re-renders.
+  function restoreCaret(pos: number) {
+    requestAnimationFrame(() => {
+      const ta = bodyRef.current;
+      if (!ta) return;
+      ta.focus();
+      ta.setSelectionRange(pos, pos);
+    });
+  }
+
+  /** Set the current line to an H1–H3 heading (replacing any existing marker). */
+  function setHeading(level: number) {
+    const ta = bodyRef.current;
+    if (!ta) return;
+    const pos = ta.selectionStart;
+    const lineStart = body.lastIndexOf('\n', pos - 1) + 1;
+    let lineEnd = body.indexOf('\n', pos);
+    if (lineEnd === -1) lineEnd = body.length;
+    const line = body.slice(lineStart, lineEnd);
+    const stripped = line.replace(/^#{1,6}\s+/, '');
+    const nextLine = `${'#'.repeat(level)} ${stripped}`;
+    setBody(body.slice(0, lineStart) + nextLine + body.slice(lineEnd));
+    restoreCaret(pos + (nextLine.length - line.length));
+  }
+
+  /** Wrap the selection (or a placeholder) in a marker, e.g. ** for bold. */
+  function wrapSelection(marker: string, placeholder: string) {
+    const ta = bodyRef.current;
+    if (!ta) return;
+    const s = ta.selectionStart;
+    const e = ta.selectionEnd;
+    const selected = body.slice(s, e) || placeholder;
+    const inserted = `${marker}${selected}${marker}`;
+    setBody(body.slice(0, s) + inserted + body.slice(e));
+    restoreCaret(s + marker.length + selected.length);
+  }
+
+  /** Prefix the current line (e.g. "- " for a bullet). */
+  function prefixLine(prefix: string) {
+    const ta = bodyRef.current;
+    if (!ta) return;
+    const pos = ta.selectionStart;
+    const lineStart = body.lastIndexOf('\n', pos - 1) + 1;
+    setBody(body.slice(0, lineStart) + prefix + body.slice(lineStart));
+    restoreCaret(pos + prefix.length);
+  }
+
+  /** Insert text at the caret (used after an image upload). */
+  function insertAtCaret(text: string) {
+    const ta = bodyRef.current;
+    const s = ta ? ta.selectionStart : body.length;
+    const e = ta ? ta.selectionEnd : body.length;
+    setBody(body.slice(0, s) + text + body.slice(e));
+    restoreCaret(s + text.length);
+  }
+
+  /** Wrap the selection in a fenced code block. */
+  function insertCodeBlock() {
+    const ta = bodyRef.current;
+    if (!ta) return;
+    const s = ta.selectionStart;
+    const e = ta.selectionEnd;
+    const selected = body.slice(s, e) || 'code';
+    const inserted = `\n\`\`\`\n${selected}\n\`\`\`\n`;
+    setBody(body.slice(0, s) + inserted + body.slice(e));
+    restoreCaret(s + 5 + selected.length);
+  }
+
+  /** Insert a markdown link around the selection, caret on the URL. */
+  function insertLink() {
+    const ta = bodyRef.current;
+    if (!ta) return;
+    const s = ta.selectionStart;
+    const e = ta.selectionEnd;
+    const selected = body.slice(s, e) || 'text';
+    const inserted = `[${selected}](url)`;
+    setBody(body.slice(0, s) + inserted + body.slice(e));
+    // Caret on "url" so the user can type/paste the address.
+    restoreCaret(s + selected.length + 3);
+  }
+
+  async function onPickImage(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const image = await imagesApi.upload(projectId, file);
+      const alt = file.name.replace(/\.[^.]+$/, '') || 'image';
+      insertAtCaret(`\n![${alt}](${image.url})\n`);
+    } catch (err) {
+      setError(
+        err instanceof ApiRequestError ? err.message : 'Image upload failed.',
+      );
+    } finally {
+      setUploading(false);
+    }
+  }
 
   // Load the full doc (with body) whenever the selected page changes.
   useEffect(() => {
@@ -197,6 +323,16 @@ export function DocView({
         )}
 
         <div className={styles.docActions}>
+          {!editing && readerImages.length > 0 && (
+            <Button
+              variant="outline"
+              leftIcon="image"
+              onClick={() => setLightbox({ images: readerImages, index: 0 })}
+            >
+              Images
+              <span className={styles.imageCount}>{readerImages.length}</span>
+            </Button>
+          )}
           {editing ? (
             <>
               <Button variant="ghost" onClick={cancelEdit} disabled={saving}>
@@ -241,16 +377,106 @@ export function DocView({
             ]}
           />
           {pane === 'write' ? (
-            <textarea
-              className={styles.editorArea}
-              value={body}
-              placeholder="Write in markdown — # headings, **bold**, `code`, - lists, ```fenced code```…"
-              onChange={(e) => setBody(e.target.value)}
-            />
+            <div className={styles.writePane}>
+              <div className={styles.formatBar}>
+                <Tooltip content="Heading 1">
+                  <button
+                    type="button"
+                    className={styles.formatText}
+                    onClick={() => setHeading(1)}
+                  >
+                    H1
+                  </button>
+                </Tooltip>
+                <Tooltip content="Heading 2">
+                  <button
+                    type="button"
+                    className={styles.formatText}
+                    onClick={() => setHeading(2)}
+                  >
+                    H2
+                  </button>
+                </Tooltip>
+                <Tooltip content="Heading 3">
+                  <button
+                    type="button"
+                    className={styles.formatText}
+                    onClick={() => setHeading(3)}
+                  >
+                    H3
+                  </button>
+                </Tooltip>
+                <span className={styles.formatDivider} />
+                <FormatIcon
+                  icon="bold"
+                  label="Bold"
+                  onClick={() => wrapSelection('**', 'bold text')}
+                />
+                <FormatIcon
+                  icon="italic"
+                  label="Italic"
+                  onClick={() => wrapSelection('_', 'italic text')}
+                />
+                <FormatIcon
+                  icon="strikethrough"
+                  label="Strikethrough"
+                  onClick={() => wrapSelection('~~', 'struck through')}
+                />
+                <span className={styles.formatDivider} />
+                <FormatIcon
+                  icon="code"
+                  label="Inline code"
+                  onClick={() => wrapSelection('`', 'code')}
+                />
+                <FormatIcon
+                  icon="codeBlock"
+                  label="Code block"
+                  onClick={insertCodeBlock}
+                />
+                <span className={styles.formatDivider} />
+                <FormatIcon
+                  icon="listBullet"
+                  label="Bulleted list"
+                  onClick={() => prefixLine('- ')}
+                />
+                <FormatIcon
+                  icon="quote"
+                  label="Quote"
+                  onClick={() => prefixLine('> ')}
+                />
+                <FormatIcon icon="link" label="Link" onClick={insertLink} />
+                <span className={styles.formatDivider} />
+                <FormatIcon
+                  icon="image"
+                  label={uploading ? 'Uploading…' : 'Insert image'}
+                  disabled={uploading}
+                  onClick={() => fileRef.current?.click()}
+                />
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept={IMAGE_ALLOWED_MIME.join(',')}
+                  hidden
+                  onChange={onPickImage}
+                />
+              </div>
+              <textarea
+                ref={bodyRef}
+                className={styles.editorArea}
+                value={body}
+                placeholder="Write in markdown — # headings, **bold**, `code`, - lists, ```fenced code```…"
+                onChange={(e) => setBody(e.target.value)}
+              />
+            </div>
           ) : (
             <div className={styles.previewPane}>
               {body.trim() ? (
-                <Markdown className={styles.body}>{body}</Markdown>
+                <Markdown
+                  className={styles.body}
+                  onImageClick={(src) => openLightbox(previewImages, src)}
+                >
+                  {body}
+                </Markdown>
               ) : (
                 <p className={styles.emptyText}>Nothing to preview yet.</p>
               )}
@@ -287,7 +513,12 @@ export function DocView({
             </span>
           </div>
           {doc.body.trim() ? (
-            <Markdown className={styles.body}>{doc.body}</Markdown>
+            <Markdown
+              className={styles.body}
+              onImageClick={(src) => openLightbox(readerImages, src)}
+            >
+              {doc.body}
+            </Markdown>
           ) : (
             <div className={styles.docEmpty}>
               <p className={styles.emptyText}>
@@ -298,6 +529,42 @@ export function DocView({
           )}
         </div>
       )}
+
+      <ImageLightbox
+        images={lightbox?.images ?? []}
+        index={lightbox?.index ?? null}
+        onClose={() => setLightbox(null)}
+        onIndexChange={(index) =>
+          setLightbox((lb) => (lb ? { ...lb, index } : lb))
+        }
+      />
     </div>
+  );
+}
+
+/** A single icon button in the docs formatting toolbar. */
+function FormatIcon({
+  icon,
+  label,
+  onClick,
+  disabled,
+}: {
+  icon: IconName;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Tooltip content={label}>
+      <button
+        type="button"
+        className={styles.formatBtn}
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+      >
+        <Icon name={icon} size={16} />
+      </button>
+    </Tooltip>
   );
 }

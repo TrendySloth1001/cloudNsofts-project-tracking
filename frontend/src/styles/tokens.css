@@ -99,6 +99,8 @@
   --color-surface-hover: var(--gray-100);
   --color-surface-active: var(--gray-200);
   --color-overlay: rgba(16, 24, 40, 0.5);
+  /* Near-opaque scrim for the image lightbox, so photos read on a dark field. */
+  --color-overlay-strong: rgba(12, 16, 28, 0.92);
   /* Fenced code blocks: white pane with a light border (matches github hljs). */
   --color-code-surface: var(--gray-0);
   --color-code-border: var(--gray-200);

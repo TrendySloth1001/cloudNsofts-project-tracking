@@ -48,10 +48,15 @@ export function NotificationButton() {
     };
   }, [open]);
 
-  function openNotification(id: string, projectId: string | null) {
+  function openNotification(
+    id: string,
+    link: string | null,
+    projectId: string | null,
+  ) {
     markRead(id);
     setOpen(false);
-    if (projectId) router.push(`/projects/${projectId}`);
+    const target = link ?? (projectId ? `/projects/${projectId}` : null);
+    if (target) router.push(target);
   }
 
   return (
@@ -109,7 +114,7 @@ export function NotificationButton() {
                     key={n.id}
                     type="button"
                     className={cx(styles.item, !n.read && styles.itemUnread)}
-                    onClick={() => openNotification(n.id, n.projectId)}
+                    onClick={() => openNotification(n.id, n.link, n.projectId)}
                   >
                     <span className={styles.itemIcon}>
                       <Icon name={visual.icon} size={17} tone={visual.tone} />

@@ -37,6 +37,49 @@ async function request<T = unknown>(
   return (await res.json()) as T;
 }
 
+/** POST raw binary (an image) with an explicit Content-Type. */
+async function postBinary<T = unknown>(
+  path: string,
+  body: Buffer,
+  contentType: string,
+): Promise<T> {
+  const res = await fetch(`${config.apiUrl}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': contentType,
+      Authorization: `Bearer ${config.token}`,
+    },
+    body,
+  });
+  if (!res.ok) {
+    let message = `Request failed (HTTP ${res.status})`;
+    try {
+      const envelope = (await res.json()) as ApiError;
+      if (envelope.error?.message) message = envelope.error.message;
+    } catch {
+      /* keep status message */
+    }
+    throw new Error(message);
+  }
+  return (await res.json()) as T;
+}
+
+/** GET raw binary (an image) — returns the bytes + Content-Type. */
+async function getBinary(
+  path: string,
+): Promise<{ data: Buffer; contentType: string }> {
+  const res = await fetch(`${config.apiUrl}${path}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${config.token}` },
+  });
+  if (!res.ok) {
+    throw new Error(`Request failed (HTTP ${res.status})`);
+  }
+  const contentType = res.headers.get('content-type') ?? 'application/octet-stream';
+  const data = Buffer.from(await res.arrayBuffer());
+  return { data, contentType };
+}
+
 export const api = {
   get: <T = unknown>(path: string) => request<T>('GET', path),
   post: <T = unknown>(path: string, body: unknown) =>
@@ -44,4 +87,6 @@ export const api = {
   patch: <T = unknown>(path: string, body: unknown) =>
     request<T>('PATCH', path, body),
   delete: <T = unknown>(path: string) => request<T>('DELETE', path),
+  postBinary,
+  getBinary,
 };

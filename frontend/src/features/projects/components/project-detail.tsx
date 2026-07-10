@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Button,
   Icon,
@@ -21,19 +21,33 @@ import { ProjectStatusBadge } from './project-status-badge';
 import { ProjectHome } from './project-home';
 import { ProjectDiscussion } from './project-discussion';
 import { ProjectDocs } from './project-docs';
+import { ProjectRoadmap } from './project-roadmap';
 import styles from './project-detail.module.css';
 
 type ProjectTab = 'home' | 'discussion' | 'docs';
 
 export function ProjectDetail({ projectId }: { projectId: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const confirm = useConfirm();
   const { project, loading } = useProject(projectId);
   const perms = useProjectPermissions(project);
-  const [tab, setTab] = useState<ProjectTab>('home');
+  // A notification deep-link (?tab=discussion|docs) opens straight to that tab.
+  const paramTab = searchParams.get('tab');
+  const [tab, setTab] = useState<ProjectTab>(
+    paramTab === 'discussion' || paramTab === 'docs' ? paramTab : 'home',
+  );
+  // Roadmap is a distinct full-width view opened from a header button (not a
+  // tab) so the tab bar stays light. It overlays whichever tab is selected.
+  const [roadmapOpen, setRoadmapOpen] = useState(false);
   const [peopleOpen, setPeopleOpen] = useState(false);
   // Mobile: the discussion's chat detail is open (hide the project header).
   const [chatDetail, setChatDetail] = useState(false);
+
+  function selectTab(next: ProjectTab) {
+    setRoadmapOpen(false);
+    setTab(next);
+  }
 
   if (loading && !project) {
     return (
@@ -56,8 +70,9 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   }
 
   const currentProject = project;
-  // Discussion and docs both use the bounded, panel-scrolls-internally layout.
-  const panelTab = tab === 'discussion' || tab === 'docs';
+  // Discussion and docs both use the bounded, panel-scrolls-internally layout;
+  // the roadmap view scrolls normally like Home.
+  const panelTab = !roadmapOpen && (tab === 'discussion' || tab === 'docs');
 
   async function deleteProject() {
     const ok = await confirm({
@@ -108,7 +123,14 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
 
           {/* Mobile app-bar: actions collapse to icons on the identity row. */}
           <div className={styles.headActionsMobile}>
-            {tab === 'home' && !perms.isClient && (
+            <IconButton
+              icon="flag"
+              label="Roadmap"
+              variant={roadmapOpen ? 'primary' : 'outline'}
+              onClick={() => setRoadmapOpen((open) => !open)}
+              aria-pressed={roadmapOpen}
+            />
+            {tab === 'home' && !roadmapOpen && !perms.isClient && (
               <IconButton
                 icon="user"
                 label="Team & clients"
@@ -132,8 +154,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           className={styles.headTabs}
           variant="pill"
           fluid
-          value={tab}
-          onValueChange={(v) => setTab(v as ProjectTab)}
+          value={roadmapOpen ? '' : tab}
+          onValueChange={(v) => selectTab(v as ProjectTab)}
           items={[
             { value: 'home', label: 'Home', icon: 'home', iconTone: 'brand' },
             {
@@ -147,7 +169,15 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         />
 
         <div className={styles.headActions}>
-          {tab === 'home' && !perms.isClient && (
+          <Button
+            variant={roadmapOpen ? 'primary' : 'outline'}
+            leftIcon="flag"
+            onClick={() => setRoadmapOpen((open) => !open)}
+            aria-pressed={roadmapOpen}
+          >
+            Roadmap
+          </Button>
+          {tab === 'home' && !roadmapOpen && !perms.isClient && (
             <Button
               variant="outline"
               leftIcon="user"
@@ -181,31 +211,37 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         </div>
       </div>
 
-      {tab === 'home' && (
-        <ProjectHome
-          project={project}
-          peopleOpen={peopleOpen}
-          canEditBoard={perms.canEditBoard}
-          canManageTeam={perms.canManageTeam}
-        />
-      )}
-      {tab === 'discussion' && (
-        <ProjectDiscussion
-          projectId={project.id}
-          candidates={[...project.members, ...project.clients].map((p) => ({
-            email: p.email,
-            name: p.name,
-          }))}
-          canManageChannels={perms.canManageChannels}
-          onChatDetailChange={setChatDetail}
-        />
-      )}
-      {tab === 'docs' && (
-        <ProjectDocs
-          projectId={project.id}
-          canEdit={perms.canEditBoard}
-          onDetailChange={setChatDetail}
-        />
+      {roadmapOpen ? (
+        <ProjectRoadmap project={project} canEdit={perms.canEditBoard} />
+      ) : (
+        <>
+          {tab === 'home' && (
+            <ProjectHome
+              project={project}
+              peopleOpen={peopleOpen}
+              canEditBoard={perms.canEditBoard}
+              canManageTeam={perms.canManageTeam}
+            />
+          )}
+          {tab === 'discussion' && (
+            <ProjectDiscussion
+              projectId={project.id}
+              candidates={[...project.members, ...project.clients].map((p) => ({
+                email: p.email,
+                name: p.name,
+              }))}
+              canManageChannels={perms.canManageChannels}
+              onChatDetailChange={setChatDetail}
+            />
+          )}
+          {tab === 'docs' && (
+            <ProjectDocs
+              projectId={project.id}
+              canEdit={perms.canEditBoard}
+              onDetailChange={setChatDetail}
+            />
+          )}
+        </>
       )}
     </div>
   );

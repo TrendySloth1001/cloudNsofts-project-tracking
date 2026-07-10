@@ -1,0 +1,189 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: 920px;
+}
+
+/* -------------------------------- Header -------------------------------- */
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-text);
+}
+.subtitle {
+  max-width: 70ch;
+  color: var(--color-text-secondary);
+  line-height: var(--leading-normal);
+}
+
+/* --------------------------------- State -------------------------------- */
+.state {
+  display: grid;
+  place-items: center;
+  gap: var(--space-3);
+  padding: var(--space-8) 0;
+}
+.errorText {
+  color: var(--color-danger);
+  font-size: var(--text-sm);
+}
+
+/* --------------------------------- Stats -------------------------------- */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-3);
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+}
+.statValue {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+.statValue[data-tone='warning'] {
+  color: var(--color-warning);
+}
+.statValue[data-tone='ok'] {
+  color: var(--color-success);
+}
+.statLabel {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* ------------------------------- Feedback ------------------------------- */
+.success {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-success-subtle);
+  color: var(--color-success);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+.actions {
+  display: flex;
+}
+
+/* -------------------------------- Empty --------------------------------- */
+.empty {
+  display: grid;
+  place-items: center;
+  gap: var(--space-1);
+  padding: var(--space-8) 0;
+  text-align: center;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-xl);
+}
+.emptyTitle {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+.emptyDesc {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* ----------------------------- Orphan grid ------------------------------ */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-3);
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-surface);
+}
+.thumb {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  background: var(--color-surface-sunken);
+  display: block;
+}
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+}
+.project {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sub {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* ---------------------------- Dangling blobs ---------------------------- */
+.dangling {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-sunken);
+}
+.danglingTitle {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
+}
+.danglingRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+}
+.danglingKey {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  color: var(--color-text-secondary);
+}
+.danglingSize {
+  flex: none;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}

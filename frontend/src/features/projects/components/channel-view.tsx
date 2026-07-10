@@ -1,8 +1,9 @@
 'use client';
 
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CHANNEL_VISIBILITY_LABELS,
+  IMAGE_ALLOWED_MIME,
   MESSAGE_BODY_MAX_LENGTH,
   type Channel,
   type MessageAttachment,
@@ -11,6 +12,7 @@ import {
   Badge,
   Icon,
   IconButton,
+  ImageLightbox,
   Markdown,
   Spinner,
   useConfirm,
@@ -18,6 +20,9 @@ import {
 import { UserAvatar } from '@/features/profile/components/user-avatar';
 import { usePermissions } from '@/features/auth/use-permissions';
 import { discussionsApi } from '../discussions.api';
+import { imagesApi } from '../images.api';
+import { config } from '@/lib/config';
+import { extractMarkdownImages } from '@/lib/markdown-images';
 import { ApiRequestError, fieldErrorMessage } from '@/lib/api-client';
 import { useChannelMessages } from '../use-discussions';
 import { useProject } from '../use-projects';
@@ -79,12 +84,50 @@ export function ChannelView({
     label: string;
   } | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Images the user has attached to the pending message (appended to the body
+  // as markdown on send, so they render inline in the conversation).
+  const [pendingImages, setPendingImages] = useState<
+    { url: string; alt: string }[]
+  >([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   // In-place, read-only detail overlays opened from attachment cards — the chat
   // shows the card view, never an edit form.
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
   const [detailFeatureId, setDetailFeatureId] = useState<string | null>(null);
   const confirm = useConfirm();
   const listRef = useRef<HTMLDivElement>(null);
+
+  // Every image across the conversation (in order), so the lightbox can page
+  // through them all from whichever one is clicked.
+  const channelImages = useMemo(
+    () => messages.flatMap((m) => extractMarkdownImages(m.body ?? '')),
+    [messages],
+  );
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  function openLightbox(src: string) {
+    const i = channelImages.findIndex((im) => im.src === src);
+    setLightboxIndex(i < 0 ? 0 : i);
+  }
+
+  async function onPickImage(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setUploadingImage(true);
+    setSendError(null);
+    try {
+      const image = await imagesApi.upload(projectId, file);
+      const alt = file.name.replace(/\.[^.]+$/, '') || 'image';
+      setPendingImages((imgs) => [...imgs, { url: image.url, alt }]);
+    } catch (err) {
+      setSendError(
+        err instanceof ApiRequestError ? err.message : 'Image upload failed.',
+      );
+    } finally {
+      setUploadingImage(false);
+    }
+  }
 
   const canDeleteMessage = (authorEmail: string | null): boolean =>
     isAdmin || (!!authorEmail && !!email && authorEmail === email);
@@ -127,19 +170,29 @@ export function ChannelView({
 
   async function submitMessage() {
     const text = body.trim();
+    // Append any attached images as markdown so they render inline.
+    const imageMarkdown = pendingImages
+      .map((img) => `![${img.alt}](${img.url})`)
+      .join('\n');
+    const fullBody = [text, imageMarkdown].filter(Boolean).join('\n\n');
     // Guard the empty and over-limit cases up front so a bad send never fires.
-    if ((!text && !attach) || text.length > MESSAGE_BODY_MAX_LENGTH || sending)
+    if (
+      (!fullBody && !attach) ||
+      fullBody.length > MESSAGE_BODY_MAX_LENGTH ||
+      sending
+    )
       return;
     setSending(true);
     setSendError(null);
     try {
       const message = await discussionsApi.postMessage(projectId, channel.id, {
-        body: text,
+        body: fullBody,
         attachment: attach?.ref ?? null,
       });
       append(message);
       setBody('');
       setAttach(null);
+      setPendingImages([]);
       composerRef.current?.clear();
     } catch (err) {
       // Surface the reason and keep the draft so nothing typed is lost.
@@ -311,7 +364,12 @@ export function ChannelView({
               const content = grouped ? (
                 <div className={cx(styles.messageCont, isMine && styles.mine)}>
                   {m.body && (
-                    <Markdown className={styles.messageBody}>{m.body}</Markdown>
+                    <Markdown
+                      className={styles.messageBody}
+                      onImageClick={openLightbox}
+                    >
+                      {m.body}
+                    </Markdown>
                   )}
                   {attachmentCard}
                   {deleteBtn}
@@ -335,8 +393,13 @@ export function ChannelView({
                       </span>
                     </div>
                     {m.body && (
-                    <Markdown className={styles.messageBody}>{m.body}</Markdown>
-                  )}
+                      <Markdown
+                        className={styles.messageBody}
+                        onImageClick={openLightbox}
+                      >
+                        {m.body}
+                      </Markdown>
+                    )}
                     {attachmentCard}
                   </div>
                   {deleteBtn}
@@ -363,9 +426,21 @@ export function ChannelView({
         {attach && (
           <div className={styles.composerChip}>
             <Icon
-              name={attach.ref.kind === 'feature' ? 'layers' : 'tasks'}
+              name={
+                attach.ref.kind === 'feature'
+                  ? 'layers'
+                  : attach.ref.kind === 'milestone'
+                    ? 'flag'
+                    : 'tasks'
+              }
               size={14}
-              tone={attach.ref.kind === 'feature' ? 'brand' : 'info'}
+              tone={
+                attach.ref.kind === 'feature'
+                  ? 'brand'
+                  : attach.ref.kind === 'milestone'
+                    ? 'warning'
+                    : 'info'
+              }
             />
             <span className={styles.composerChipLabel}>{attach.label}</span>
             <IconButton
@@ -377,6 +452,33 @@ export function ChannelView({
             />
           </div>
         )}
+        {pendingImages.length > 0 && (
+          <div className={styles.pendingImages}>
+            {pendingImages.map((img, i) => (
+              <div key={`${img.url}-${i}`} className={styles.pendingImage}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`${config.apiUrl}${img.url}`} alt={img.alt} />
+                <button
+                  type="button"
+                  className={styles.pendingImageRemove}
+                  aria-label="Remove image"
+                  onClick={() =>
+                    setPendingImages((imgs) => imgs.filter((_, j) => j !== i))
+                  }
+                >
+                  <Icon name="close" size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept={IMAGE_ALLOWED_MIME.join(',')}
+          hidden
+          onChange={onPickImage}
+        />
         <MessageComposer
           key={channel.id}
           ref={composerRef}
@@ -389,13 +491,23 @@ export function ChannelView({
           onSubmit={() => void submitMessage()}
           leftSlot={
             project ? (
-              <IconButton
-                icon="attachment"
-                label="Attach a task or feature"
-                variant="ghost"
-                size="sm"
-                onClick={() => setPickerOpen(true)}
-              />
+              <>
+                <IconButton
+                  icon="attachment"
+                  label="Attach a checkpoint, task or feature"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPickerOpen(true)}
+                />
+                <IconButton
+                  icon="image"
+                  label={uploadingImage ? 'Uploading…' : 'Attach an image'}
+                  variant="ghost"
+                  size="sm"
+                  disabled={uploadingImage}
+                  onClick={() => imageInputRef.current?.click()}
+                />
+              </>
             ) : null
           }
           rightSlot={
@@ -410,11 +522,15 @@ export function ChannelView({
               <IconButton
                 icon="send"
                 label="Send"
-                variant={body.trim() || attach ? 'primary' : 'subtle'}
+                variant={
+                  body.trim() || attach || pendingImages.length > 0
+                    ? 'primary'
+                    : 'subtle'
+                }
                 size="sm"
                 type="submit"
                 disabled={
-                  (!body.trim() && !attach) ||
+                  (!body.trim() && !attach && pendingImages.length === 0) ||
                   body.length > MESSAGE_BODY_MAX_LENGTH ||
                   sending
                 }
@@ -498,6 +614,13 @@ export function ChannelView({
           />
         </>
       )}
+
+      <ImageLightbox
+        images={channelImages}
+        index={lightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+        onIndexChange={setLightboxIndex}
+      />
     </div>
   );
 }

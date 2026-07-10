@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import {
   FEATURE_STATUS_LABELS,
+  MILESTONE_STATUS_LABELS,
   TASK_STATUS_LABELS,
   type MessageAttachment,
   type Project,
@@ -38,17 +39,52 @@ export function AttachPickerDialog({
   const tasks = project.tasks.filter(
     (t) => q === '' || t.title.toLowerCase().includes(q),
   );
+  const milestones = project.milestones.filter(
+    (m) => q === '' || m.title.toLowerCase().includes(q),
+  );
 
   return (
     <Modal open={open} onClose={onClose} title="Attach to message" size="md">
       <div className={styles.body}>
         <Input
           leftIcon="search"
-          placeholder="Search features and tasks"
+          placeholder="Search checkpoints, features and tasks"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           autoFocus
         />
+
+        <div className={styles.section}>
+          <span className={styles.label}>
+            Checkpoints ({milestones.length})
+          </span>
+          {milestones.length === 0 ? (
+            <span className={styles.empty}>No matching checkpoints.</span>
+          ) : (
+            <ul className={styles.list}>
+              {milestones.map((milestone) => (
+                <li key={milestone.id}>
+                  <button
+                    type="button"
+                    className={styles.row}
+                    onClick={() =>
+                      onPick(
+                        { kind: 'milestone', id: milestone.id },
+                        milestone.title,
+                      )
+                    }
+                  >
+                    <Icon name="flag" size={16} tone="warning" />
+                    <span className={styles.rowName}>{milestone.title}</span>
+                    <span className={styles.rowMeta}>
+                      {MILESTONE_STATUS_LABELS[milestone.status]}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         <div className={styles.section}>
           <span className={styles.label}>Features ({features.length})</span>

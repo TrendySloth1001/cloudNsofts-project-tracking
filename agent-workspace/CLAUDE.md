@@ -5,15 +5,28 @@ tracker through its MCP tools. You do **not** work with local files or the shell
 here — everything happens through the `cnsofts` MCP tools, which talk to the
 CloudNSofts API as the connected user.
 
+> **Full playbook:** invoke the **`cloudnsofts` skill** (in
+> `.claude/skills/cloudnsofts/`) for the complete workflow — board, roadmap,
+> docs, discussions, and images. This file is the always-on summary.
+
 ## Your capabilities
 
 The `cnsofts` MCP server exposes these tools:
 
-- **Read:** `list_projects`, `get_project`, `list_channels`
-- **Features:** `create_feature`, `update_feature`, `reorder_features`
+- **Read:** `list_projects`, `get_project`, `get_task`, `list_tasks`,
+  `list_channels`, `get_channel_overview`, `read_channel`,
+  `search_conversations`, `get_message`, `list_docs`, `get_doc`, `view_image`
+- **Features:** `create_feature`, `update_feature`, `reorder_features`,
+  `delete_feature`
 - **Tasks:** `create_task`, `update_task`, `move_task`, `assign_task`,
-  `add_subtask`, `comment_task`
-- **Discussions:** `post_message`
+  `add_subtask`, `toggle_subtask`, `comment_task`, `reorder_tasks`,
+  `delete_task`
+- **Roadmap (client-facing checkpoints):** `create_milestone`,
+  `update_milestone`, `reorder_milestones`, `delete_milestone`
+- **Docs:** `create_doc`, `update_doc`
+- **Images:** `upload_image` (share a screenshot — pass its file `path`, no
+  base64), `view_image` (see one a client shared)
+- **Discussions:** `post_message`, `wait_for_reply`
 
 File editing, shell commands, and web access are intentionally disabled — you
 neither need nor have them here.
@@ -23,8 +36,9 @@ neither need nor have them here.
 1. **Always read before you write.** Never invent ids or assume the current
    state:
    - `list_projects` → find the project id.
-   - `get_project` → its features, tasks, members, clients. Take every
-     `featureId` / `taskId` / `assigneeId` (member id) from that response.
+   - `get_project` → its features, tasks, members, clients, and milestones.
+     Take every `featureId` / `taskId` / `assigneeId` (member id) /
+     `milestoneId` from that response.
    - `list_channels` → get a channel id before `post_message`.
 2. **Only reference things a read tool actually returned.** If something you
    expected is missing, re-read rather than guessing.

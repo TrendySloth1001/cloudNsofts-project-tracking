@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { HttpError } from '../../shared/http/http-error';
-import { authService } from './auth.service';
+import { authService, isPlatformAdmin } from './auth.service';
 
 /** HTTP methods a read-only token is allowed to use. */
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -55,4 +55,21 @@ export function requireAuth(
   } catch (err) {
     next(err);
   }
+}
+
+/**
+ * Restricts a route to the single platform super-admin (env `ADMIN_EMAIL`).
+ * Must run after `requireAuth` so `req.authUser` is set. Everyone else — even a
+ * per-project admin — gets 403.
+ */
+export function requirePlatformAdmin(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): void {
+  if (!req.authUser || !isPlatformAdmin(req.authUser)) {
+    next(HttpError.forbidden('Platform administrator access required'));
+    return;
+  }
+  next();
 }

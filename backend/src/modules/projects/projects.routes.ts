@@ -1,4 +1,5 @@
-import { Router } from 'express';
+import { Router, raw } from 'express';
+import { IMAGE_MAX_BYTES } from '@cnsofts/shared';
 import { requireAuth } from '../auth/auth.middleware';
 import {
   requireProjectAbility,
@@ -7,6 +8,7 @@ import {
 import { discussionsRoutes } from '../discussions/discussions.routes';
 import { discussionsController } from '../discussions/discussions.controller';
 import { docsRoutes } from '../docs/docs.routes';
+import { imagesController } from '../images/images.controller';
 import { projectInvitationsRoutes } from '../invitations/invitations.routes';
 import { projectsController } from './projects.controller';
 
@@ -31,6 +33,16 @@ projectsRoutes.use('/:id/channels', discussionsRoutes);
 
 // Project documentation pages (nested; reads the parent `:id`).
 projectsRoutes.use('/:id/docs', docsRoutes);
+
+// Image upload (doc screenshots, etc.). The body is the raw image bytes — a
+// dedicated raw parser (not JSON) so large binaries never hit the global JSON
+// limit. Editors + agents only; the bytes are stored in object storage.
+projectsRoutes.post(
+  '/:id/images',
+  canEditBoard,
+  raw({ type: () => true, limit: IMAGE_MAX_BYTES }),
+  imagesController.upload,
+);
 
 // Project invitations (nested; manager/admin manage the roster).
 projectsRoutes.use('/:id/invitations', projectInvitationsRoutes);
@@ -122,10 +134,16 @@ projectsRoutes.post(
 );
 
 projectsRoutes.post('/:id/milestones', canEditBoard, projectsController.addMilestone);
+// Must precede the parameterised `:milestoneId` route so "reorder" isn't matched as an id.
+projectsRoutes.patch(
+  '/:id/milestones/reorder',
+  canEditBoard,
+  projectsController.reorderMilestones,
+);
 projectsRoutes.patch(
   '/:id/milestones/:milestoneId',
   canEditBoard,
-  projectsController.toggleMilestone,
+  projectsController.updateMilestone,
 );
 projectsRoutes.delete(
   '/:id/milestones/:milestoneId',

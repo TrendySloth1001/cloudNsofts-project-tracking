@@ -11067,14 +11067,34 @@ var require_dist2 = __commonJS({
   "../shared/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.DOC_BODY_MAX_LENGTH = exports.DOC_TITLE_MAX_LENGTH = exports.resolveChannelSchema = exports.channelWaitStatusSchema = exports.channelWaitQuerySchema = exports.CHANNEL_WAIT_MAX_MS = exports.scheduleMessageSchema = exports.scheduledMessageStatusSchema = exports.postMessageSchema = exports.MESSAGE_BODY_MAX_LENGTH = exports.createChannelSchema = exports.addChannelMemberSchema = exports.messageAttachmentSchema = exports.CHANNEL_VISIBILITY_LABELS = exports.channelVisibilitySchema = exports.createCommentSchema = exports.updateSubtaskSchema = exports.createSubtaskSchema = exports.reorderTasksSchema = exports.updateTaskSchema = exports.reorderFeaturesSchema = exports.updateFeatureSchema = exports.createFeatureSchema = exports.createTaskSchema = exports.updateMemberRoleSchema = exports.addMemberSchema = exports.addClientSchema = exports.createProjectSchema = exports.FEATURE_STATUS_ORDER = exports.FEATURE_STATUS_LABELS = exports.featureStatusSchema = exports.taskEventKindSchema = exports.TASK_PRIORITY_LABELS = exports.taskPrioritySchema = exports.TASK_STATUS_ORDER = exports.TASK_STATUS_LABELS = exports.taskStatusSchema = exports.projectRoleSchema = exports.MEMBER_ROLE_LABELS = exports.memberRoleSchema = exports.PROJECT_STATUS_LABELS = exports.projectStatusSchema = exports.updateUserSchema = exports.createUserSchema = exports.userRoleSchema = exports.updateApiTokenSchema = exports.createApiTokenSchema = exports.API_TOKEN_SCOPE_LABELS = exports.apiTokenScopeSchema = exports.loginSchema = void 0;
-    exports.USER_ROLE_LABELS = exports.apiPaths = exports.API_ROUTES = exports.searchConversationsQuerySchema = exports.listMessagesQuerySchema = exports.channelRoomSchema = exports.WS_EVENTS = exports.notificationKindSchema = exports.updateProjectSchema = exports.createMilestoneSchema = exports.updateDocSchema = exports.createDocSchema = void 0;
+    exports.messageAttachmentSchema = exports.CHANNEL_VISIBILITY_LABELS = exports.channelVisibilitySchema = exports.createCommentSchema = exports.updateSubtaskSchema = exports.createSubtaskSchema = exports.reorderTasksSchema = exports.updateTaskSchema = exports.reorderFeaturesSchema = exports.updateFeatureSchema = exports.createFeatureSchema = exports.createTaskSchema = exports.createInvitationSchema = exports.invitationStatusSchema = exports.updateMemberRoleSchema = exports.addMemberSchema = exports.addClientSchema = exports.createProjectSchema = exports.FEATURE_STATUS_ORDER = exports.FEATURE_STATUS_LABELS = exports.featureStatusSchema = exports.MILESTONE_DESC_MAX_LENGTH = exports.MILESTONE_TITLE_MAX_LENGTH = exports.MILESTONE_STATUS_ORDER = exports.MILESTONE_STATUS_LABELS = exports.milestoneStatusSchema = exports.taskEventKindSchema = exports.TASK_PRIORITY_LABELS = exports.taskPrioritySchema = exports.TASK_STATUS_ORDER = exports.TASK_STATUS_LABELS = exports.taskStatusSchema = exports.projectRoleSchema = exports.MEMBER_ROLE_LABELS = exports.memberRoleSchema = exports.PROJECT_STATUS_LABELS = exports.projectStatusSchema = exports.updateUserSchema = exports.createUserSchema = exports.userRoleSchema = exports.updateApiTokenSchema = exports.createApiTokenSchema = exports.API_TOKEN_SCOPE_LABELS = exports.apiTokenScopeSchema = exports.updateProfileSchema = exports.PROFILE_MAX_SKILLS = exports.PROFILE_BIO_MAX_LENGTH = exports.signupSchema = exports.PASSWORD_MIN_LENGTH = exports.loginSchema = void 0;
+    exports.USER_ROLE_LABELS = exports.apiPaths = exports.API_ROUTES = exports.searchConversationsQuerySchema = exports.listMessagesQuerySchema = exports.channelRoomSchema = exports.WS_EVENTS = exports.notificationKindSchema = exports.updateProjectSchema = exports.reorderMilestonesSchema = exports.updateMilestoneSchema = exports.createMilestoneSchema = exports.IMAGE_MAX_BYTES = exports.IMAGE_ALLOWED_MIME = exports.updateDocSchema = exports.createDocSchema = exports.DOC_BODY_MAX_LENGTH = exports.DOC_TITLE_MAX_LENGTH = exports.resolveChannelSchema = exports.channelWaitStatusSchema = exports.channelWaitQuerySchema = exports.CHANNEL_WAIT_MAX_MS = exports.scheduleMessageSchema = exports.scheduledMessageStatusSchema = exports.postMessageSchema = exports.MESSAGE_BODY_MAX_LENGTH = exports.createChannelSchema = exports.addChannelMemberSchema = void 0;
     exports.projectAbilities = projectAbilities;
     exports.channelSlug = channelSlug;
     var zod_1 = require_zod();
     exports.loginSchema = zod_1.z.object({
       email: zod_1.z.string().trim().toLowerCase().email("Enter a valid email address"),
       password: zod_1.z.string().min(1, "Password is required")
+    });
+    exports.PASSWORD_MIN_LENGTH = 8;
+    exports.signupSchema = zod_1.z.object({
+      name: zod_1.z.string().trim().min(1, "Name is required").max(120),
+      email: zod_1.z.string().trim().toLowerCase().email("Enter a valid email address").max(200),
+      password: zod_1.z.string().min(exports.PASSWORD_MIN_LENGTH, `Use at least ${exports.PASSWORD_MIN_LENGTH} characters`).max(200)
+    });
+    exports.PROFILE_BIO_MAX_LENGTH = 2e3;
+    exports.PROFILE_MAX_SKILLS = 40;
+    var profileText = (max) => zod_1.z.string().trim().max(max);
+    exports.updateProfileSchema = zod_1.z.object({
+      name: zod_1.z.string().trim().min(1, "Name is required").max(120).optional(),
+      title: profileText(120).optional(),
+      bio: profileText(exports.PROFILE_BIO_MAX_LENGTH).optional(),
+      skills: zod_1.z.array(zod_1.z.string().trim().min(1).max(40)).max(exports.PROFILE_MAX_SKILLS).optional(),
+      location: profileText(120).optional(),
+      timezone: profileText(60).optional(),
+      githubUrl: profileText(200).optional(),
+      websiteUrl: profileText(200).optional(),
+      linkedinUrl: profileText(200).optional()
     });
     exports.apiTokenScopeSchema = zod_1.z.enum(["full", "read_only"]);
     exports.API_TOKEN_SCOPE_LABELS = {
@@ -11113,8 +11133,14 @@ var require_dist2 = __commonJS({
       on_hold: "On hold",
       completed: "Completed"
     };
-    exports.memberRoleSchema = zod_1.z.enum(["manager", "member", "viewer"]);
+    exports.memberRoleSchema = zod_1.z.enum([
+      "admin",
+      "manager",
+      "member",
+      "viewer"
+    ]);
     exports.MEMBER_ROLE_LABELS = {
+      admin: "Admin",
       manager: "Manager",
       member: "Member",
       viewer: "Viewer"
@@ -11162,6 +11188,23 @@ var require_dist2 = __commonJS({
       high: "High"
     };
     exports.taskEventKindSchema = zod_1.z.enum(["comment", "activity"]);
+    exports.milestoneStatusSchema = zod_1.z.enum([
+      "upcoming",
+      "in_progress",
+      "done"
+    ]);
+    exports.MILESTONE_STATUS_LABELS = {
+      upcoming: "Upcoming",
+      in_progress: "In progress",
+      done: "Done"
+    };
+    exports.MILESTONE_STATUS_ORDER = [
+      "upcoming",
+      "in_progress",
+      "done"
+    ];
+    exports.MILESTONE_TITLE_MAX_LENGTH = 160;
+    exports.MILESTONE_DESC_MAX_LENGTH = 2e3;
     exports.featureStatusSchema = zod_1.z.enum(["planned", "active", "shipped"]);
     exports.FEATURE_STATUS_LABELS = {
       planned: "Planned",
@@ -11190,6 +11233,16 @@ var require_dist2 = __commonJS({
     });
     exports.updateMemberRoleSchema = zod_1.z.object({
       role: exports.memberRoleSchema
+    });
+    exports.invitationStatusSchema = zod_1.z.enum([
+      "pending",
+      "accepted",
+      "declined",
+      "canceled"
+    ]);
+    exports.createInvitationSchema = zod_1.z.object({
+      email: zod_1.z.string().trim().toLowerCase().email("A valid email is required").max(200),
+      role: exports.memberRoleSchema.default("member")
     });
     exports.createTaskSchema = zod_1.z.object({
       title: zod_1.z.string().trim().min(1, "Task title is required").max(200),
@@ -11247,7 +11300,7 @@ var require_dist2 = __commonJS({
       return name.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]+/g, "").replace(/-+/g, "-").replace(/^-|-$/g, "");
     }
     exports.messageAttachmentSchema = zod_1.z.object({
-      kind: zod_1.z.enum(["task", "feature"]),
+      kind: zod_1.z.enum(["task", "feature", "milestone"]),
       id: zod_1.z.string().min(1)
     });
     exports.addChannelMemberSchema = zod_1.z.object({
@@ -11314,9 +11367,22 @@ var require_dist2 = __commonJS({
     }).partial().refine((v) => v.title !== void 0 || v.body !== void 0, {
       message: "Nothing to update"
     });
+    exports.IMAGE_ALLOWED_MIME = [
+      "image/png",
+      "image/jpeg",
+      "image/gif",
+      "image/webp"
+    ];
+    exports.IMAGE_MAX_BYTES = 8 * 1024 * 1024;
     exports.createMilestoneSchema = zod_1.z.object({
-      title: zod_1.z.string().trim().min(1, "Title is required").max(160),
-      dueDate: zod_1.z.string().nullable().default(null)
+      title: zod_1.z.string().trim().min(1, "Title is required").max(exports.MILESTONE_TITLE_MAX_LENGTH),
+      description: zod_1.z.string().trim().max(exports.MILESTONE_DESC_MAX_LENGTH).default(""),
+      dueDate: zod_1.z.string().nullable().default(null),
+      status: exports.milestoneStatusSchema.default("upcoming")
+    });
+    exports.updateMilestoneSchema = exports.createMilestoneSchema.partial().refine((v) => v.title !== void 0 || v.description !== void 0 || v.dueDate !== void 0 || v.status !== void 0, { message: "Nothing to update" });
+    exports.reorderMilestonesSchema = zod_1.z.object({
+      orderedIds: zod_1.z.array(zod_1.z.string().min(1))
     });
     exports.updateProjectSchema = zod_1.z.object({
       name: zod_1.z.string().trim().min(1).max(120).optional(),
@@ -11359,12 +11425,16 @@ var require_dist2 = __commonJS({
       auth: "/api/auth",
       users: "/api/users",
       projects: "/api/projects",
-      notifications: "/api/notifications"
+      notifications: "/api/notifications",
+      invitations: "/api/invitations",
+      images: "/api/images",
+      agent: "/api/agent"
     };
     exports.apiPaths = {
       health: () => exports.API_ROUTES.health,
       auth: {
         login: () => `${exports.API_ROUTES.auth}/login`,
+        signup: () => `${exports.API_ROUTES.auth}/signup`,
         me: () => `${exports.API_ROUTES.auth}/me`,
         tokens: () => `${exports.API_ROUTES.auth}/tokens`,
         token: (id) => `${exports.API_ROUTES.auth}/tokens/${id}`,
@@ -11406,14 +11476,37 @@ var require_dist2 = __commonJS({
         channelMembers: (id, channelId2) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}/members`,
         channelMember: (id, channelId2, memberId) => `${exports.API_ROUTES.projects}/${id}/channels/${channelId2}/members/${memberId}`,
         milestones: (id) => `${exports.API_ROUTES.projects}/${id}/milestones`,
-        milestone: (id, milestoneId) => `${exports.API_ROUTES.projects}/${id}/milestones/${milestoneId}`,
+        milestonesReorder: (id) => `${exports.API_ROUTES.projects}/${id}/milestones/reorder`,
+        milestone: (id, milestoneId2) => `${exports.API_ROUTES.projects}/${id}/milestones/${milestoneId2}`,
         docs: (id) => `${exports.API_ROUTES.projects}/${id}/docs`,
-        doc: (id, docId2) => `${exports.API_ROUTES.projects}/${id}/docs/${docId2}`
+        doc: (id, docId2) => `${exports.API_ROUTES.projects}/${id}/docs/${docId2}`,
+        // Upload an image to the project (auth + canEditBoard). Bytes go to object
+        // storage; the response carries the public serve URL.
+        images: (id) => `${exports.API_ROUTES.projects}/${id}/images`,
+        invitations: (id) => `${exports.API_ROUTES.projects}/${id}/invitations`,
+        invitation: (id, inviteId) => `${exports.API_ROUTES.projects}/${id}/invitations/${inviteId}`
       },
       notifications: {
         list: () => exports.API_ROUTES.notifications,
         read: (id) => `${exports.API_ROUTES.notifications}/${id}/read`,
         readAll: () => `${exports.API_ROUTES.notifications}/read-all`
+      },
+      // The signed-in user's own pending invitations (accept / decline).
+      invitations: {
+        mine: () => exports.API_ROUTES.invitations,
+        accept: (id) => `${exports.API_ROUTES.invitations}/${id}/accept`,
+        decline: (id) => `${exports.API_ROUTES.invitations}/${id}/decline`
+      },
+      // Public image serving (unguessable id). Embedded in markdown as an <img>
+      // src, so it must be reachable without the auth header.
+      images: {
+        serve: (imageId) => `${exports.API_ROUTES.images}/${imageId}`
+      },
+      // Public download of the self-contained MCP server bundle, so any device can
+      // fetch and run it with plain `node` (no npm publish needed). The PAT is
+      // supplied separately at runtime, so the bundle itself carries no secret.
+      agent: {
+        mcpServer: () => `${exports.API_ROUTES.agent}/mcp-server.mjs`
       }
     };
     exports.USER_ROLE_LABELS = {
@@ -11424,6 +11517,10 @@ var require_dist2 = __commonJS({
     };
   }
 });
+
+// src/index.ts
+import { readFile } from "node:fs/promises";
+import { extname } from "node:path";
 
 // ../node_modules/zod/v3/external.js
 var external_exports = {};
@@ -25687,11 +25784,45 @@ async function request(method, path, body) {
   if (res.status === 204) return void 0;
   return await res.json();
 }
+async function postBinary(path, body, contentType) {
+  const res = await fetch(`${config2.apiUrl}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": contentType,
+      Authorization: `Bearer ${config2.token}`
+    },
+    body
+  });
+  if (!res.ok) {
+    let message = `Request failed (HTTP ${res.status})`;
+    try {
+      const envelope = await res.json();
+      if (envelope.error?.message) message = envelope.error.message;
+    } catch {
+    }
+    throw new Error(message);
+  }
+  return await res.json();
+}
+async function getBinary(path) {
+  const res = await fetch(`${config2.apiUrl}${path}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${config2.token}` }
+  });
+  if (!res.ok) {
+    throw new Error(`Request failed (HTTP ${res.status})`);
+  }
+  const contentType = res.headers.get("content-type") ?? "application/octet-stream";
+  const data = Buffer.from(await res.arrayBuffer());
+  return { data, contentType };
+}
 var api = {
   get: (path) => request("GET", path),
   post: (path, body) => request("POST", path, body),
   patch: (path, body) => request("PATCH", path, body),
-  delete: (path) => request("DELETE", path)
+  delete: (path) => request("DELETE", path),
+  postBinary,
+  getBinary
 };
 
 // src/index.ts
@@ -25704,6 +25835,53 @@ async function run(work) {
     const message = err instanceof Error ? err.message : String(err);
     return { content: [{ type: "text", text: `Error: ${message}` }], isError: true };
   }
+}
+var EXT_MIME = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp"
+};
+async function loadImageBytes(input) {
+  const { path, data, mimeType } = input;
+  if (!path && !data) {
+    throw new Error(
+      "Provide `path` (a local image file or an http(s) URL) or `data` (base64)."
+    );
+  }
+  let buffer;
+  let mime = mimeType;
+  if (path) {
+    if (/^https?:\/\//i.test(path)) {
+      const res = await fetch(path);
+      if (!res.ok) {
+        throw new Error(`Could not fetch image (HTTP ${res.status}) from ${path}`);
+      }
+      buffer = Buffer.from(await res.arrayBuffer());
+      mime ??= res.headers.get("content-type")?.split(";")[0]?.trim() || void 0;
+    } else {
+      try {
+        buffer = await readFile(path);
+      } catch {
+        throw new Error(`Could not read image file at "${path}"`);
+      }
+    }
+    mime ??= EXT_MIME[extname(path).toLowerCase()];
+  } else {
+    buffer = Buffer.from(data, "base64");
+  }
+  if (!mime) {
+    throw new Error(
+      `Could not determine the image type \u2014 pass mimeType (one of: ${import_shared.IMAGE_ALLOWED_MIME.join(", ")}).`
+    );
+  }
+  if (!import_shared.IMAGE_ALLOWED_MIME.includes(mime)) {
+    throw new Error(
+      `Unsupported image type "${mime}". Allowed: ${import_shared.IMAGE_ALLOWED_MIME.join(", ")}.`
+    );
+  }
+  return { buffer, mimeType: mime };
 }
 function compactTask(t) {
   return {
@@ -25726,18 +25904,15 @@ function compactProject(p) {
     id: p.id,
     name: p.name,
     status: p.status,
-    members: p.members.map((m) => ({ id: m.id, name: m.name, role: m.role })),
-    features: p.features.map((f) => ({
-      id: f.id,
-      name: f.name,
-      status: f.status,
-      pinned: f.pinned,
-      ownerIds: f.ownerIds,
-      targetDate: f.targetDate,
-      taskCount: p.tasks.filter((t) => t.featureId === f.id).length,
-      updatedAt: f.updatedAt
+    clients: p.clients.map((c) => ({
+      id: c.id,
+      name: c.name,
+      email: c.email
     })),
-    tasks: p.tasks.map(compactTask)
+    members: p.members.map((m) => ({ id: m.id, name: m.name, role: m.role })),
+    features: p.features.map((f) => compactFeature(p, f)),
+    tasks: p.tasks.map(compactTask),
+    milestones: p.milestones.map(compactMilestone)
   };
 }
 function leanMessage(m) {
@@ -25765,6 +25940,18 @@ function compactFeature(p, f) {
     updatedAt: f.updatedAt
   };
 }
+function compactMilestone(m) {
+  return {
+    id: m.id,
+    title: m.title,
+    description: m.description,
+    status: m.status,
+    dueDate: m.dueDate,
+    position: m.position,
+    completedAt: m.completedAt,
+    updatedAt: m.updatedAt
+  };
+}
 function newest(items) {
   return items.reduce((a, b) => a.updatedAt >= b.updatedAt ? a : b);
 }
@@ -25778,12 +25965,18 @@ function findFeature(p, featureId2) {
   if (!f) throw new Error(`Feature ${featureId2} not found in project`);
   return f;
 }
+function findMilestone(p, milestoneId2) {
+  const m = p.milestones.find((x) => x.id === milestoneId2);
+  if (!m) throw new Error(`Milestone ${milestoneId2} not found in project`);
+  return m;
+}
 var projectId = external_exports.string().min(1).describe("The project id");
 var taskId = external_exports.string().min(1).describe("The task id");
 var featureId = external_exports.string().min(1).describe("The feature id");
 var channelId = external_exports.string().min(1).describe("The channel id");
 var subtaskId = external_exports.string().min(1).describe("The subtask id");
 var docId = external_exports.string().min(1).describe("The doc id");
+var milestoneId = external_exports.string().min(1).describe("The milestone (checkpoint) id");
 var MARKDOWN_HINT = 'Rendered as GitHub-flavored markdown \u2014 use **bold**, _italic_, `code`, `- ` lists, `> ` quotes and [links](url). For code or structured data (JSON, etc.) use a fenced block that OPENS with a language tag and keeps real indentation, e.g. ```json\\n{\\n  "a": 1\\n}\\n``` \u2014 do NOT escape characters, add trailing backslashes, or flatten indentation. Raw HTML is ignored.';
 var server = new McpServer(
   { name: "cnsofts", version: "0.1.0" },
@@ -25815,11 +26008,28 @@ var server = new McpServer(
       "reports, or plans into chat; that content belongs on the board, not the",
       "conversation.",
       "",
+      "IMAGES \u2014 messages and docs can embed images as `![alt](/api/images/<id>)`.",
+      "When a client shares a screenshot, call `view_image` with that path (or the",
+      "bare id) to actually SEE it, so you understand what they are showing you.",
+      "To share your own screenshot, save it to a file and call `upload_image`",
+      "with its `path` (the server reads the bytes \u2014 never paste base64), then",
+      "include the returned markdown in a post_message body or a doc.",
+      "",
       "DOCS \u2014 a project has documentation pages (list_docs / get_doc / create_doc /",
       "update_doc). This is where durable knowledge lives: architecture, onboarding,",
       'decisions, a running status overview. When asked to "write it up", "document",',
       "or leave a proper page for the team, put it in a doc \u2014 not a chat message.",
       "Read the doc (get_doc) before update_doc; the body you send REPLACES the old.",
+      "Docs render markdown incl. # / ## / ### headings and images. To add an image",
+      "(e.g. a screenshot you captured), call `upload_image` with the file `path` \u2014",
+      "it returns a ready `![alt](url)` snippet \u2014 then include that snippet in the",
+      "doc body you pass to create_doc / update_doc.",
+      "",
+      "ROADMAP \u2014 a project has a client-facing roadmap of checkpoints (milestones)",
+      "shown in get_project as `milestones`. Use create_milestone / update_milestone /",
+      "reorder_milestones (and delete_milestone) to keep delivery dates current. Each",
+      "checkpoint has a title, description, dueDate and a status (upcoming | in_progress",
+      '| done). Move a checkpoint to "done" as work ships so the client stays informed.',
       "",
       "LIVE loop \u2014 ONLY for an ACTIVE back-and-forth: someone is at the keyboard",
       "and a reply is expected within minutes. It is NOT a background watch \u2014 every",
@@ -25996,6 +26206,40 @@ server.registerTool(
   ({ projectId: projectId2, channelId: channelId2, messageId }) => run(
     () => api.get(import_shared.apiPaths.projects.channelMessage(projectId2, channelId2, messageId))
   )
+);
+server.registerTool(
+  "view_image",
+  {
+    title: "View image",
+    description: "Fetch an image shared in a message or doc and return it so you can SEE it. Message/doc bodies embed images as `![alt](/api/images/<id>)`; pass that path or just the <id> here. Use it whenever a client shares a screenshot so you understand what they mean.",
+    inputSchema: {
+      image: external_exports.string().min(1).describe("An /api/images/<id> path (from a message body) or bare id")
+    }
+  },
+  async ({ image }) => {
+    try {
+      const marker = "/api/images/";
+      const id = image.includes(marker) ? image.slice(image.indexOf(marker) + marker.length).split(/[?#/]/)[0] : image.trim();
+      const { data, contentType } = await api.getBinary(
+        import_shared.apiPaths.images.serve(id)
+      );
+      return {
+        content: [
+          {
+            type: "image",
+            data: data.toString("base64"),
+            mimeType: contentType
+          }
+        ]
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return {
+        content: [{ type: "text", text: `Error: ${message}` }],
+        isError: true
+      };
+    }
+  }
 );
 server.registerTool(
   "list_docs",
@@ -26220,6 +26464,90 @@ if (!config2.readOnly) {
     ({ projectId: projectId2, docId: docId2, ...body }) => run(() => api.patch(import_shared.apiPaths.projects.doc(projectId2, docId2), body))
   );
   server.registerTool(
+    "upload_image",
+    {
+      title: "Upload image",
+      description: "Upload an image to a project and get back a URL to embed in a doc or message. RECOMMENDED: pass `path` \u2014 a local image file you saved (e.g. a screenshot) or an http(s) URL \u2014 and the server reads the bytes itself, so you never paste base64. (`data` base64 still works as a fallback for agents without file access.) Returns `url` and a ready `markdown` `![alt](url)` snippet to drop into a create_doc / update_doc / post_message body.",
+      inputSchema: {
+        projectId,
+        path: external_exports.string().min(1).optional().describe(
+          "Preferred. A local image file path (e.g. ./shots/home.png) or an http(s) URL. The server reads/fetches the bytes \u2014 you never handle base64."
+        ),
+        data: external_exports.string().min(1).optional().describe(
+          "Fallback only, when you have no file path: the raw image bytes base64-encoded. Prefer `path`."
+        ),
+        mimeType: external_exports.enum(import_shared.IMAGE_ALLOWED_MIME).optional().describe(
+          "Usually inferred from the file extension or URL. Set only if it cannot be inferred. One of: image/png, image/jpeg, image/gif, image/webp."
+        ),
+        alt: external_exports.string().max(200).optional().describe("Alt text for the image")
+      }
+    },
+    ({ projectId: projectId2, path, data, mimeType, alt }) => run(async () => {
+      const { buffer, mimeType: mime } = await loadImageBytes({
+        path,
+        data,
+        mimeType
+      });
+      const image = await api.postBinary(import_shared.apiPaths.projects.images(projectId2), buffer, mime);
+      return { ...image, markdown: `![${alt ?? "image"}](${image.url})` };
+    })
+  );
+  server.registerTool(
+    "create_milestone",
+    {
+      title: "Create checkpoint",
+      description: "Add a checkpoint to the project roadmap (a client-facing delivery marker). Provide a title, optional description, dueDate (YYYY-MM-DD), and status (upcoming | in_progress | done).",
+      inputSchema: { projectId, ...import_shared.createMilestoneSchema.shape }
+    },
+    ({ projectId: projectId2, ...body }) => run(async () => {
+      const p = await api.post(
+        import_shared.apiPaths.projects.milestones(projectId2),
+        body
+      );
+      return compactMilestone(newest(p.milestones));
+    })
+  );
+  server.registerTool(
+    "update_milestone",
+    {
+      title: "Update checkpoint",
+      description: 'Update a roadmap checkpoint \u2014 title, description, dueDate, or status. Moving status to "done" stamps the delivered date; moving it back clears it.',
+      inputSchema: {
+        projectId,
+        milestoneId,
+        title: import_shared.createMilestoneSchema.shape.title.optional(),
+        description: import_shared.createMilestoneSchema.shape.description.optional(),
+        dueDate: import_shared.createMilestoneSchema.shape.dueDate.optional(),
+        status: import_shared.createMilestoneSchema.shape.status.optional()
+      }
+    },
+    ({ projectId: projectId2, milestoneId: milestoneId2, ...body }) => run(async () => {
+      const p = await api.patch(
+        import_shared.apiPaths.projects.milestone(projectId2, milestoneId2),
+        body
+      );
+      return compactMilestone(findMilestone(p, milestoneId2));
+    })
+  );
+  server.registerTool(
+    "reorder_milestones",
+    {
+      title: "Reorder checkpoints",
+      description: "Set the roadmap order. Pass the full, final list of milestone ids in the desired order.",
+      inputSchema: {
+        projectId,
+        orderedIds: external_exports.array(external_exports.string().min(1)).describe("Milestone ids, in order")
+      }
+    },
+    ({ projectId: projectId2, orderedIds }) => run(async () => {
+      const p = await api.patch(
+        import_shared.apiPaths.projects.milestonesReorder(projectId2),
+        { orderedIds }
+      );
+      return p.milestones.map(compactMilestone);
+    })
+  );
+  server.registerTool(
     "comment_task",
     {
       title: "Comment on task",
@@ -26242,12 +26570,14 @@ if (!config2.readOnly) {
     "post_message",
     {
       title: "Post channel message",
-      description: "Post a message to a discussion channel. Call list_channels first for the channelId; if attaching, use a real task/feature id from get_project.",
+      description: "Post a message to a discussion channel. Call list_channels first for the channelId; if attaching, use a real task/feature/milestone id from get_project.",
       inputSchema: {
         projectId,
         channelId,
         body: external_exports.string().max(4e3).optional().describe(`Message text. ${MARKDOWN_HINT}`),
-        attachment: import_shared.messageAttachmentSchema.nullable().optional().describe('Optional { kind: "task"|"feature", id } to share')
+        attachment: import_shared.messageAttachmentSchema.nullable().optional().describe(
+          'Optional { kind: "task"|"feature"|"milestone", id } to share'
+        )
       }
     },
     ({ projectId: projectId2, channelId: channelId2, ...body }) => run(
@@ -26277,6 +26607,18 @@ if (!config2.readOnly) {
       ({ projectId: projectId2, featureId: featureId2 }) => run(async () => {
         await api.delete(import_shared.apiPaths.projects.feature(projectId2, featureId2));
         return "Feature deleted.";
+      })
+    );
+    server.registerTool(
+      "delete_milestone",
+      {
+        title: "Delete checkpoint",
+        description: "Permanently delete a roadmap checkpoint. Requires a token with delete access enabled.",
+        inputSchema: { projectId, milestoneId }
+      },
+      ({ projectId: projectId2, milestoneId: milestoneId2 }) => run(async () => {
+        await api.delete(import_shared.apiPaths.projects.milestone(projectId2, milestoneId2));
+        return "Checkpoint deleted.";
       })
     );
   }

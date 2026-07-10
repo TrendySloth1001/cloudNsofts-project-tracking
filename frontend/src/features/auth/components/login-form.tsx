@@ -121,6 +121,12 @@ export function LoginForm() {
           Create an account
         </Link>
       </p>
+
+      <p className={styles.legal}>
+        By continuing you agree to our{' '}
+        <Link href="/terms">Terms of Service</Link> and{' '}
+        <Link href="/privacy">Privacy Policy</Link>.
+      </p>
     </div>
   );
 }

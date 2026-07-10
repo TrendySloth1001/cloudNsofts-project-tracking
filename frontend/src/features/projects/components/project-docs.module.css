@@ -168,6 +168,21 @@
   align-items: center;
   gap: var(--space-2);
 }
+/* Count pill inside the header "Images" button. */
+.imageCount {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--space-1);
+  margin-left: var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-sunken);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
 
 /* -------------------------------- Reader -------------------------------- */
 .reader {
@@ -230,6 +245,58 @@
 .editorTabs {
   flex: none;
   align-self: flex-start;
+}
+.writePane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.formatBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+.formatBtn,
+.formatText {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--control-height-sm);
+  min-width: var(--control-height-sm);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+.formatText {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+.formatBtn:hover:not(:disabled),
+.formatText:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-hover);
+  color: var(--color-text);
+}
+.formatBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.formatDivider {
+  width: 1px;
+  align-self: stretch;
+  margin: var(--space-1) 0;
+  background: var(--color-border);
 }
 .editorArea {
   flex: 1;

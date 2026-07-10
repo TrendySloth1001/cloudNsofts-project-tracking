@@ -9,9 +9,11 @@ import type {
   CreateSubtaskInput,
   CreateTaskInput,
   ReorderFeaturesInput,
+  ReorderMilestonesInput,
   ReorderTasksInput,
   UpdateFeatureInput,
   UpdateMemberRoleInput,
+  UpdateMilestoneInput,
   UpdateSubtaskInput,
   UpdateTaskInput,
   CreateMilestoneInput,
@@ -189,8 +191,18 @@ export const projectStore = {
   ): Promise<Project> {
     return replace(await projectsApi.addMilestone(id, input));
   },
-  async toggleMilestone(id: string, milestoneId: string): Promise<Project> {
-    return replace(await projectsApi.toggleMilestone(id, milestoneId));
+  async updateMilestone(
+    id: string,
+    milestoneId: string,
+    patch: UpdateMilestoneInput,
+  ): Promise<Project> {
+    return replace(await projectsApi.updateMilestone(id, milestoneId, patch));
+  },
+  async reorderMilestones(
+    id: string,
+    input: ReorderMilestonesInput,
+  ): Promise<Project> {
+    return replace(await projectsApi.reorderMilestones(id, input));
   },
   async removeMilestone(id: string, milestoneId: string): Promise<Project> {
     return replace(await projectsApi.removeMilestone(id, milestoneId));

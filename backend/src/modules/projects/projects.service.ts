@@ -8,6 +8,8 @@ import {
   type CreateFeatureInput,
   type CreateMilestoneInput,
   type CreateProjectInput,
+  type ReorderMilestonesInput,
+  type UpdateMilestoneInput,
   type CreateSubtaskInput,
   type CreateTaskInput,
   type MemberRole,
@@ -48,7 +50,7 @@ const include = {
       assignees: { orderBy: { createdAt: 'asc' } },
     },
   },
-  milestones: { orderBy: { createdAt: 'asc' } },
+  milestones: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] },
 } satisfies Prisma.ProjectInclude;
 
 /** Load a project (with relations) as a DTO, or 404. */
@@ -159,7 +161,11 @@ export const projectsService = {
   },
 
   /* -------------------------------- Clients ----------------------------- */
-  async addClient(projectId: string, input: AddClientInput): Promise<Project> {
+  async addClient(
+    projectId: string,
+    input: AddClientInput,
+    actorEmail?: string,
+  ): Promise<Project> {
     await ensureExists(projectId);
     await prisma.projectClient.create({
       data: {
@@ -175,6 +181,8 @@ export const projectsService = {
       title: 'Client added',
       body: `${input.name} was added to ${project.name}`,
       projectId,
+      audience: { scope: 'project', projectId },
+      excludeEmail: actorEmail,
     });
     return project;
   },
@@ -184,7 +192,11 @@ export const projectsService = {
   },
 
   /* --------------------------------- Team ------------------------------- */
-  async addMember(projectId: string, input: AddMemberInput): Promise<Project> {
+  async addMember(
+    projectId: string,
+    input: AddMemberInput,
+    actorEmail?: string,
+  ): Promise<Project> {
     await ensureExists(projectId);
     await prisma.projectMember.create({
       data: {
@@ -200,6 +212,8 @@ export const projectsService = {
       title: 'Team member added',
       body: `${input.name} joined ${project.name}`,
       projectId,
+      audience: { scope: 'project', projectId },
+      excludeEmail: actorEmail,
     });
     return project;
   },
@@ -315,7 +329,11 @@ export const projectsService = {
   },
 
   /* -------------------------------- Tasks ------------------------------- */
-  async addTask(projectId: string, input: CreateTaskInput): Promise<Project> {
+  async addTask(
+    projectId: string,
+    input: CreateTaskInput,
+    actorEmail?: string,
+  ): Promise<Project> {
     await ensureExists(projectId);
     // Append the new task to the end of its status column.
     const last = await prisma.task.aggregate({
@@ -342,6 +360,8 @@ export const projectsService = {
       title: 'New task',
       body: `“${input.title}” added to ${project.name}`,
       projectId,
+      audience: { scope: 'project', projectId },
+      excludeEmail: actorEmail,
     });
     return project;
   },
@@ -382,6 +402,7 @@ export const projectsService = {
     patch: UpdateTaskInput,
     actor: string,
     agentName: string | null = null,
+    actorEmail?: string,
   ): Promise<Project> {
     const existing = await prisma.task.findFirst({
       where: { id: taskId, projectId },
@@ -428,6 +449,8 @@ export const projectsService = {
         title: 'Task completed',
         body: `“${existing.title}” was marked done`,
         projectId,
+        audience: { scope: 'project', projectId },
+        excludeEmail: actorEmail,
       });
     }
     return load(projectId);
@@ -488,6 +511,7 @@ export const projectsService = {
     author: string,
     input: CreateCommentInput,
     agentName: string | null = null,
+    actorEmail?: string,
   ): Promise<Project> {
     await ensureTask(projectId, taskId);
     await prisma.taskEvent.create({
@@ -502,6 +526,8 @@ export const projectsService = {
       title: 'New comment',
       body: `${author} commented on “${task?.title ?? 'a task'}”`,
       projectId,
+      audience: { scope: 'project', projectId },
+      excludeEmail: actorEmail,
     });
     return load(projectId);
   },
@@ -512,23 +538,65 @@ export const projectsService = {
     input: CreateMilestoneInput,
   ): Promise<Project> {
     await ensureExists(projectId);
+    // Append to the end of the roadmap.
+    const position = await prisma.milestone.count({ where: { projectId } });
     await prisma.milestone.create({
-      data: { projectId, title: input.title, dueDate: input.dueDate },
+      data: {
+        projectId,
+        title: input.title,
+        description: input.description,
+        dueDate: input.dueDate,
+        status: input.status,
+        position,
+        completedAt: input.status === 'done' ? new Date() : null,
+      },
     });
     return load(projectId);
   },
-  async toggleMilestone(
+  async updateMilestone(
     projectId: string,
     milestoneId: string,
+    input: UpdateMilestoneInput,
   ): Promise<Project> {
     const milestone = await prisma.milestone.findFirst({
       where: { id: milestoneId, projectId },
     });
     if (!milestone) throw HttpError.notFound('Milestone not found');
+    // Keep `completedAt` in sync with the status stage: stamp it when the
+    // checkpoint reaches `done`, clear it if it moves back out.
+    let completedAt: Date | null | undefined;
+    if (input.status !== undefined && input.status !== milestone.status) {
+      completedAt = input.status === 'done' ? new Date() : null;
+    }
     await prisma.milestone.update({
       where: { id: milestoneId },
-      data: { done: !milestone.done },
+      data: {
+        ...(input.title !== undefined ? { title: input.title } : {}),
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
+        ...(input.dueDate !== undefined ? { dueDate: input.dueDate } : {}),
+        ...(input.status !== undefined ? { status: input.status } : {}),
+        ...(completedAt !== undefined ? { completedAt } : {}),
+      },
     });
+    return load(projectId);
+  },
+  /** Persist the manual order of the roadmap. Every id in `orderedIds` is
+   *  assigned its list index as the new position. */
+  async reorderMilestones(
+    projectId: string,
+    input: ReorderMilestonesInput,
+  ): Promise<Project> {
+    await ensureExists(projectId);
+    await prisma.$transaction(
+      input.orderedIds.map((milestoneId, index) =>
+        prisma.milestone.updateMany({
+          where: { id: milestoneId, projectId },
+          data: { position: index },
+        }),
+      ),
+    );
     return load(projectId);
   },
   async removeMilestone(

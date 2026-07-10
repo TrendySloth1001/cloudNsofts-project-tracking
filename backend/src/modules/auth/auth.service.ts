@@ -51,6 +51,13 @@ function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(bufA, bufB);
 }
 
+/** The single platform super-admin is the env `ADMIN_EMAIL`. This is the one
+ *  authority above per-project roles (see CLAUDE.md §6), so it's the gate for
+ *  platform-wide tools like the storage audit. */
+export function isPlatformAdmin(user: AuthUser): boolean {
+  return safeEqual(user.email, env.ADMIN_EMAIL);
+}
+
 /** Personal Access Tokens carry this prefix so they're told apart from JWTs. */
 const PAT_PREFIX = 'cnsofts_pat_';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -159,11 +166,15 @@ type ProfileRow = {
  *  Falls back to empty profile + identity name when no row exists yet (e.g. the
  *  bootstrap admin before its first save). */
 function toProfile(user: AuthUser, row: ProfileRow | null): UserProfile {
-  if (!row) return { ...user, ...EMPTY_PROFILE };
+  const isPlatformAdminUser = isPlatformAdmin(user);
+  if (!row) {
+    return { ...user, ...EMPTY_PROFILE, isPlatformAdmin: isPlatformAdminUser };
+  }
   return {
     id: user.id,
     email: user.email,
     role: user.role,
+    isPlatformAdmin: isPlatformAdminUser,
     // Once a row exists the name is self-edited there; else use the identity.
     name: row.name || user.name,
     title: row.title,
