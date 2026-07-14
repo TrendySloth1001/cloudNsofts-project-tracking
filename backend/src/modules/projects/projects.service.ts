@@ -15,6 +15,7 @@ import {
   type MemberRole,
   type UpdateFeatureInput,
   type Project,
+  type ProjectRole,
   type ReorderFeaturesInput,
   type ReorderTasksInput,
   type TaskStatus,
@@ -195,9 +196,15 @@ export const projectsService = {
   async addMember(
     projectId: string,
     input: AddMemberInput,
+    callerRole: ProjectRole,
     actorEmail?: string,
   ): Promise<Project> {
     await ensureExists(projectId);
+    // Only a project admin may grant the admin (owner) tier — a manager runs the
+    // team but can't mint co-owners or escalate itself.
+    if (input.role === 'admin' && callerRole !== 'admin') {
+      throw HttpError.forbidden('Only a project admin can grant the admin role.');
+    }
     await prisma.projectMember.create({
       data: {
         projectId,
@@ -221,15 +228,41 @@ export const projectsService = {
     projectId: string,
     memberId: string,
     role: MemberRole,
+    callerRole: ProjectRole,
   ): Promise<Project> {
-    const updated = await prisma.projectMember.updateMany({
+    const target = await prisma.projectMember.findFirst({
       where: { id: memberId, projectId },
+      select: { role: true },
+    });
+    if (!target) throw HttpError.notFound('Member not found');
+    // Granting admin, or touching an existing admin's row (e.g. demoting the
+    // owner), is reserved for project admins.
+    if (
+      (role === 'admin' || target.role === 'admin') &&
+      callerRole !== 'admin'
+    ) {
+      throw HttpError.forbidden('Only a project admin can change an admin role.');
+    }
+    await prisma.projectMember.update({
+      where: { id: memberId },
       data: { role },
     });
-    if (updated.count === 0) throw HttpError.notFound('Member not found');
     return load(projectId);
   },
-  async removeMember(projectId: string, memberId: string): Promise<Project> {
+  async removeMember(
+    projectId: string,
+    memberId: string,
+    callerRole: ProjectRole,
+  ): Promise<Project> {
+    const target = await prisma.projectMember.findFirst({
+      where: { id: memberId, projectId },
+      select: { role: true },
+    });
+    // Only a project admin may remove another admin (protects the owner from
+    // being ejected by a manager). Missing rows are a no-op, as before.
+    if (target?.role === 'admin' && callerRole !== 'admin') {
+      throw HttpError.forbidden('Only a project admin can remove an admin.');
+    }
     await prisma.projectMember.deleteMany({ where: { id: memberId, projectId } });
     return load(projectId);
   },

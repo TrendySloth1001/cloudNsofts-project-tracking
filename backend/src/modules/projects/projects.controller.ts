@@ -17,8 +17,10 @@ import {
   updateSubtaskSchema,
   updateTaskSchema,
 } from '@cnsofts/shared';
+import type { ProjectRole } from '@cnsofts/shared';
 import type { Request } from 'express';
 import { asyncHandler } from '../../shared/http/async-handler';
+import { HttpError } from '../../shared/http/http-error';
 import { validate } from '../../shared/http/validate';
 import { requireUser } from '../auth/access';
 import { projectsService } from './projects.service';
@@ -31,6 +33,14 @@ function actorName(req: Request): string {
 /** Email of the authenticated actor, so notifications skip their own actions. */
 function actorEmail(req: Request): string | undefined {
   return req.authUser?.email;
+}
+
+/** The caller's per-project role (set by `requireProjectAccess`). Used to gate
+ *  admin-tier roster changes so a manager can't escalate to owner. */
+function callerRole(req: Request): ProjectRole {
+  const role = req.projectRole;
+  if (!role) throw HttpError.forbidden();
+  return role;
 }
 
 export const projectsController = {
@@ -72,7 +82,12 @@ export const projectsController = {
     res
       .status(201)
       .json(
-        await projectsService.addMember(req.params.id, input, actorEmail(req)),
+        await projectsService.addMember(
+          req.params.id,
+          input,
+          callerRole(req),
+          actorEmail(req),
+        ),
       );
   }),
   updateMember: asyncHandler(async (req, res) => {
@@ -82,12 +97,17 @@ export const projectsController = {
         req.params.id,
         req.params.memberId,
         input.role,
+        callerRole(req),
       ),
     );
   }),
   removeMember: asyncHandler(async (req, res) => {
     res.json(
-      await projectsService.removeMember(req.params.id, req.params.memberId),
+      await projectsService.removeMember(
+        req.params.id,
+        req.params.memberId,
+        callerRole(req),
+      ),
     );
   }),
 

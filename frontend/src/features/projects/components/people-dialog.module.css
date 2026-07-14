@@ -14,3 +14,9 @@
   flex: 1;
   min-width: 190px;
 }
+
+.hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}

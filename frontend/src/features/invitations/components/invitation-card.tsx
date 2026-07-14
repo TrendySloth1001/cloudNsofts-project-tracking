@@ -1,8 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { MEMBER_ROLE_LABELS, type Invitation } from '@cnsofts/shared';
-import { Button, Icon } from '@/components/ui';
+import {
+  INVITATION_ROLE_LABELS,
+  type InvitationRole,
+  type Invitation,
+} from '@cnsofts/shared';
+import { Badge, Button, Icon, type BadgeVariant, type IconName } from '@/components/ui';
+import { UserAvatar } from '@/features/profile/components/user-avatar';
 import { projectStore } from '@/features/projects/projects.store';
 import { invitationsApi } from '../invitations.api';
 import styles from './invitation-card.module.css';
@@ -12,6 +17,16 @@ export interface InvitationCardProps {
   /** Called after the invite is accepted (true) or declined (false). */
   onResolved: (id: string, accepted: boolean) => void;
 }
+
+/** Per-role visual treatment for the role badge — icon + badge color so each
+ *  access level reads at a glance and matches the app's accent palette. */
+const ROLE_META: Record<InvitationRole, { icon: IconName; variant: BadgeVariant }> = {
+  admin: { icon: 'shield', variant: 'primary' },
+  manager: { icon: 'userCircle', variant: 'info' },
+  member: { icon: 'user', variant: 'teal' },
+  viewer: { icon: 'eye', variant: 'neutral' },
+  client: { icon: 'star', variant: 'warning' },
+};
 
 export function InvitationCard({ invitation, onResolved }: InvitationCardProps) {
   const [busy, setBusy] = useState<'accept' | 'decline' | null>(null);
@@ -35,22 +50,44 @@ export function InvitationCard({ invitation, onResolved }: InvitationCardProps) 
     }
   }
 
+  const role = ROLE_META[invitation.role];
+  const initial = invitation.projectName.trim()[0]?.toUpperCase() ?? '#';
+
   return (
     <div className={styles.card}>
-      <span className={styles.icon}>
-        <Icon name="folder" size={20} tone="brand" />
-      </span>
-      <div className={styles.body}>
-        <span className={styles.project}>{invitation.projectName}</span>
-        <span className={styles.meta}>
-          {invitation.invitedBy} invited you as{' '}
-          <strong>{MEMBER_ROLE_LABELS[invitation.role]}</strong>
+      <div className={styles.header}>
+        <span className={styles.cover} aria-hidden="true">
+          {initial}
         </span>
-        {error && <span className={styles.error}>{error}</span>}
+        <div className={styles.headText}>
+          <span className={styles.project} title={invitation.projectName}>
+            {invitation.projectName}
+          </span>
+          <Badge variant={role.variant} size="sm">
+            <Icon name={role.icon} size={12} />
+            {INVITATION_ROLE_LABELS[invitation.role]}
+          </Badge>
+        </div>
       </div>
+
+      <div className={styles.inviter}>
+        <UserAvatar name={invitation.invitedBy} seed={invitation.invitedBy} size={26} />
+        <span className={styles.inviterText}>
+          Invited by <strong>{invitation.invitedBy}</strong>
+        </span>
+      </div>
+
+      {error && (
+        <p className={styles.error}>
+          <Icon name="alertCircle" size={14} />
+          {error}
+        </p>
+      )}
+
       <div className={styles.actions}>
         <Button
-          variant="ghost"
+          className={styles.action}
+          variant="outline"
           size="sm"
           onClick={() => void respond(false)}
           loading={busy === 'decline'}
@@ -59,7 +96,9 @@ export function InvitationCard({ invitation, onResolved }: InvitationCardProps) 
           Decline
         </Button>
         <Button
+          className={styles.action}
           size="sm"
+          leftIcon="check"
           onClick={() => void respond(true)}
           loading={busy === 'accept'}
           disabled={busy !== null}

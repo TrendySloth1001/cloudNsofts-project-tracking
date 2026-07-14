@@ -21,8 +21,10 @@ export function useCurrentUser() {
       .me()
       .then((res) => setUser(res.user))
       .catch(() => {
+        // Hard reload (not a client route change) so any in-memory store from
+        // the expired session is wiped before /login renders.
         authApi.logout();
-        router.replace('/login');
+        window.location.href = '/login';
       })
       .finally(() => setLoading(false));
   }, [router]);

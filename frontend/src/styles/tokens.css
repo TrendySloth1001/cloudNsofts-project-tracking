@@ -255,4 +255,106 @@
 
   /* Layout — shared content width so the app bar and page content align */
   --layout-max-width: 1120px;
+
+  color-scheme: light;
+}
+
+/* ==================================================================== *
+ * DARK THEME  — set on <html data-theme="dark"> (Settings → Appearance).
+ * Only SEMANTIC tokens are remapped; components reference those, so the
+ * entire UI flips without touching a single component style.
+ * ==================================================================== */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Surfaces & backgrounds */
+  --color-canvas: #0e1117;
+  --color-surface: #161a22;
+  --color-surface-raised: #1c212b;
+  --color-surface-sunken: #12151c;
+  --color-surface-hover: #222834;
+  --color-surface-active: #2a313f;
+  --color-overlay: rgba(0, 0, 0, 0.6);
+  --color-overlay-strong: rgba(3, 5, 10, 0.94);
+  --color-code-surface: #12151c;
+  --color-code-border: #262c38;
+
+  /* Text */
+  --color-text: #e6e8ee;
+  --color-text-secondary: #aab2c0;
+  --color-text-muted: #868e9e;
+  --color-text-placeholder: #646c7c;
+  --color-text-disabled: #5a6272;
+  --color-text-link: var(--violet-300);
+
+  /* Borders */
+  --color-border: #262c38;
+  --color-border-strong: #354052;
+  --color-border-hover: #384456;
+  --color-border-focus: var(--violet-400);
+
+  /* Brand / accent — brighten interaction states against the dark field. */
+  --color-primary: var(--violet-500);
+  --color-primary-hover: var(--violet-400);
+  --color-primary-active: var(--violet-300);
+  --color-primary-subtle: rgba(108, 92, 231, 0.18);
+  --color-primary-subtle-hover: rgba(108, 92, 231, 0.26);
+  --color-focus-ring: rgba(146, 128, 239, 0.35);
+  --brand-subtle: rgba(242, 106, 27, 0.16);
+
+  /* Status — lifted text hues + translucent tints so badges read on dark. */
+  --color-success: #45c98a;
+  --color-success-subtle: rgba(18, 183, 106, 0.16);
+  --color-success-border: rgba(18, 183, 106, 0.3);
+  --color-warning: #f7ad3f;
+  --color-warning-subtle: rgba(247, 144, 9, 0.16);
+  --color-warning-border: rgba(247, 144, 9, 0.3);
+  --color-danger: #f97066;
+  --color-danger-hover: #fda29b;
+  --color-danger-subtle: rgba(240, 68, 56, 0.16);
+  --color-danger-border: rgba(240, 68, 56, 0.3);
+  --color-info: #5fa8fb;
+  --color-info-subtle: rgba(46, 144, 250, 0.16);
+  --color-info-border: rgba(46, 144, 250, 0.3);
+
+  /* Icon tones */
+  --color-icon-brand: var(--violet-400);
+  --color-icon-neutral: #868e9e;
+  --color-icon-success: #45c98a;
+  --color-icon-warning: #f7ad3f;
+  --color-icon-danger: #f97066;
+  --color-icon-info: #5fa8fb;
+
+  /* Task board — todo neutral needs to be visible on the dark canvas. */
+  --color-status-todo: var(--gray-500);
+  --color-status-todo-subtle: rgba(152, 162, 179, 0.14);
+
+  /* Shadows — black-based for real depth on dark surfaces. */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 8px -2px rgba(0, 0, 0, 0.5),
+    0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 16px -4px rgba(0, 0, 0, 0.55),
+    0 4px 6px -2px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 20px 24px -4px rgba(0, 0, 0, 0.6),
+    0 8px 8px -4px rgba(0, 0, 0, 0.4);
+}
+
+/* ==================================================================== *
+ * COMPACT DENSITY  — set on <html data-density="compact">. Tightens the
+ * spacing scale + control heights; components keep referencing the same
+ * tokens, so everything condenses proportionally.
+ * ==================================================================== */
+:root[data-density='compact'] {
+  --space-3: 0.625rem; /* 12 → 10 */
+  --space-4: 0.75rem; /* 16 → 12 */
+  --space-5: 1rem; /* 20 → 16 */
+  --space-6: 1.25rem; /* 24 → 20 */
+  --space-8: 1.75rem; /* 32 → 28 */
+  --space-10: 2rem; /* 40 → 32 */
+  --space-12: 2.5rem; /* 48 → 40 */
+
+  --control-height-sm: 28px;
+  --control-height-md: 36px;
+  --control-height-lg: 44px;
 }

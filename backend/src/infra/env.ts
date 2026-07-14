@@ -21,6 +21,11 @@ const envSchema = z.object({
   AUTH_SECRET: z.string().min(16).default('dev-insecure-secret-change-me!!'),
   AUTH_TOKEN_TTL: z.string().default('7d'),
 
+  // Google OAuth (optional). When both are set, "Continue with Google" works;
+  // unset = the feature stays off and the button reports it's unavailable.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+
   // Optional Redis URL. When set, Socket.IO uses the Redis adapter so realtime
   // fans out across multiple backend instances (horizontal scale). Unset =
   // single-node in-memory fanout.

@@ -1,10 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import type { UserProfile } from '@cnsofts/shared';
+import type { AppDensity, AppTheme, UserProfile } from '@cnsofts/shared';
 import {
-  Badge,
   Button,
   Card,
   CardBody,
@@ -15,6 +14,7 @@ import {
   Switch,
 } from '@/components/ui';
 import { authApi } from '@/features/auth/auth.api';
+import { applyAppearance } from '@/lib/appearance';
 import { NotificationPreferencesCard } from '@/features/notifications/components/notification-preferences';
 import styles from './settings-view.module.css';
 
@@ -39,25 +39,40 @@ function Row({
   );
 }
 
-/** A not-yet-wired toggle — visibly disabled with a "Soon" badge so it never
- *  pretends to persist a value it can't. */
-function SoonToggle({ label }: { label: string }) {
-  return (
-    <span className={styles.soon}>
-      <Badge variant="neutral" size="sm">
-        Soon
-      </Badge>
-      <Switch disabled aria-label={label} />
-    </span>
-  );
-}
-
 export function SettingsView({ user }: { user: UserProfile }) {
-  const router = useRouter();
+  // Appearance prefs are DB-backed (UserProfile). We keep local state so the
+  // toggles feel instant, apply the change to the DOM optimistically, persist
+  // via PATCH /auth/me, and revert both if the save fails.
+  const [theme, setTheme] = useState<AppTheme>(user.theme);
+  const [density, setDensity] = useState<AppDensity>(user.density);
+  const [savingAppearance, setSavingAppearance] = useState(false);
 
+  async function saveAppearance(patch: { theme?: AppTheme; density?: AppDensity }) {
+    const prev = { theme, density };
+    const next = {
+      theme: patch.theme ?? theme,
+      density: patch.density ?? density,
+    };
+    setTheme(next.theme);
+    setDensity(next.density);
+    applyAppearance(next.theme, next.density);
+    setSavingAppearance(true);
+    try {
+      await authApi.updateProfile(patch);
+    } catch {
+      setTheme(prev.theme);
+      setDensity(prev.density);
+      applyAppearance(prev.theme, prev.density);
+    } finally {
+      setSavingAppearance(false);
+    }
+  }
+
+  // Hard navigation so the in-memory stores (module singletons) are wiped and
+  // can't leak into the next account signed in from this tab. See app layout.
   function signOut() {
     authApi.logout();
-    router.replace('/login');
+    window.location.href = '/login';
   }
 
   return (
@@ -78,12 +93,34 @@ export function SettingsView({ user }: { user: UserProfile }) {
           <Row
             label="Dark theme"
             description="Switch the interface to a dark palette."
-            control={<SoonToggle label="Dark theme" />}
+            control={
+              <Switch
+                checked={theme === 'dark'}
+                disabled={savingAppearance}
+                aria-label="Dark theme"
+                onChange={(e) =>
+                  void saveAppearance({
+                    theme: e.target.checked ? 'dark' : 'light',
+                  })
+                }
+              />
+            }
           />
           <Row
             label="Compact density"
             description="Tighter spacing to fit more on screen."
-            control={<SoonToggle label="Compact density" />}
+            control={
+              <Switch
+                checked={density === 'compact'}
+                disabled={savingAppearance}
+                aria-label="Compact density"
+                onChange={(e) =>
+                  void saveAppearance({
+                    density: e.target.checked ? 'compact' : 'comfortable',
+                  })
+                }
+              />
+            }
           />
         </CardBody>
       </Card>

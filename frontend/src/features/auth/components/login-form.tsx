@@ -1,14 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { loginSchema } from '@cnsofts/shared';
+import { apiPaths, loginSchema } from '@cnsofts/shared';
 import { Button, Divider, Input } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
+import { config } from '@/lib/config';
 import { authApi } from '../auth.api';
 import { GoogleIcon } from './google-icon';
 import styles from './login-form.module.css';
+
+/** Friendly messages for OAuth failures the backend redirects back with. */
+const OAUTH_ERRORS: Record<string, string> = {
+  oauth_unavailable: 'Google sign-in isn’t available right now.',
+  oauth_failed: 'Google sign-in didn’t complete. Please try again.',
+  oauth_unverified: 'Your Google email isn’t verified.',
+};
 
 interface FieldErrors {
   email?: string;
@@ -21,13 +29,24 @@ export function LoginForm() {
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Surface an OAuth failure the backend bounced us back with (?error=...).
+  // Read from the URL directly (client-only) to avoid a Suspense boundary on
+  // this statically-rendered page.
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get('error');
+    if (code && OAUTH_ERRORS[code]) setFormError(OAUTH_ERRORS[code]);
+  }, []);
+
+  function signInWithGoogle() {
+    // Full-page redirect into the backend's OAuth start endpoint.
+    window.location.href = `${config.apiUrl}${apiPaths.auth.google()}`;
+  }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setFormError(null);
-    setNotice(null);
 
     const result = loginSchema.safeParse({ email, password });
     if (!result.success) {
@@ -69,7 +88,7 @@ export function LoginForm() {
         variant="outline"
         size="lg"
         fullWidth
-        onClick={() => setNotice('Google sign-in isn’t connected yet.')}
+        onClick={signInWithGoogle}
       >
         <span className={styles.google}>
           <GoogleIcon />
@@ -112,8 +131,6 @@ export function LoginForm() {
           Sign in
         </Button>
       </form>
-
-      {notice && <p className={styles.notice}>{notice}</p>}
 
       <p className={styles.support}>
         New to CloudNSofts?{' '}

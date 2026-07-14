@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { ConfirmProvider, Icon, Spinner } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
 import { Sidebar } from '@/components/layout/sidebar';
 import { PendingInvitesModal } from '@/features/invitations/components/pending-invites-modal';
 import { authApi } from '@/features/auth/auth.api';
 import { useCurrentUser } from '@/features/auth/use-current-user';
+import { applyAppearance } from '@/lib/appearance';
 import styles from './app-layout.module.css';
 
 /** Authenticated app shell: a left sidebar (an off-canvas drawer on mobile)
@@ -15,13 +15,22 @@ import styles from './app-layout.module.css';
 export default function AppLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const router = useRouter();
   const { user, loading } = useCurrentUser();
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Mirror the signed-in user's DB-backed appearance prefs onto <html> so the
+  // theme/density tokens take effect across the app.
+  useEffect(() => {
+    if (user) applyAppearance(user.theme, user.density);
+  }, [user]);
+
+  // Full-page navigation (not a client route change): clearing the token isn't
+  // enough — the in-memory project/notification stores are module singletons
+  // that would survive into the next account signed in from this tab and leak
+  // one user's data to another. A hard reload wipes all client state.
   function signOut() {
     authApi.logout();
-    router.replace('/login');
+    window.location.href = '/login';
   }
 
   if (loading || !user) {

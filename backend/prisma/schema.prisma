@@ -33,6 +33,9 @@ model User {
   githubUrl    String   @default("")
   websiteUrl   String   @default("")
   linkedinUrl  String   @default("")
+  // Appearance preferences (see Settings → Appearance).
+  theme        AppTheme   @default(light)
+  density      AppDensity @default(comfortable)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -86,6 +89,28 @@ enum MemberRole {
   manager
   member
   viewer
+}
+
+// The role an invitation grants on acceptance. Mirrors MemberRole but also
+// allows `client`, which places the invitee on the project's client roster
+// (ProjectClient) instead of the member roster.
+enum InvitationRole {
+  admin
+  manager
+  member
+  viewer
+  client
+}
+
+// Per-user appearance preferences (self-service, edited via PATCH /auth/me).
+enum AppTheme {
+  light
+  dark
+}
+
+enum AppDensity {
+  comfortable
+  compact
 }
 
 enum TaskStatus {
@@ -452,7 +477,7 @@ model Invitation {
   project        Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId      String
   email          String
-  role           MemberRole @default(member)
+  role           InvitationRole @default(member)
   // Display name + email of the inviter (for "invited by" in the UI).
   invitedBy      String
   invitedByEmail String?

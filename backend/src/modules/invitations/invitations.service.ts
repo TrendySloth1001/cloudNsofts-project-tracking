@@ -41,12 +41,24 @@ export const invitationsService = {
     });
     if (!project) throw HttpError.notFound('Project not found');
 
-    const alreadyMember = await prisma.projectMember.findFirst({
-      where: { projectId, email: input.email },
-      select: { id: true },
-    });
-    if (alreadyMember) {
-      throw HttpError.conflict('That person is already a member of this project.');
+    // A person already on the roster this invite targets can't be re-invited to
+    // it (a client invite checks the client roster; any other role the team).
+    if (input.role === 'client') {
+      const alreadyClient = await prisma.projectClient.findFirst({
+        where: { projectId, email: input.email },
+        select: { id: true },
+      });
+      if (alreadyClient) {
+        throw HttpError.conflict('That person is already a client of this project.');
+      }
+    } else {
+      const alreadyMember = await prisma.projectMember.findFirst({
+        where: { projectId, email: input.email },
+        select: { id: true },
+      });
+      if (alreadyMember) {
+        throw HttpError.conflict('That person is already a member of this project.');
+      }
     }
 
     const row = await prisma.invitation.upsert({
@@ -99,7 +111,8 @@ export const invitationsService = {
     return rows.map(toInvitation);
   },
 
-  /** Accept an invitation addressed to the caller → become a project member. */
+  /** Accept an invitation addressed to the caller. A `client` invite adds them
+   *  to the project's client roster; any other role adds them to the team. */
   async accept(inviteId: string, user: AuthUser): Promise<Invitation> {
     const row = await prisma.invitation.findUnique({
       where: { id: inviteId },
@@ -112,19 +125,35 @@ export const invitationsService = {
       throw HttpError.badRequest('This invitation is no longer pending.');
     }
 
-    const already = await prisma.projectMember.findFirst({
-      where: { projectId: row.projectId, email: user.email },
-      select: { id: true },
-    });
-    if (!already) {
-      await prisma.projectMember.create({
-        data: {
-          projectId: row.projectId,
-          name: user.name,
-          email: user.email,
-          role: row.role,
-        },
+    if (row.role === 'client') {
+      const alreadyClient = await prisma.projectClient.findFirst({
+        where: { projectId: row.projectId, email: user.email },
+        select: { id: true },
       });
+      if (!alreadyClient) {
+        await prisma.projectClient.create({
+          data: {
+            projectId: row.projectId,
+            name: user.name,
+            email: user.email,
+          },
+        });
+      }
+    } else {
+      const already = await prisma.projectMember.findFirst({
+        where: { projectId: row.projectId, email: user.email },
+        select: { id: true },
+      });
+      if (!already) {
+        await prisma.projectMember.create({
+          data: {
+            projectId: row.projectId,
+            name: user.name,
+            email: user.email,
+            role: row.role,
+          },
+        });
+      }
     }
 
     const updated = await prisma.invitation.update({

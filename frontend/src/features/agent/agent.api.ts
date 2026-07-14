@@ -5,6 +5,7 @@ import {
   type AuthUser,
   type CreateApiTokenInput,
   type CreatedApiToken,
+  type TokenVerifyResult,
   type UpdateApiTokenInput,
 } from '@cnsofts/shared';
 import { apiClient, ApiRequestError } from '@/lib/api-client';
@@ -21,6 +22,10 @@ export const agentApi = {
   rotate: (id: string) =>
     apiClient.post<CreatedApiToken>(apiPaths.auth.tokenRotate(id), {}),
   revoke: (id: string) => apiClient.delete<void>(apiPaths.auth.token(id)),
+  /** Check whether a stored token still works, from its DB record (by id) — no
+   *  raw key needed. */
+  verifyById: (id: string) =>
+    apiClient.post<TokenVerifyResult>(apiPaths.auth.tokenVerify(id), {}),
   activity: () =>
     apiClient.get<{ activity: AgentActivity[] }>(apiPaths.auth.agentActivity()),
 
@@ -35,12 +40,19 @@ export const agentApi = {
       cache: 'no-store',
     });
     if (!res.ok) {
-      throw new ApiRequestError(
-        res.status,
+      // Prefer the backend's precise reason (revoked / expired / deleted), which
+      // it returns in the standard ApiError envelope; fall back to a generic.
+      let message =
         res.status === 401
           ? 'Token was rejected — it may be revoked or expired.'
-          : 'Could not verify the token.',
-      );
+          : 'Could not verify the token.';
+      try {
+        const body = (await res.json()) as { error?: { message?: string } };
+        if (body.error?.message) message = body.error.message;
+      } catch {
+        /* keep the fallback message */
+      }
+      throw new ApiRequestError(res.status, message);
     }
     const body = (await res.json()) as { user: AuthUser };
     return body.user;

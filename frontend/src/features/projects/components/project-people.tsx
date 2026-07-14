@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import {
   MEMBER_ROLE_LABELS,
+  INVITATION_ROLE_LABELS,
   memberRoleSchema,
   type Invitation,
   type MemberRole,
@@ -251,7 +252,7 @@ export function ProjectPeople({
                     <span className={styles.chipText}>
                       <span className={styles.chipName}>{invite.email}</span>
                       <span className={styles.chipSub}>
-                        {MEMBER_ROLE_LABELS[invite.role]} · pending
+                        {INVITATION_ROLE_LABELS[invite.role]} · pending
                       </span>
                     </span>
                     <button

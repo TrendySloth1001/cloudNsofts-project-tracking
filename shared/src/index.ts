@@ -47,6 +47,14 @@ export interface AuthResponse {
 }
 
 /** The signed-in user's full, editable profile (returned by GET /auth/me). */
+/** Appearance preferences — a user-level, DB-backed pair driving the theme and
+ *  spacing of the whole UI. Both sides derive their values from these schemas. */
+export const appThemeSchema = z.enum(['light', 'dark']);
+export type AppTheme = z.infer<typeof appThemeSchema>;
+
+export const appDensitySchema = z.enum(['comfortable', 'compact']);
+export type AppDensity = z.infer<typeof appDensitySchema>;
+
 export interface UserProfile extends AuthUser {
   title: string;
   bio: string;
@@ -56,6 +64,9 @@ export interface UserProfile extends AuthUser {
   githubUrl: string;
   websiteUrl: string;
   linkedinUrl: string;
+  /** Appearance preferences. */
+  theme: AppTheme;
+  density: AppDensity;
   /** True only for the env `ADMIN_EMAIL` platform super-admin — gates the
    *  platform-wide storage admin surface. Derived server-side, never stored. */
   isPlatformAdmin: boolean;
@@ -81,6 +92,8 @@ export const updateProfileSchema = z.object({
   githubUrl: profileText(200).optional(),
   websiteUrl: profileText(200).optional(),
   linkedinUrl: profileText(200).optional(),
+  theme: appThemeSchema.optional(),
+  density: appDensitySchema.optional(),
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
@@ -132,6 +145,14 @@ export type UpdateApiTokenInput = z.infer<typeof updateApiTokenSchema>;
 export interface CreatedApiToken {
   token: string;
   apiToken: ApiTokenSummary;
+}
+
+/** Result of checking whether one of the caller's tokens still works — derived
+ *  from its stored record (revoked / expired / account), no raw key needed. */
+export interface TokenVerifyResult {
+  valid: boolean;
+  /** Human-readable status ("Active and working", or why it fails). */
+  reason: string;
 }
 
 /** A recent action performed by a coding agent (PAT), for the owner's feed. */
@@ -208,6 +229,28 @@ export const MEMBER_ROLE_LABELS: Record<MemberRole, string> = {
   manager: 'Manager',
   member: 'Member',
   viewer: 'Viewer',
+};
+
+/**
+ * The role an invitation may grant. Extends {@link memberRoleSchema} with
+ * `client`: accepting a `client` invite adds the invitee to the project's
+ * client roster (read-only board + client channels) rather than the team.
+ */
+export const invitationRoleSchema = z.enum([
+  'admin',
+  'manager',
+  'member',
+  'viewer',
+  'client',
+]);
+export type InvitationRole = z.infer<typeof invitationRoleSchema>;
+
+export const INVITATION_ROLE_LABELS: Record<InvitationRole, string> = {
+  admin: 'Admin',
+  manager: 'Manager',
+  member: 'Member',
+  viewer: 'Viewer',
+  client: 'Client',
 };
 
 /**
@@ -461,14 +504,15 @@ export interface Invitation {
   projectId: string;
   projectName: string;
   email: string;
-  role: MemberRole;
+  role: InvitationRole;
   /** Display name of whoever sent the invite. */
   invitedBy: string;
   status: InvitationStatus;
   createdAt: string;
 }
 
-/** Invite an email to a project with a role (manager/admin). */
+/** Invite an email to a project with a role. A `client` invite adds them to the
+ *  client roster on acceptance; any other role adds them to the team. */
 export const createInvitationSchema = z.object({
   email: z
     .string()
@@ -476,7 +520,7 @@ export const createInvitationSchema = z.object({
     .toLowerCase()
     .email('A valid email is required')
     .max(200),
-  role: memberRoleSchema.default('member'),
+  role: invitationRoleSchema.default('member'),
 });
 export type CreateInvitationInput = z.infer<typeof createInvitationSchema>;
 
@@ -1141,10 +1185,12 @@ export const apiPaths = {
   auth: {
     login: () => `${API_ROUTES.auth}/login`,
     signup: () => `${API_ROUTES.auth}/signup`,
+    google: () => `${API_ROUTES.auth}/google`,
     me: () => `${API_ROUTES.auth}/me`,
     tokens: () => `${API_ROUTES.auth}/tokens`,
     token: (id: string) => `${API_ROUTES.auth}/tokens/${id}`,
     tokenRotate: (id: string) => `${API_ROUTES.auth}/tokens/${id}/rotate`,
+    tokenVerify: (id: string) => `${API_ROUTES.auth}/tokens/${id}/verify`,
     agentActivity: () => `${API_ROUTES.auth}/agent-activity`,
   },
   users: {

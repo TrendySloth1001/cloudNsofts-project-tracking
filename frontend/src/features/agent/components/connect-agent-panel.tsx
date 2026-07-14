@@ -259,7 +259,28 @@ function TokenRow({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(token.name);
   const [saving, setSaving] = useState(false);
+  const [testState, setTestState] = useState<'idle' | 'loading' | 'ok' | 'err'>(
+    'idle',
+  );
+  const [testMsg, setTestMsg] = useState('');
   const expired = isExpired(token);
+
+  async function test() {
+    if (testState === 'loading') return;
+    setTestState('loading');
+    try {
+      const result = await agentApi.verifyById(token.id);
+      setTestMsg(result.reason);
+      setTestState(result.valid ? 'ok' : 'err');
+    } catch (err) {
+      setTestMsg(
+        err instanceof ApiRequestError
+          ? err.message
+          : 'Could not test this token.',
+      );
+      setTestState('err');
+    }
+  }
   const daysLeft = daysUntilExpiry(token);
   const expiringSoon = daysLeft != null && daysLeft <= 14;
 
@@ -354,9 +375,30 @@ function TokenRow({
                 'no expiry'
               )}
             </span>
+            {testState === 'ok' && (
+              <span className={styles.verifyOk}>
+                <Icon name="checkCircle" size={14} tone="success" /> {testMsg}
+              </span>
+            )}
+            {testState === 'err' && (
+              <span className={styles.verifyErr}>
+                <Icon name="alertCircle" size={14} tone="danger" /> {testMsg}
+              </span>
+            )}
           </>
         )}
       </div>
+      {!editing && (
+        <Button
+          variant="outline"
+          size="sm"
+          leftIcon="checkCircle"
+          loading={testState === 'loading'}
+          onClick={() => void test()}
+        >
+          Test
+        </Button>
+      )}
       {!editing && (
         <Menu
           align="end"

@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { signupSchema } from '@cnsofts/shared';
+import { apiPaths, signupSchema } from '@cnsofts/shared';
 import { Button, Divider, Input } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
+import { config } from '@/lib/config';
 import { authApi } from '../auth.api';
 import { GoogleIcon } from './google-icon';
 import styles from './login-form.module.css';
@@ -73,7 +74,9 @@ export function SignupForm() {
         variant="outline"
         size="lg"
         fullWidth
-        onClick={() => setNotice('Google sign-up isn’t connected yet.')}
+        onClick={() => {
+          window.location.href = `${config.apiUrl}${apiPaths.auth.google()}`;
+        }}
       >
         <span className={styles.google}>
           <GoogleIcon />

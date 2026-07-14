@@ -5,6 +5,8 @@ import {
   apiTokenScopeSchema,
   userRoleSchema,
   type AgentActivity,
+  type AppDensity,
+  type AppTheme,
   type ApiTokenScope,
   type ApiTokenSummary,
   type AuthResponse,
@@ -13,6 +15,7 @@ import {
   type CreatedApiToken,
   type LoginInput,
   type SignupInput,
+  type TokenVerifyResult,
   type UpdateApiTokenInput,
   type UpdateProfileInput,
   type UserProfile,
@@ -148,6 +151,8 @@ const EMPTY_PROFILE = {
   githubUrl: '',
   websiteUrl: '',
   linkedinUrl: '',
+  theme: 'light',
+  density: 'comfortable',
 } as const;
 
 type ProfileRow = {
@@ -160,6 +165,8 @@ type ProfileRow = {
   githubUrl: string;
   websiteUrl: string;
   linkedinUrl: string;
+  theme: AppTheme;
+  density: AppDensity;
 };
 
 /** Merge the auth identity (email/role from the token) with the DB profile row.
@@ -185,6 +192,8 @@ function toProfile(user: AuthUser, row: ProfileRow | null): UserProfile {
     githubUrl: row.githubUrl,
     websiteUrl: row.websiteUrl,
     linkedinUrl: row.linkedinUrl,
+    theme: row.theme,
+    density: row.density,
   };
 }
 
@@ -237,6 +246,8 @@ export const authService = {
       ...(input.linkedinUrl !== undefined
         ? { linkedinUrl: input.linkedinUrl }
         : {}),
+      ...(input.theme !== undefined ? { theme: input.theme } : {}),
+      ...(input.density !== undefined ? { density: input.density } : {}),
     };
     const row = await prisma.user.upsert({
       where: { id: user.id },
@@ -271,6 +282,31 @@ export const authService = {
     const matches = await bcrypt.compare(input.password, record.passwordHash);
     if (!matches) throw HttpError.unauthorized('Invalid email or password');
 
+    const user: AuthUser = {
+      id: record.id,
+      email: record.email,
+      name: record.name,
+      role: record.role,
+    };
+    return { token: issueToken(user), user };
+  },
+
+  /**
+   * Sign in (or provision) a user from a verified Google identity. Mirrors open
+   * signup: a first-time Google user becomes a plain MEMBER with no project
+   * access until invited, and has no password (they sign in via Google only).
+   * The reserved env admin email resolves to the bootstrap admin principal.
+   */
+  async loginWithGoogle(email: string, name: string): Promise<AuthResponse> {
+    if (safeEqual(email, env.ADMIN_EMAIL)) {
+      return { token: issueToken(adminUser), user: adminUser };
+    }
+    let record = await prisma.user.findUnique({ where: { email } });
+    if (!record) {
+      record = await prisma.user.create({
+        data: { email, name, role: 'MEMBER' },
+      });
+    }
     const user: AuthUser = {
       id: record.id,
       email: record.email,
@@ -417,6 +453,31 @@ export const authService = {
       }),
     ]);
     return { token: raw, apiToken: toTokenSummary(created) };
+  },
+
+  /** Check whether one of the caller's tokens still works, from its stored
+   *  record — no raw key required (the plaintext is never stored). Mirrors the
+   *  same rules {@link verifyApiToken} enforces, but keyed by id + ownership and
+   *  without stamping usage (a status check isn't a use). */
+  async verifyOwnedToken(
+    principal: AuthUser,
+    id: string,
+  ): Promise<TokenVerifyResult> {
+    const row = await prisma.apiToken.findFirst({
+      where: { id, userId: principal.id },
+    });
+    if (!row) throw HttpError.notFound('Token not found');
+    if (row.revokedAt !== null) {
+      return { valid: false, reason: 'Revoked — this token no longer works.' };
+    }
+    if (row.expiresAt !== null && row.expiresAt.getTime() < Date.now()) {
+      const on = row.expiresAt.toISOString().slice(0, 10);
+      return { valid: false, reason: `Expired on ${on} — generate a new token.` };
+    }
+    return {
+      valid: true,
+      reason: `Active and working — authenticates as ${principal.name}.`,
+    };
   },
 
   /** Revoke one of the principal's tokens (404 if it isn't theirs). */

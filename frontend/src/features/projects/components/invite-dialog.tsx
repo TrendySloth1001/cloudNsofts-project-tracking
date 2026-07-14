@@ -3,18 +3,18 @@
 import { useEffect, useState } from 'react';
 import {
   createInvitationSchema,
-  memberRoleSchema,
-  MEMBER_ROLE_LABELS,
+  invitationRoleSchema,
+  INVITATION_ROLE_LABELS,
   type Invitation,
-  type MemberRole,
+  type InvitationRole,
 } from '@cnsofts/shared';
 import { Alert, Button, Input, Modal, Select } from '@/components/ui';
 import { invitationsApi } from '@/features/invitations/invitations.api';
 import styles from './people-dialog.module.css';
 
-const ROLE_OPTIONS = memberRoleSchema.options.map((r) => ({
+const ROLE_OPTIONS = invitationRoleSchema.options.map((r) => ({
   value: r,
-  label: MEMBER_ROLE_LABELS[r],
+  label: INVITATION_ROLE_LABELS[r],
 }));
 
 export interface InviteDialogProps {
@@ -33,7 +33,7 @@ export function InviteDialog({
   onInvited,
 }: InviteDialogProps) {
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<MemberRole>('member');
+  const [role, setRole] = useState<InvitationRole>('member');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -98,10 +98,15 @@ export function InviteDialog({
             label="Role"
             containerClassName={styles.grow}
             value={role}
-            onChange={(e) => setRole(e.target.value as MemberRole)}
+            onChange={(e) => setRole(e.target.value as InvitationRole)}
             options={ROLE_OPTIONS}
           />
         </div>
+        <p className={styles.hint}>
+          {role === 'client'
+            ? 'Clients get read-only access to the board and can join client channels.'
+            : 'Team members can view and work on the board per their role.'}
+        </p>
       </form>
     </Modal>
   );

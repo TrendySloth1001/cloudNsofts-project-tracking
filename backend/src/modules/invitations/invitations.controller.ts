@@ -1,5 +1,6 @@
 import { createInvitationSchema } from '@cnsofts/shared';
 import { asyncHandler } from '../../shared/http/async-handler';
+import { HttpError } from '../../shared/http/http-error';
 import { validate } from '../../shared/http/validate';
 import { requireUser } from '../auth/access';
 import { invitationsService } from './invitations.service';
@@ -8,6 +9,11 @@ export const invitationsController = {
   /* ----- Project-scoped (manager/admin) ----- */
   create: asyncHandler(async (req, res) => {
     const input = validate(createInvitationSchema, req.body);
+    // Inviting someone as admin (owner) is reserved for project admins — a
+    // manager can't mint co-owners through an invitation either.
+    if (input.role === 'admin' && req.projectRole !== 'admin') {
+      throw HttpError.forbidden('Only a project admin can invite an admin.');
+    }
     res
       .status(201)
       .json(

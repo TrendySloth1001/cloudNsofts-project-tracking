@@ -447,6 +447,20 @@
   background: var(--color-surface);
   overflow: hidden;
 }
+/* Feature completion shown as a thin bar attached to the top edge of the lane
+   (the card's overflow:hidden rounds its top corners), instead of an inline bar
+   crowding the header strip. */
+.laneTopBar {
+  height: 3px;
+  width: 100%;
+  background: var(--color-surface-hover);
+}
+.laneTopFill {
+  display: block;
+  height: 100%;
+  background: var(--color-primary);
+  transition: width var(--duration-normal) var(--ease-out);
+}
 /* The lane being dragged fades to a ghost so the drop line reads clearly. */
 .swimlaneDragging {
   opacity: 0.45;
@@ -497,13 +511,6 @@
   background: var(--color-surface-hover);
   color: var(--color-text);
 }
-.laneDot {
-  flex: none;
-  width: 10px;
-  height: 10px;
-  border-radius: var(--radius-full);
-  background: var(--color-text-placeholder);
-}
 .laneName {
   min-width: 0;
   font-size: var(--text-md);
@@ -521,26 +528,8 @@
   color: var(--color-primary);
   transform: rotate(45deg);
 }
-.laneProgress {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.laneProgressBar {
-  width: 72px;
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: var(--color-surface-hover);
-  overflow: hidden;
-}
-.laneProgressFill {
-  display: block;
-  height: 100%;
-  border-radius: var(--radius-full);
-  background: var(--color-primary);
-  transition: width var(--duration-base) var(--ease-out);
-}
 .laneProgressText {
+  flex: none;
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   color: var(--color-text-muted);
@@ -666,7 +655,30 @@
     width: auto;
     min-width: 0;
   }
-  .laneProgressBar {
-    width: 48px;
+  /* Header strip: on a narrow screen the row overflowed and clipped the date
+     ("bled"). Let it wrap so trailing meta (avatars/date/menu) drops to a
+     second line instead of being cut off. */
+  .swimlaneHead {
+    flex-wrap: wrap;
+    row-gap: var(--space-1);
+  }
+  .laneName {
+    flex: 1 1 auto;
+  }
+
+  /* List rows: the title shared a single flex line with the status select,
+     badges and avatars, so on a narrow screen it collapsed to one letter.
+     Give the title its own full-width first line; the meta wraps beneath it. */
+  .listRow {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+  }
+  .listTitle {
+    flex: 1 1 100%;
+    white-space: normal;
+  }
+  .statusSelect {
+    width: auto;
+    flex: 1 1 auto;
   }
 }

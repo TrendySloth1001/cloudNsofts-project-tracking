@@ -31,10 +31,10 @@
   width: 180px;
 }
 
-/* Grid */
+/* Full-width rows — one rich card per project spanning the container. */
 .grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: var(--space-4);
 }
 
@@ -49,41 +49,54 @@
   padding: var(--space-16) 0;
 }
 
-/* Card */
+/* Card — a wide horizontal row split into three regions. */
 .card {
   display: flex;
-  flex-direction: column;
-  min-height: 208px;
+  align-items: stretch;
+  gap: var(--space-5);
   padding: var(--space-5);
 }
-.cardHead {
+
+/* Region 1 — identity (grows to fill). */
+.identity {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
+  align-items: flex-start;
+  gap: var(--space-4);
 }
 .monogram {
+  flex: none;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   border-radius: var(--radius-lg);
-  font-size: var(--text-md);
+  font-size: var(--text-lg);
   font-weight: var(--weight-bold);
   letter-spacing: 0.02em;
+}
+.idText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
 }
 .cardName {
   font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
   line-height: var(--leading-snug);
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .cardDesc {
-  margin-top: var(--space-1);
   color: var(--color-text-muted);
   font-size: var(--text-md);
   line-height: var(--leading-snug);
@@ -92,19 +105,41 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
+/* At-a-glance stat chips. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-2);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
 
-.progress {
-  margin-top: var(--space-3);
+/* Region 2 — progress. */
+.progressRegion {
+  flex: 0 0 200px;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+  padding-left: var(--space-5);
+  border-left: 1px solid var(--color-border);
 }
 .progressHead {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-2);
-  margin-bottom: var(--space-1);
 }
 .progressPct {
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   font-weight: var(--weight-semibold);
   color: var(--color-text);
 }
@@ -123,21 +158,28 @@
   height: 100%;
   border-radius: var(--radius-full);
   background: var(--color-primary);
+  transition: width var(--duration-normal) var(--ease-out);
+}
+.progressEmpty {
+  font-size: var(--text-sm);
+  color: var(--color-text-placeholder);
 }
 
-.cardFooter {
+/* Region 3 — people. */
+.people {
+  flex: 0 0 auto;
+  align-self: center;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-top: auto;
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--color-border);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+  padding-left: var(--space-5);
+  border-left: 1px solid var(--color-border);
 }
 .avatars {
   display: flex;
   align-items: center;
-  min-height: 26px;
+  min-height: 28px;
 }
 .avatar {
   margin-left: -8px;
@@ -159,6 +201,33 @@
   font-size: var(--text-sm);
   color: var(--color-text-muted);
   white-space: nowrap;
+}
+
+/* Mobile — stack the three regions vertically; dividers become top borders. */
+@media (max-width: 720px) {
+  .card {
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+  .progressRegion {
+    flex: none;
+    align-self: stretch;
+    padding-left: 0;
+    padding-top: var(--space-4);
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+  }
+  .people {
+    flex: none;
+    align-self: stretch;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: 0;
+    padding-top: var(--space-4);
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+  }
 }
 
 /* Empty state */

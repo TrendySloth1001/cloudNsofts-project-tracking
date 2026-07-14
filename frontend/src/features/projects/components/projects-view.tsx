@@ -12,7 +12,7 @@ import { Button, Card, Icon, Input, Select, Spinner } from '@/components/ui';
 import { UserAvatar } from '@/features/profile/components/user-avatar';
 import { useProjects } from '../use-projects';
 import { projectInitials, projectTint } from '../project-visuals';
-import { projectProgress } from '../task-utils';
+import { formatDate, projectProgress } from '../task-utils';
 import { CreateProjectDialog } from './create-project-dialog';
 import { ProjectStatusBadge } from './project-status-badge';
 import styles from './projects-view.module.css';
@@ -139,44 +139,71 @@ function ProjectCard({
   onOpen: () => void;
 }) {
   const tint = projectTint(project.id);
+  const total = project.tasks.length;
+  const done = project.tasks.filter((t) => t.status === 'done').length;
+  const pct = projectProgress(project);
+
   return (
     <Card interactive className={styles.card} onClick={onOpen}>
-      <div className={styles.cardHead}>
+      {/* Identity — monogram, name + status, description, at-a-glance stats. */}
+      <div className={styles.identity}>
         <span
           className={styles.monogram}
           style={{ background: tint.bg, color: tint.fg }}
         >
           {projectInitials(project.name)}
         </span>
-        <ProjectStatusBadge status={project.status} />
-      </div>
-
-      <h3 className={styles.cardName}>{project.name}</h3>
-      <p className={styles.cardDesc}>
-        {project.description || 'No description yet.'}
-      </p>
-
-      {project.tasks.length > 0 && (
-        <div className={styles.progress}>
-          <div className={styles.progressHead}>
-            <span className={styles.progressPct}>
-              {projectProgress(project)}%
-            </span>
-            <span className={styles.progressTasks}>
-              {project.tasks.filter((t) => t.status === 'done').length}/
-              {project.tasks.length} tasks
-            </span>
+        <div className={styles.idText}>
+          <div className={styles.nameRow}>
+            <h3 className={styles.cardName}>{project.name}</h3>
+            <ProjectStatusBadge status={project.status} />
           </div>
-          <div className={styles.progressTrack}>
-            <span
-              className={styles.progressBar}
-              style={{ width: `${projectProgress(project)}%` }}
-            />
+          <p className={styles.cardDesc}>
+            {project.description || 'No description yet.'}
+          </p>
+          <div className={styles.chips}>
+            <span className={styles.chip}>
+              <Icon name="layers" size={13} />
+              {plural(project.features.length, 'feature')}
+            </span>
+            <span className={styles.chip}>
+              <Icon name="flag" size={13} />
+              {plural(project.milestones.length, 'milestone')}
+            </span>
+            {project.dueDate && (
+              <span className={styles.chip}>
+                <Icon name="calendar" size={13} />
+                Due {formatDate(project.dueDate)}
+              </span>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
-      <div className={styles.cardFooter}>
+      {/* Progress */}
+      <div className={styles.progressRegion}>
+        {total > 0 ? (
+          <>
+            <div className={styles.progressHead}>
+              <span className={styles.progressPct}>{pct}%</span>
+              <span className={styles.progressTasks}>
+                {done}/{total} tasks
+              </span>
+            </div>
+            <div className={styles.progressTrack}>
+              <span
+                className={styles.progressBar}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </>
+        ) : (
+          <span className={styles.progressEmpty}>No tasks yet</span>
+        )}
+      </div>
+
+      {/* People */}
+      <div className={styles.people}>
         <div className={styles.avatars}>
           {project.members.length === 0 ? (
             <span className={styles.noTeam}>No team yet</span>
@@ -187,7 +214,7 @@ function ProjectCard({
                   key={m.id}
                   name={m.name}
                   seed={m.id}
-                  size={26}
+                  size={28}
                   className={styles.avatar}
                 />
               ))}

@@ -211,6 +211,21 @@ export function TaskBoardSwimlanes({
             }
             onDrop={lane.feature ? handleLaneDrop : undefined}
           >
+            {lane.feature && (
+              <div
+                className={styles.laneTopBar}
+                title={`${done}/${total} done`}
+                aria-hidden="true"
+              >
+                <span
+                  className={styles.laneTopFill}
+                  style={{
+                    width: `${pct}%`,
+                    ...(accent ? { background: accent } : {}),
+                  }}
+                />
+              </div>
+            )}
             {laneDrag && laneDropBefore === lane.feature?.id && (
               <div className={styles.laneDropLine} />
             )}
@@ -242,10 +257,6 @@ export function TaskBoardSwimlanes({
                   size={16}
                 />
               </button>
-              <span
-                className={styles.laneDot}
-                style={accent ? { background: accent } : undefined}
-              />
               {lane.feature?.pinned && (
                 <span className={styles.lanePinned} title="Pinned to top">
                   <Icon name="pin" size={13} />
@@ -255,20 +266,11 @@ export function TaskBoardSwimlanes({
                 {lane.feature?.name ?? 'No feature'}
               </span>
               {lane.feature && <FeatureStatusBadge status={lane.feature.status} />}
-              <span className={styles.laneProgress}>
-                <span className={styles.laneProgressBar}>
-                  <span
-                    className={styles.laneProgressFill}
-                    style={{
-                      width: `${pct}%`,
-                      ...(accent ? { background: accent } : {}),
-                    }}
-                  />
-                </span>
+              {total > 0 && (
                 <span className={styles.laneProgressText}>
                   {done}/{total}
                 </span>
-              </span>
+              )}
               {activeMembers.length > 0 && (
                 <span
                   className={styles.laneAvatars}

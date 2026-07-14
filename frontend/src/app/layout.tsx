@@ -17,12 +17,24 @@ export const metadata: Metadata = {
   description: 'CloudNSofts workspace.',
 };
 
+/**
+ * Set the initial theme from the OS appearance before first paint, so pre-auth
+ * pages (login/signup/legal) render dark on a dark system with no flash. Reads
+ * only the `prefers-color-scheme` media query — nothing is stored client-side.
+ * Once signed in, the app layout overrides this with the user's saved (DB)
+ * preference; `styles/tokens.css` keys its dark palette off `data-theme`.
+ */
+const THEME_INIT = `(function(){try{var d=document.documentElement;if(!d.dataset.theme){d.dataset.theme=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={plusJakarta.variable}>
-      <body>{children}</body>
+      <body>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+        {children}
+      </body>
     </html>
   );
 }

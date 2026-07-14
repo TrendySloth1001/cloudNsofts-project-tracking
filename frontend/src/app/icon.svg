@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
-  <rect width="120" height="120" rx="26" fill="#f2f0fe"/>
-  <g transform="translate(-24,-1)">
+  <rect width="120" height="120" rx="27" fill="#f2f0fe"/>
+  <!-- Pixel-cloud mark, scaled up and centered to fill the badge. -->
+  <g transform="translate(-34.5 -8.6) scale(1.125)">
     <g fill="#1d2939">
       <rect x="64" y="34" width="12" height="12" rx="2"/>
       <rect x="78" y="34" width="12" height="12" rx="2"/>
