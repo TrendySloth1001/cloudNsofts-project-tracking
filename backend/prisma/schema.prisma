@@ -422,15 +422,25 @@ model ChannelMember {
   @@map("channel_members")
 }
 
+// Who a doc is visible to. Mirrors ChannelVisibility: `internal` = team-only
+// (engineers), `client` = shared with the project's clients. Drag-and-drop
+// between the "Team review" and "Client review" sections flips this.
+enum DocVisibility {
+  internal
+  client
+}
+
 // A project documentation page — long-form markdown the team and coding agents
 // write to keep everyone aware of what's going on. Bodies can be large, so the
 // list endpoint returns metadata only; the body is fetched per doc.
 model Doc {
-  id             String   @id @default(cuid())
-  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id             String        @id @default(cuid())
+  project        Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId      String
   title          String
-  body           String   @default("")
+  body           String        @default("")
+  // Team-only by default; deliberately moved to `client` to share with clients.
+  visibility     DocVisibility @default(internal)
   // Manual ordering in the docs sidebar (lower = higher up).
   position       Int      @default(0)
   // Authorship (mirrors Message): display name + stable login email; agentName

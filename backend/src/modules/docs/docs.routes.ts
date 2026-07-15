@@ -11,10 +11,16 @@ export const docsRoutes = Router({ mergeParams: true });
 // clients read only.
 const canEditDocs = requireProjectAbility('canEditBoard');
 
-// Reads are open to anyone who can access the project (gate inherited above).
+// Reads are open to anyone who can access the project (gate inherited above);
+// the service scopes the result by role (clients see only the client section).
 docsRoutes.get('/', docsController.listDocs);
-docsRoutes.get('/:docId', docsController.getDoc);
 
+// Drag-and-drop reorder / move-between-sections. Must precede the `:docId`
+// route so "reorder" isn't matched as a doc id. Editors only (viewers/clients
+// can't move docs), so a client can never publish a doc to itself.
+docsRoutes.patch('/reorder', canEditDocs, docsController.reorderDocs);
+
+docsRoutes.get('/:docId', docsController.getDoc);
 docsRoutes.post('/', canEditDocs, docsController.createDoc);
 docsRoutes.patch('/:docId', canEditDocs, docsController.updateDoc);
 docsRoutes.delete('/:docId', canEditDocs, docsController.removeDoc);

@@ -3,6 +3,9 @@ import type {
   CreateDocInput,
   Doc,
   DocSummary,
+  DocVisibility,
+  ProjectRole,
+  ReorderDocsInput,
   UpdateDocInput,
 } from '@cnsofts/shared';
 import { prisma } from '../../infra/prisma';
@@ -14,6 +17,7 @@ type DocRow = {
   projectId: string;
   title: string;
   body: string;
+  visibility: DocVisibility;
   position: number;
   author: string;
   updatedBy: string | null;
@@ -22,12 +26,20 @@ type DocRow = {
   updatedAt: Date;
 };
 
+/** A `client`-role caller only ever sees docs shared with clients; every team
+ *  role (viewer/member/manager/admin) sees both sections. Returns the Prisma
+ *  `where` fragment scoping a query to what the caller may read. */
+function visibilityScope(role: ProjectRole | null): { visibility?: DocVisibility } {
+  return role === 'client' ? { visibility: 'client' } : {};
+}
+
 function toDoc(d: DocRow): Doc {
   return {
     id: d.id,
     projectId: d.projectId,
     title: d.title,
     body: d.body,
+    visibility: d.visibility,
     position: d.position,
     author: d.author,
     updatedBy: d.updatedBy,
@@ -41,6 +53,7 @@ function toDocSummary(d: Omit<DocRow, 'body' | 'author'>): DocSummary {
   return {
     id: d.id,
     title: d.title,
+    visibility: d.visibility,
     position: d.position,
     updatedBy: d.updatedBy,
     agentName: d.agentName,
@@ -54,24 +67,37 @@ async function ensureProject(projectId: string): Promise<void> {
   }
 }
 
-/** Load a doc, 404 unless it exists and belongs to the given project. */
-async function loadDoc(projectId: string, docId: string): Promise<DocRow> {
-  const doc = await prisma.doc.findFirst({ where: { id: docId, projectId } });
+/** Load a doc, 404 unless it exists, belongs to the project, and the caller's
+ *  role may see its section (a client can't load a team-only doc). Not-visible
+ *  reads as not-found so nothing about internal docs leaks to a client. */
+async function loadDoc(
+  projectId: string,
+  docId: string,
+  role: ProjectRole | null,
+): Promise<DocRow> {
+  const doc = await prisma.doc.findFirst({
+    where: { id: docId, projectId, ...visibilityScope(role) },
+  });
   if (!doc) throw HttpError.notFound('Doc not found');
   return doc;
 }
 
 export const docsService = {
-  /** Sidebar listing — metadata only (bodies can be large). */
-  async listDocs(projectId: string): Promise<DocSummary[]> {
+  /** Sidebar listing — metadata only (bodies can be large). Clients only see
+   *  the `client` section; team roles see both. */
+  async listDocs(
+    projectId: string,
+    role: ProjectRole | null,
+  ): Promise<DocSummary[]> {
     await ensureProject(projectId);
     const docs = await prisma.doc.findMany({
-      where: { projectId },
+      where: { projectId, ...visibilityScope(role) },
       orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
       select: {
         id: true,
         projectId: true,
         title: true,
+        visibility: true,
         position: true,
         updatedBy: true,
         agentName: true,
@@ -82,9 +108,14 @@ export const docsService = {
     return docs.map(toDocSummary);
   },
 
-  /** One doc with its full markdown body. */
-  async getDoc(projectId: string, docId: string): Promise<Doc> {
-    return toDoc(await loadDoc(projectId, docId));
+  /** One doc with its full markdown body (role-scoped: 404 for a client on a
+   *  team-only doc). */
+  async getDoc(
+    projectId: string,
+    docId: string,
+    role: ProjectRole | null,
+  ): Promise<Doc> {
+    return toDoc(await loadDoc(projectId, docId, role));
   },
 
   async createDoc(
@@ -94,13 +125,16 @@ export const docsService = {
     input: CreateDocInput,
   ): Promise<Doc> {
     await ensureProject(projectId);
-    // Append to the end of the sidebar.
-    const position = await prisma.doc.count({ where: { projectId } });
+    // Append to the end of its section.
+    const position = await prisma.doc.count({
+      where: { projectId, visibility: input.visibility },
+    });
     const created = await prisma.doc.create({
       data: {
         projectId,
         title: input.title,
         body: input.body,
+        visibility: input.visibility,
         position,
         author: user.name,
         authorEmail: user.email,
@@ -110,6 +144,27 @@ export const docsService = {
     return toDoc(created);
   },
 
+  /** Persist a drag-and-drop: every id in `orderedIds` is set to the target
+   *  `visibility` (its section) and its list index (its order). Moving a doc
+   *  into the `client` section is what shares it with clients. Only ids that
+   *  actually belong to the project are touched. */
+  async reorderDocs(
+    projectId: string,
+    input: ReorderDocsInput,
+  ): Promise<DocSummary[]> {
+    await ensureProject(projectId);
+    await prisma.$transaction(async (tx) => {
+      for (const [index, docId] of input.orderedIds.entries()) {
+        await tx.doc.updateMany({
+          where: { id: docId, projectId },
+          data: { visibility: input.visibility, position: index },
+        });
+      }
+    });
+    // Return the full (team) listing so the mover sees both sections refreshed.
+    return this.listDocs(projectId, null);
+  },
+
   async updateDoc(
     projectId: string,
     docId: string,
@@ -117,7 +172,8 @@ export const docsService = {
     agentName: string | null,
     input: UpdateDocInput,
   ): Promise<Doc> {
-    await loadDoc(projectId, docId);
+    // Reached only by team roles (canEditBoard); team scope sees every section.
+    await loadDoc(projectId, docId, null);
     const updated = await prisma.doc.update({
       where: { id: docId },
       data: {
@@ -135,7 +191,7 @@ export const docsService = {
     projectId: string,
     docId: string,
   ): Promise<void> {
-    await loadDoc(projectId, docId);
+    await loadDoc(projectId, docId, null);
     await prisma.doc.delete({ where: { id: docId } });
   },
 };

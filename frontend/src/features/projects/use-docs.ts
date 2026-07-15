@@ -9,6 +9,7 @@ function toSummary(doc: Doc): DocSummary {
   return {
     id: doc.id,
     title: doc.title,
+    visibility: doc.visibility,
     position: doc.position,
     updatedBy: doc.updatedBy,
     agentName: doc.agentName,
@@ -47,5 +48,10 @@ export function useDocs(projectId: string) {
     setDocs((prev) => prev.filter((d) => d.id !== docId));
   }, []);
 
-  return { docs, loading, reload, upsert, removeLocal };
+  /** Replace the whole list (used after a drag-and-drop reorder response). */
+  const replaceAll = useCallback((next: DocSummary[]) => {
+    setDocs(next);
+  }, []);
+
+  return { docs, loading, reload, upsert, removeLocal, replaceAll };
 }

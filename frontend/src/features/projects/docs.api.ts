@@ -3,6 +3,7 @@ import {
   type CreateDocInput,
   type Doc,
   type DocSummary,
+  type ReorderDocsInput,
   type UpdateDocInput,
 } from '@cnsofts/shared';
 import { apiClient } from '@/lib/api-client';
@@ -19,4 +20,10 @@ export const docsApi = {
     apiClient.patch<Doc>(apiPaths.projects.doc(projectId, docId), input),
   deleteDoc: (projectId: string, docId: string) =>
     apiClient.delete<void>(apiPaths.projects.doc(projectId, docId)),
+  /** Persist a drag-and-drop reorder/move; returns the refreshed listing. */
+  reorderDocs: (projectId: string, input: ReorderDocsInput) =>
+    apiClient.patch<DocSummary[]>(
+      apiPaths.projects.docsReorder(projectId),
+      input,
+    ),
 };

@@ -25,15 +25,16 @@ export interface ProjectPermissions extends ProjectAbilities {
   isViewer: boolean;
 }
 
-/** Resolve the caller's role for `project` from the members roster + global
- *  principal — the same rule the backend enforces (`getProjectRole`). */
+/** Resolve the caller's role for `project` from its roster — the same rule the
+ *  backend enforces (`getProjectRole`). Roles are per-project and come ONLY from
+ *  the roster: the global `UserRole` (incl. `ADMIN`) grants no project role here,
+ *  mirroring the backend, where the platform super-admin's cross-project reach is
+ *  metadata-only oversight, and content access flows through membership. */
 function resolveProjectRole(
   project: Project | null | undefined,
   principal: Principal | null,
 ): ProjectRole | null {
   if (!principal) return null;
-  // Global admin is a superuser; everyone else's role is per-project.
-  if (principal.role === 'ADMIN') return 'admin';
   if (!project) return null;
   const email = principal.email.toLowerCase();
   const mine = project.members.find((m) => m.email.toLowerCase() === email);

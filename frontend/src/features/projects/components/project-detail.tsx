@@ -238,6 +238,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             <ProjectDocs
               projectId={project.id}
               canEdit={perms.canEditBoard}
+              isClient={perms.isClient}
               onDetailChange={setChatDetail}
             />
           )}

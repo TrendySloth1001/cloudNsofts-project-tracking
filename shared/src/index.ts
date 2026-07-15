@@ -810,6 +810,18 @@ export type ResolveChannelInput = z.infer<typeof resolveChannelSchema>;
 export const DOC_TITLE_MAX_LENGTH = 120;
 export const DOC_BODY_MAX_LENGTH = 100_000;
 
+/** Who a doc is visible to. Mirrors {@link channelVisibilitySchema}:
+ *  `internal` = team-only (engineers), `client` = shared with the project's
+ *  clients. Docs live in one of two drag-and-drop sections keyed by this. */
+export const docVisibilitySchema = z.enum(['internal', 'client']);
+export type DocVisibility = z.infer<typeof docVisibilitySchema>;
+
+/** Section headings for the two doc audiences (single source for the UI). */
+export const DOC_VISIBILITY_LABELS: Record<DocVisibility, string> = {
+  internal: 'Team review',
+  client: 'Client review',
+};
+
 /** A project documentation page (markdown body). */
 export interface Doc {
   id: string;
@@ -817,6 +829,8 @@ export interface Doc {
   title: string;
   /** Markdown source, same wire format as messages. */
   body: string;
+  /** Team-only (`internal`) or shared with clients (`client`). */
+  visibility: DocVisibility;
   position: number;
   /** Display name of the original author. */
   author: string;
@@ -832,6 +846,7 @@ export interface Doc {
 export interface DocSummary {
   id: string;
   title: string;
+  visibility: DocVisibility;
   position: number;
   updatedBy: string | null;
   agentName: string | null;
@@ -845,8 +860,20 @@ export const createDocSchema = z.object({
     .min(1, 'A title is required')
     .max(DOC_TITLE_MAX_LENGTH),
   body: z.string().max(DOC_BODY_MAX_LENGTH).default(''),
+  // New docs default to team-only; they're deliberately moved to the client
+  // section when ready to share.
+  visibility: docVisibilitySchema.default('internal'),
 });
 export type CreateDocInput = z.infer<typeof createDocSchema>;
+
+/** Reorder within — or move between — the two doc sections. `visibility` is the
+ *  target section; `orderedIds` is its full ordered doc-id list after the drop.
+ *  Mirrors {@link reorderTasksSchema} (section is the "column"). */
+export const reorderDocsSchema = z.object({
+  visibility: docVisibilitySchema,
+  orderedIds: z.array(z.string().min(1)),
+});
+export type ReorderDocsInput = z.infer<typeof reorderDocsSchema>;
 
 export const updateDocSchema = z
   .object({
@@ -1251,6 +1278,7 @@ export const apiPaths = {
     milestone: (id: string, milestoneId: string) =>
       `${API_ROUTES.projects}/${id}/milestones/${milestoneId}`,
     docs: (id: string) => `${API_ROUTES.projects}/${id}/docs`,
+    docsReorder: (id: string) => `${API_ROUTES.projects}/${id}/docs/reorder`,
     doc: (id: string, docId: string) =>
       `${API_ROUTES.projects}/${id}/docs/${docId}`,
     // Upload an image to the project (auth + canEditBoard). Bytes go to object

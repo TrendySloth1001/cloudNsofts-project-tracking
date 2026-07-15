@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import type { DocVisibility } from '@cnsofts/shared';
 import { Button, Icon, Spinner } from '@/components/ui';
 import { cx } from '@/lib/cx';
 import { useDocs } from '../use-docs';
@@ -11,22 +12,29 @@ import styles from './project-docs.module.css';
 
 export interface ProjectDocsProps {
   projectId: string;
-  /** Caller may create / edit / delete docs (members, managers, admins). */
+  /** Caller may create / edit / delete / move docs (members, managers, admins). */
   canEdit: boolean;
+  /** A client sees only the single client-shared list (backend-enforced); team
+   *  roles see the Team + Client review sections. */
+  isClient: boolean;
   /** Fired (mobile) when a page is opened/closed, so the parent can go
    *  full-screen by hiding the project header. */
   onDetailChange?: (open: boolean) => void;
 }
 
 /** A per-project documentation space: a sidebar of markdown pages and a
- *  reader/editor. Team members and coding agents write here to keep everyone
- *  aware of what's going on. On mobile it's a master-detail (list, then page). */
+ *  reader/editor. Docs live in two drag-and-drop sections — "Team review"
+ *  (engineers only) and "Client review" (shared with the client). Moving a page
+ *  into Client review is what exposes it; clients never see the team section.
+ *  On mobile it's a master-detail (list, then page). */
 export function ProjectDocs({
   projectId,
   canEdit,
+  isClient,
   onDetailChange,
 }: ProjectDocsProps) {
-  const { docs, loading, reload, upsert, removeLocal } = useDocs(projectId);
+  const { docs, loading, reload, upsert, removeLocal, replaceAll } =
+    useDocs(projectId);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   // Id of a freshly-created page so the viewer opens straight in edit mode.
@@ -55,13 +63,14 @@ export function ProjectDocs({
     setMobileOpen(true);
   }
 
-  async function createDoc() {
+  async function createDoc(visibility: DocVisibility = 'internal') {
     if (creating) return;
     setCreating(true);
     try {
       const doc = await docsApi.createDoc(projectId, {
         title: 'Untitled page',
         body: '',
+        visibility,
       });
       upsert(doc);
       setActiveId(doc.id);
@@ -72,6 +81,11 @@ export function ProjectDocs({
     }
   }
 
+  async function reorderDocs(visibility: DocVisibility, orderedIds: string[]) {
+    // Persist and refresh from the response (visibility may have changed).
+    replaceAll(await docsApi.reorderDocs(projectId, { visibility, orderedIds }));
+  }
+
   return (
     <div className={cx(styles.layout, mobileOpen && styles.mobileOpen)}>
       <DocsSidebar
@@ -80,7 +94,9 @@ export function ProjectDocs({
         loading={loading}
         onSelect={openDoc}
         onCreate={createDoc}
-        canCreate={canEdit}
+        onReorder={reorderDocs}
+        canEdit={canEdit}
+        isClient={isClient}
         creating={creating}
       />
 
@@ -114,12 +130,14 @@ export function ProjectDocs({
             </span>
             <p className={styles.emptyTitle}>No docs yet</p>
             <p className={styles.emptyText}>
-              {canEdit
-                ? 'Create a page to document the project — architecture, onboarding, decisions, a running overview. Your coding agents can read and write these too.'
-                : 'No documentation has been added to this project yet.'}
+              {isClient
+                ? 'No documents have been shared with you yet.'
+                : canEdit
+                  ? 'Create a page in Team review to document the project. Drag it to Client review when it’s ready to share. Your coding agents can read and write team pages too.'
+                  : 'No documentation has been added to this project yet.'}
             </p>
             {canEdit && (
-              <Button leftIcon="add" onClick={createDoc} disabled={creating}>
+              <Button leftIcon="add" onClick={() => createDoc('internal')} disabled={creating}>
                 New page
               </Button>
             )}
