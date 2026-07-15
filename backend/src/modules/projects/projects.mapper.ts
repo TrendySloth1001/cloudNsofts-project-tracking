@@ -104,6 +104,17 @@ function toMilestone(m: MilestoneRow): Milestone {
   };
 }
 
+/**
+ * A metadata-only view of a project: identity + roster + status/dates, with the
+ * work contents (features, tasks, milestones) stripped to empty. Used for the
+ * platform super-admin's oversight of projects it is NOT a roster member of, so
+ * it can see that a project exists and who is on it without reading anyone's
+ * task/comment contents (DPDP data-minimization — CLAUDE.md §6).
+ */
+export function toMetadataOnly(dto: Project): Project {
+  return { ...dto, features: [], tasks: [], milestones: [] };
+}
+
 /** Convert a Prisma project (with relations) into the shared API shape. */
 export function toProjectDto(p: PrismaProjectFull): Project {
   return {

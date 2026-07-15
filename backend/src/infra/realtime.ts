@@ -16,6 +16,7 @@ import { prisma } from './prisma';
 import { createRedis } from './redis';
 import { authService } from '../modules/auth/auth.service';
 import { canAccessProject } from '../modules/auth/access';
+import { isPlatformAdmin } from '../modules/auth/platform-admin';
 
 let io: SocketIOServer | null = null;
 
@@ -78,7 +79,7 @@ export function initRealtime(httpServer: HttpServer): SocketIOServer {
             select: { id: true },
           });
           const isMember =
-            user.role === 'ADMIN' ||
+            isPlatformAdmin(user) ||
             (await prisma.channelMember.count({
               where: { channelId, email: user.email },
             })) > 0;

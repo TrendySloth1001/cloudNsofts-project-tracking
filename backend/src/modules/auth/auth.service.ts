@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import {
@@ -23,7 +23,11 @@ import {
 import { env } from '../../infra/env';
 import { prisma } from '../../infra/prisma';
 import { HttpError } from '../../shared/http/http-error';
-import { projectScopeWhere } from './access';
+import { rosterScopeWhere } from './access';
+import { isPlatformAdmin, safeEqual } from './platform-admin';
+
+// Re-exported for consumers that historically imported it from this module.
+export { isPlatformAdmin } from './platform-admin';
 
 /**
  * Auth for an invite-only app. The bootstrap admin lives in env; all other
@@ -44,21 +48,6 @@ interface TokenPayload {
   email: string;
   name: string;
   role: AuthUser['role'];
-}
-
-/** Length-safe, constant-time string comparison. */
-function safeEqual(a: string, b: string): boolean {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) return false;
-  return timingSafeEqual(bufA, bufB);
-}
-
-/** The single platform super-admin is the env `ADMIN_EMAIL`. This is the one
- *  authority above per-project roles (see CLAUDE.md §6), so it's the gate for
- *  platform-wide tools like the storage audit. */
-export function isPlatformAdmin(user: AuthUser): boolean {
-  return safeEqual(user.email, env.ADMIN_EMAIL);
 }
 
 /** Personal Access Tokens carry this prefix so they're told apart from JWTs. */
@@ -110,7 +99,10 @@ async function scopedProjectIds(
 ): Promise<string[]> {
   if (ids.length === 0) return [];
   const rows = await prisma.project.findMany({
-    where: { id: { in: ids }, ...projectScopeWhere(principal) },
+    // A PAT grants *content* access as the principal, so it may only be scoped
+    // to roster projects — even for the platform admin (whose cross-project
+    // reach is metadata-only, not tokenable content access).
+    where: { id: { in: ids }, ...rosterScopeWhere(principal) },
     select: { id: true },
   });
   return rows.map((r) => r.id);
@@ -550,7 +542,9 @@ export const authService = {
   /** Recent actions performed by the principal's agents (PATs), newest first,
    *  scoped to projects the principal can see. */
   async getAgentActivity(principal: AuthUser): Promise<AgentActivity[]> {
-    const scope = projectScopeWhere(principal);
+    // Activity carries task/message bodies (contents), so scope to roster
+    // projects only — the platform admin doesn't get a cross-project feed.
+    const scope = rosterScopeWhere(principal);
     const [events, messages] = await Promise.all([
       prisma.taskEvent.findMany({
         where: { agentName: { not: null }, task: { project: scope } },

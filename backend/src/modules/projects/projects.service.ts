@@ -26,8 +26,9 @@ import {
 import { prisma } from '../../infra/prisma';
 import { HttpError } from '../../shared/http/http-error';
 import { projectScopeWhere } from '../auth/access';
+import { isPlatformAdmin } from '../auth/platform-admin';
 import { notificationsService } from '../notifications/notifications.service';
-import { toProjectDto } from './projects.mapper';
+import { toMetadataOnly, toProjectDto } from './projects.mapper';
 
 /** Most recent task-events loaded per task in a project read (older history is
  *  not sent in the board payload). */
@@ -112,13 +113,37 @@ async function logStatusChange(
 
 
 export const projectsService = {
-  async list(user: AuthUser): Promise<Project[]> {
+  /**
+   * List the projects the caller may see. A normal user gets full boards for
+   * their roster projects. The env platform super-admin additionally sees every
+   * project, but foreign ones (it isn't a roster member of) come back as
+   * metadata only — no task/comment contents. When the request is made with a
+   * project-scoped PAT, the list is further narrowed to that token's projects.
+   */
+  async list(
+    user: AuthUser,
+    tokenProjectIds: string[] | null = null,
+  ): Promise<Project[]> {
+    const base = projectScopeWhere(user);
+    // A project-scoped token may only enumerate the projects it was limited to.
+    const where =
+      tokenProjectIds && tokenProjectIds.length > 0
+        ? { AND: [base, { id: { in: tokenProjectIds } }] }
+        : base;
     const projects = await prisma.project.findMany({
-      where: projectScopeWhere(user),
+      where,
       include,
       orderBy: { createdAt: 'desc' },
     });
-    return projects.map(toProjectDto);
+    const platformAdmin = isPlatformAdmin(user);
+    return projects.map((p) => {
+      const dto = toProjectDto(p);
+      if (!platformAdmin) return dto;
+      const onRoster =
+        p.members.some((m) => m.email === user.email) ||
+        p.clients.some((c) => c.email === user.email);
+      return onRoster ? dto : toMetadataOnly(dto);
+    });
   },
 
   getById(id: string): Promise<Project> {
@@ -132,19 +157,17 @@ export const projectsService = {
         description: input.description,
         status: input.status,
         // The creator becomes the project's admin (its owner) so they can run
-        // it end-to-end, including editing/deleting it. The env platform
-        // super-admin is already an admin everywhere, so it needs no row.
-        ...(creator.role !== 'ADMIN'
-          ? {
-              members: {
-                create: {
-                  name: creator.name,
-                  email: creator.email,
-                  role: 'admin',
-                },
-              },
-            }
-          : {}),
+        // it end-to-end, including editing/deleting it. This ALWAYS applies —
+        // including the env platform super-admin: cross-project access now flows
+        // only through the roster (CLAUDE.md §6), so without this row the admin
+        // would create a project it couldn't then open.
+        members: {
+          create: {
+            name: creator.name,
+            email: creator.email,
+            role: 'admin',
+          },
+        },
       },
     });
     return load(created.id);

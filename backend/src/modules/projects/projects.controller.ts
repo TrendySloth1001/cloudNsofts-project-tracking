@@ -45,7 +45,12 @@ function callerRole(req: Request): ProjectRole {
 
 export const projectsController = {
   list: asyncHandler(async (req, res) => {
-    res.json(await projectsService.list(requireUser(req)));
+    res.json(
+      await projectsService.list(
+        requireUser(req),
+        req.tokenScope?.projectIds ?? null,
+      ),
+    );
   }),
   create: asyncHandler(async (req, res) => {
     const input = validate(createProjectSchema, req.body);

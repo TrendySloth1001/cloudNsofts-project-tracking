@@ -8,6 +8,7 @@ import {
 } from '@cnsofts/shared';
 import { prisma } from '../../infra/prisma';
 import { HttpError } from '../../shared/http/http-error';
+import { isPlatformAdmin } from './platform-admin';
 
 /** The authenticated principal, or a 401 if the request wasn't authed. */
 export function requireUser(req: Request): AuthUser {
@@ -16,23 +17,20 @@ export function requireUser(req: Request): AuthUser {
 }
 
 /**
- * The user's effective role *within a project*, or `null` if they can't see it.
- * Roles are per-project (the same person can be a member of one project and a
- * client of another), resolved from that project's rosters — not the global
- * account role. The global ADMIN is the only exception: a superuser everywhere.
- *  - ADMIN: `admin` on every project.
+ * The user's effective role *within a project*, or `null` if they can't enter
+ * it. Resolved purely from that project's rosters — **never** the global account
+ * role (CLAUDE.md §6). The env platform super-admin gets no bypass here: it only
+ * "enters" a project it is actually a roster member of (project content is
+ * membership-gated). Its cross-project *metadata* oversight lives in the list
+ * path ({@link projectScopeWhere}), not here.
  *  - a `ProjectMember` of this project: their `ProjectMember.role`.
  *  - a `ProjectClient` of this project: `client`.
- *  - otherwise: `null` (no access).
+ *  - otherwise: `null` (no content access).
  */
 export async function getProjectRole(
   user: AuthUser,
   projectId: string,
 ): Promise<ProjectRole | null> {
-  if (user.role === 'ADMIN') {
-    const exists = await prisma.project.count({ where: { id: projectId } });
-    return exists > 0 ? 'admin' : null;
-  }
   const membership = await prisma.projectMember.findFirst({
     where: { projectId, email: user.email },
     select: { role: true },
@@ -44,7 +42,7 @@ export async function getProjectRole(
   return isClient > 0 ? 'client' : null;
 }
 
-/** Whether a user may see/enter a project (any role at all). */
+/** Whether a user may see/enter a project's contents (any roster role at all). */
 export async function canAccessProject(
   user: AuthUser,
   projectId: string,
@@ -52,16 +50,27 @@ export async function canAccessProject(
   return (await getProjectRole(user, projectId)) !== null;
 }
 
-/** Prisma `where` that scopes a project list to what the user may see — every
- *  project where they're a member OR a client (admins see all). */
-export function projectScopeWhere(user: AuthUser) {
-  if (user.role === 'ADMIN') return {};
+/** Prisma `where` for content-level queries: the projects a user may actually
+ *  read *inside* — roster membership only, with NO platform-admin bypass. Use
+ *  this whenever a query returns task/message/doc bodies (e.g. the agent
+ *  activity feed), so the super-admin can't read contents it isn't a member of. */
+export function rosterScopeWhere(user: AuthUser) {
   return {
     OR: [
       { members: { some: { email: user.email } } },
       { clients: { some: { email: user.email } } },
     ],
   };
+}
+
+/** Prisma `where` that scopes the project *list* to what the user may see. A
+ *  normal user sees only their roster projects. The env platform super-admin
+ *  additionally sees every project for oversight — but the list path returns
+ *  those foreign projects as **metadata only** (no contents); see
+ *  `projectsService.list`. */
+export function projectScopeWhere(user: AuthUser) {
+  if (isPlatformAdmin(user)) return {};
+  return rosterScopeWhere(user);
 }
 
 /**

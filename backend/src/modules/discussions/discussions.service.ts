@@ -22,6 +22,7 @@ import type {
 } from '@cnsofts/shared';
 import { prisma } from '../../infra/prisma';
 import { HttpError } from '../../shared/http/http-error';
+import { isPlatformAdmin } from '../auth/platform-admin';
 import { realtime } from '../../infra/realtime';
 import { pulseChannel, waitForChannelPulse } from '../../infra/channel-events';
 import { notificationsService } from '../notifications/notifications.service';
@@ -38,13 +39,14 @@ async function ensureProject(projectId: string): Promise<void> {
   }
 }
 
-/** True if the user may see/enter a channel: admins bypass; everyone else must
- *  be an explicit member (matched by login email). */
+/** True if the user may see/enter a channel: the env platform admin bypasses;
+ *  everyone else must be an explicit member (matched by login email). Keys off
+ *  the platform identity, never the global `UserRole` value. */
 async function hasChannelAccess(
   channelId: string,
   user: AuthUser,
 ): Promise<boolean> {
-  if (user.role === 'ADMIN') return true;
+  if (isPlatformAdmin(user)) return true;
   return (
     (await prisma.channelMember.count({
       where: { channelId, email: user.email },
@@ -210,8 +212,8 @@ export const discussionsService = {
     const channels = await prisma.channel.findMany({
       where: {
         projectId,
-        // Non-admins only see channels they belong to.
-        ...(user.role === 'ADMIN'
+        // Everyone but the platform admin only sees channels they belong to.
+        ...(isPlatformAdmin(user)
           ? {}
           : { members: { some: { email: user.email } } }),
       },
@@ -406,7 +408,7 @@ export const discussionsService = {
     if (channelId) {
       await ensureChannelAccess(projectId, channelId, user);
       channelIds = [channelId];
-    } else if (user.role === 'ADMIN') {
+    } else if (isPlatformAdmin(user)) {
       const rows = await prisma.channel.findMany({
         where: { projectId },
         select: { id: true },
@@ -675,9 +677,9 @@ export const discussionsService = {
       select: { authorEmail: true },
     });
     if (!message) throw HttpError.notFound('Message not found');
-    // Admins may remove anyone's message; others only their own.
+    // The platform admin may remove anyone's message; others only their own.
     const isOwn = !!message.authorEmail && message.authorEmail === user.email;
-    if (user.role !== 'ADMIN' && !isOwn) {
+    if (!isPlatformAdmin(user) && !isOwn) {
       throw HttpError.forbidden('You can only delete your own messages');
     }
     await prisma.message.delete({ where: { id: messageId } });
@@ -739,7 +741,7 @@ export const discussionsService = {
     });
     if (!row) throw HttpError.notFound('Scheduled message not found');
     const isOwn = !!row.authorEmail && row.authorEmail === user.email;
-    if (user.role !== 'ADMIN' && !isOwn) {
+    if (!isPlatformAdmin(user) && !isOwn) {
       throw HttpError.forbidden('You can only cancel your own scheduled messages');
     }
     if (row.status !== 'pending') {
