@@ -1,15 +1,23 @@
 import type { Request, Response, NextFunction } from 'express';
 import { HttpError } from '../../shared/http/http-error';
 import { authService, isPlatformAdmin } from './auth.service';
+import { COOKIE_ACCESS, COOKIE_CSRF, readCookie } from './cookies';
 
 /** HTTP methods a read-only token is allowed to use. */
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /**
- * Rejects the request with 401 unless it carries a valid bearer token — either
- * a short-lived JWT (browser sessions) or a Personal Access Token (`cnsofts_pat_…`,
- * used by coding agents). Both resolve to the same `req.authUser` principal, so
- * every downstream RBAC check treats an agent exactly like the user it acts as.
+ * Rejects the request with 401 unless it carries a valid credential — a browser
+ * session (the httpOnly access-JWT cookie) OR a bearer token in the
+ * `Authorization` header (a short-lived JWT, or a Personal Access Token
+ * `cnsofts_pat_…` used by coding agents / the MCP). All resolve to the same
+ * `req.authUser` principal, so every downstream RBAC check treats an agent
+ * exactly like the user it acts as.
+ *
+ * Cookie-authenticated *mutations* additionally require a matching CSRF token
+ * (double-submit: the `X-CSRF-Token` header must equal the readable CSRF
+ * cookie). Bearer requests skip CSRF — an attacker's site can't set the
+ * `Authorization` header cross-origin, and PATs never ride in cookies.
  */
 export function requireAuth(
   req: Request,
@@ -17,10 +25,26 @@ export function requireAuth(
   next: NextFunction,
 ): void {
   const header = req.headers.authorization ?? '';
-  const [scheme, token] = header.split(' ');
-  if (scheme !== 'Bearer' || !token) {
+  const [scheme, headerToken] = header.split(' ');
+  const hasBearer = scheme === 'Bearer' && !!headerToken;
+  const cookieToken = hasBearer
+    ? null
+    : readCookie(req.headers.cookie, COOKIE_ACCESS);
+  const token = hasBearer ? headerToken : cookieToken;
+
+  if (!token) {
     next(HttpError.unauthorized('Authentication required'));
     return;
+  }
+
+  // CSRF gate for cookie-based mutating requests (double-submit token).
+  if (cookieToken && !SAFE_METHODS.has(req.method)) {
+    const headerCsrf = req.get('x-csrf-token');
+    const cookieCsrf = readCookie(req.headers.cookie, COOKIE_CSRF);
+    if (!headerCsrf || !cookieCsrf || headerCsrf !== cookieCsrf) {
+      next(HttpError.forbidden('Invalid or missing CSRF token.'));
+      return;
+    }
   }
 
   if (authService.isApiToken(token)) {

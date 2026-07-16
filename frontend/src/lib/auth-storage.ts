@@ -1,17 +1,20 @@
-const TOKEN_KEY = 'cnsofts.auth.token';
+/**
+ * Auth is cookie-based: the access + refresh tokens live in httpOnly cookies the
+ * browser manages and JS cannot read (so XSS can't steal them). The only value
+ * the client reads is the non-httpOnly CSRF token, which it echoes back in the
+ * `X-CSRF-Token` header on mutating requests (double-submit CSRF).
+ */
+const CSRF_COOKIE = 'cnsofts_csrf';
 
-/** Client-side auth token storage. SSR-safe (no-ops on the server). */
-export const authStorage = {
-  get(): string | null {
-    if (typeof window === 'undefined') return null;
-    return window.localStorage.getItem(TOKEN_KEY);
-  },
-  set(token: string): void {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(TOKEN_KEY, token);
-  },
-  clear(): void {
-    if (typeof window === 'undefined') return;
-    window.localStorage.removeItem(TOKEN_KEY);
-  },
-};
+/** Read the CSRF token from `document.cookie` (SSR-safe → null on the server). */
+export function readCsrfToken(): string | null {
+  if (typeof document === 'undefined') return null;
+  for (const part of document.cookie.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() === CSRF_COOKIE) {
+      return decodeURIComponent(part.slice(eq + 1).trim());
+    }
+  }
+  return null;
+}

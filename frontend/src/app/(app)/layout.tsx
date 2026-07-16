@@ -29,8 +29,14 @@ export default function AppLayout({
   // that would survive into the next account signed in from this tab and leak
   // one user's data to another. A hard reload wipes all client state.
   function signOut() {
-    authApi.logout();
-    window.location.href = '/login';
+    // Revoke the session server-side (clears the httpOnly cookies), then do a
+    // full-page nav — clearing cookies isn't enough: the in-memory project/
+    // notification stores are module singletons that would otherwise leak one
+    // account's data into the next sign-in from this tab. A hard reload wipes
+    // all client state.
+    void authApi.logout().finally(() => {
+      window.location.href = '/login';
+    });
   }
 
   if (loading || !user) {

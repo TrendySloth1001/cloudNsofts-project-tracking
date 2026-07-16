@@ -35,3 +35,34 @@ export const apiRateLimiter = rateLimit({
       .json({ error: { message: 'Too many requests — please slow down.' } });
   },
 });
+
+/**
+ * Strict per-IP limiter for the unauthenticated auth endpoints (login, signup,
+ * OAuth start/callback). A brute-force / credential-stuffing gate on top of the
+ * global limiter. `skipSuccessfulRequests` means only FAILED attempts (non-2xx)
+ * count, so a legitimate user logging in repeatedly is never blocked while a
+ * password-guesser is cut off after {@link env.AUTH_RATE_LIMIT_MAX} misses.
+ */
+export const authRateLimiter = rateLimit({
+  windowMs: env.AUTH_RATE_LIMIT_WINDOW_MS,
+  limit: env.AUTH_RATE_LIMIT_MAX,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  store: redis
+    ? new RedisStore({
+        prefix: 'rl:auth:',
+        sendCommand: (...args: string[]) =>
+          redis!.call(args[0], ...args.slice(1)) as Promise<number>,
+      })
+    : undefined,
+  // Always key on the client IP (these requests carry no bearer token).
+  keyGenerator: (req) => ipKeyGenerator(req.ip ?? '0.0.0.0'),
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: {
+        message: 'Too many attempts — please wait a few minutes and try again.',
+      },
+    });
+  },
+});

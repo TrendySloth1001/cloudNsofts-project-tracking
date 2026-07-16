@@ -7,14 +7,17 @@ import { z } from 'zod';
 
 /* --------------------------------- Auth --------------------------------- */
 
+/** Bounds for account passwords. The max caps oversized input at the boundary
+ *  (the backend additionally SHA-256 pre-hashes before bcrypt, so length never
+ *  affects hashing cost). */
+export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MAX_LENGTH = 200;
+
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email('Enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
+  password: z.string().min(1, 'Password is required').max(PASSWORD_MAX_LENGTH),
 });
 export type LoginInput = z.infer<typeof loginSchema>;
-
-/** Minimum length for a new account password. */
-export const PASSWORD_MIN_LENGTH = 8;
 
 /** Public self-service signup (open registration). */
 export const signupSchema = z.object({
@@ -28,7 +31,7 @@ export const signupSchema = z.object({
   password: z
     .string()
     .min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters`)
-    .max(200),
+    .max(PASSWORD_MAX_LENGTH),
 });
 export type SignupInput = z.infer<typeof signupSchema>;
 
@@ -1212,6 +1215,8 @@ export const apiPaths = {
   auth: {
     login: () => `${API_ROUTES.auth}/login`,
     signup: () => `${API_ROUTES.auth}/signup`,
+    refresh: () => `${API_ROUTES.auth}/refresh`,
+    logout: () => `${API_ROUTES.auth}/logout`,
     google: () => `${API_ROUTES.auth}/google`,
     me: () => `${API_ROUTES.auth}/me`,
     tokens: () => `${API_ROUTES.auth}/tokens`,

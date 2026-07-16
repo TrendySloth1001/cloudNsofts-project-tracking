@@ -43,6 +43,33 @@ model User {
 }
 
 /**
+ * A browser login session. The refresh token (an opaque value in an httpOnly
+ * cookie) is stored only as its sha-256 hash; presenting it mints a fresh
+ * short-lived access JWT. The token is ROTATED on every refresh — the consumed
+ * row is revoked and `replacedById` points at its successor — so a stolen token
+ * that is later reused is detectable (reuse of an already-rotated token revokes
+ * the whole chain). Revoking a row (logout / "sign out everywhere") invalidates
+ * that session immediately: the revocation the stateless access JWT can't do on
+ * its own. `userId` mirrors ApiToken — a `User.id` or the `'admin'` sentinel,
+ * intentionally not a strict FK.
+ */
+model Session {
+  id           String    @id @default(cuid())
+  userId       String
+  tokenHash    String    @unique
+  userAgent    String?
+  ip           String?
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String?
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+/**
  * A long-lived Personal Access Token that lets a coding agent (e.g. Claude Code
  * via the MCP server) act AS the token's owner. Only the sha-256 hash is stored;
  * the plaintext `cnsofts_pat_…` value is shown once at creation.

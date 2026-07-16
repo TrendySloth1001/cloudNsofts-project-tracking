@@ -8,6 +8,7 @@ import { Button, Divider, Input } from '@/components/ui';
 import { Logo } from '@/components/brand/logo';
 import { config } from '@/lib/config';
 import { authApi } from '../auth.api';
+import { invalidatePrincipal } from '../use-permissions';
 import { GoogleIcon } from './google-icon';
 import styles from './login-form.module.css';
 
@@ -61,6 +62,7 @@ export function LoginForm() {
     setSubmitting(true);
     try {
       await authApi.login(result.data);
+      invalidatePrincipal();
       router.replace('/');
     } catch (err) {
       setSubmitting(false);

@@ -2,7 +2,6 @@
 
 import { io, type Socket } from 'socket.io-client';
 import { config } from '@/lib/config';
-import { authStorage } from '@/lib/auth-storage';
 
 /**
  * A single Socket.IO connection shared across the app, created lazily and
@@ -24,8 +23,9 @@ function ensureSocket(): Socket {
       autoConnect: false,
       // WebSocket only — no HTTP long-poll handshake.
       transports: ['websocket'],
-      // Re-read the token on every (re)connect handshake.
-      auth: (cb) => cb({ token: authStorage.get() ?? '' }),
+      // Send the session cookies on the WS upgrade so the server authenticates
+      // the handshake from the httpOnly access cookie (no token in JS).
+      withCredentials: true,
     });
   }
   return socket;

@@ -1,6 +1,6 @@
-import type { ApiError } from '@cnsofts/shared';
+import { apiPaths, type ApiError } from '@cnsofts/shared';
 import { config } from './config';
-import { authStorage } from './auth-storage';
+import { readCsrfToken } from './auth-storage';
 
 export class ApiRequestError extends Error {
   constructor(
@@ -33,22 +33,65 @@ export function fieldErrorMessage(err: unknown, field: string): string | null {
   return null;
 }
 
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+/** A single in-flight refresh, shared so concurrent 401s trigger only one. */
+let refreshInflight: Promise<boolean> | null = null;
+
+/** Try to mint a fresh access token from the refresh cookie. Returns whether it
+ *  succeeded. Deduped so a burst of 401s produces one refresh call. */
+function tryRefresh(): Promise<boolean> {
+  if (!refreshInflight) {
+    refreshInflight = fetch(`${config.apiUrl}${apiPaths.auth.refresh()}`, {
+      method: 'POST',
+      credentials: 'include',
+      cache: 'no-store',
+    })
+      .then((r) => r.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshInflight = null;
+      });
+  }
+  return refreshInflight;
+}
+
 /**
  * Base HTTP client. Prefixes the configured API URL, sends/receives JSON, and
- * normalizes error responses into `ApiRequestError`. Feature APIs build on this
- * rather than calling `fetch` directly.
+ * normalizes error responses into `ApiRequestError`. Auth rides in httpOnly
+ * cookies (`credentials: 'include'`); mutating requests echo the CSRF cookie in
+ * the `X-CSRF-Token` header. On a 401 it transparently refreshes the access
+ * token once and retries. Feature APIs build on this rather than calling
+ * `fetch` directly.
  */
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = authStorage.get();
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+  allowRefresh = true,
+): Promise<T> {
+  const method = (init?.method ?? 'GET').toUpperCase();
+  const csrf = readCsrfToken();
   const res = await fetch(`${config.apiUrl}${path}`, {
     ...init,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(csrf && !SAFE_METHODS.has(method) ? { 'X-CSRF-Token': csrf } : {}),
       ...(init?.headers ?? {}),
     },
     cache: 'no-store',
   });
+
+  // Access token expired → refresh once and retry the original request. Skip
+  // for the auth endpoints themselves to avoid loops.
+  if (
+    res.status === 401 &&
+    allowRefresh &&
+    !path.startsWith(apiPaths.auth.refresh()) &&
+    !path.startsWith(apiPaths.auth.login())
+  ) {
+    if (await tryRefresh()) return request<T>(path, init, false);
+  }
 
   if (!res.ok) {
     let message = `Request failed with status ${res.status}`;

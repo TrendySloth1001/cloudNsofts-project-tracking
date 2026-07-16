@@ -13,17 +13,14 @@ export function useCurrentUser() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!authApi.isAuthenticated()) {
-      router.replace('/login');
-      return;
-    }
+    // Auth is cookie-based: ask the server who we are. `me()` transparently
+    // refreshes an expired access token; a real 401 means no session.
     authApi
       .me()
       .then((res) => setUser(res.user))
       .catch(() => {
         // Hard reload (not a client route change) so any in-memory store from
-        // the expired session is wiped before /login renders.
-        authApi.logout();
+        // the ended session is wiped before /login renders.
         window.location.href = '/login';
       })
       .finally(() => setLoading(false));

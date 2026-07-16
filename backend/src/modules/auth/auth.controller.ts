@@ -1,4 +1,5 @@
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
+import type { AuthUser } from '@cnsofts/shared';
 import {
   createApiTokenSchema,
   loginSchema,
@@ -8,9 +9,17 @@ import {
 } from '@cnsofts/shared';
 import { env } from '../../infra/env';
 import { asyncHandler } from '../../shared/http/async-handler';
+import { HttpError } from '../../shared/http/http-error';
 import { validate } from '../../shared/http/validate';
 import { requireUser } from './access';
 import { authService } from './auth.service';
+import {
+  COOKIE_REFRESH,
+  clearSessionCookies,
+  newCsrfToken,
+  readCookie,
+  setSessionCookies,
+} from './cookies';
 import {
   consentUrl,
   fetchGoogleUser,
@@ -22,17 +31,19 @@ import {
 const OAUTH_STATE_COOKIE = 'g_oauth_state';
 const OAUTH_COOKIE_PATH = '/api/auth';
 
-/** Read one cookie value from the raw Cookie header (no cookie-parser dep). */
-function readCookie(header: string | undefined, name: string): string | null {
-  if (!header) return null;
-  for (const part of header.split(';')) {
-    const eq = part.indexOf('=');
-    if (eq === -1) continue;
-    if (part.slice(0, eq).trim() === name) {
-      return decodeURIComponent(part.slice(eq + 1).trim());
-    }
-  }
-  return null;
+/** Client fingerprint stored on a session for auditing. */
+function sessionMeta(req: Request): { userAgent?: string; ip?: string } {
+  return { userAgent: req.get('user-agent') ?? undefined, ip: req.ip };
+}
+
+/** Open a session for a just-authenticated user and set the auth cookies. */
+async function establishSession(
+  req: Request,
+  res: Response,
+  user: AuthUser,
+): Promise<void> {
+  const tokens = await authService.startSession(user, sessionMeta(req));
+  setSessionCookies(res, tokens, newCsrfToken());
 }
 
 /** This server's public callback URL, derived from the (proxied) request so it
@@ -47,12 +58,39 @@ function callbackUrl(req: Request): string {
 export const authController = {
   login: asyncHandler(async (req, res) => {
     const input = validate(loginSchema, req.body);
-    res.json(await authService.login(input));
+    const user = await authService.login(input);
+    await establishSession(req, res, user);
+    res.json({ user });
   }),
 
   signup: asyncHandler(async (req, res) => {
     const input = validate(signupSchema, req.body);
-    res.status(201).json(await authService.signup(input));
+    const user = await authService.signup(input);
+    await establishSession(req, res, user);
+    res.status(201).json({ user });
+  }),
+
+  /** Exchange the refresh cookie for a new access token (+ rotated refresh).
+   *  Clears the cookies and 401s if the refresh token is missing/invalid. */
+  refresh: asyncHandler(async (req, res) => {
+    const raw = readCookie(req.headers.cookie, COOKIE_REFRESH);
+    const result = raw
+      ? await authService.refreshSession(raw, sessionMeta(req))
+      : null;
+    if (!result) {
+      clearSessionCookies(res);
+      throw HttpError.unauthorized('Session expired — please sign in again.');
+    }
+    setSessionCookies(res, result.tokens, newCsrfToken());
+    res.json({ user: result.user });
+  }),
+
+  /** Revoke the current session and clear its cookies. */
+  logout: asyncHandler(async (req, res) => {
+    const raw = readCookie(req.headers.cookie, COOKIE_REFRESH);
+    if (raw) await authService.revokeSession(raw);
+    clearSessionCookies(res);
+    res.status(204).end();
   }),
 
   /* ----------------------------- Google OAuth ---------------------------- */
@@ -74,8 +112,8 @@ export const authController = {
     res.redirect(consentUrl(callbackUrl(req), state));
   }),
 
-  // Google redirects back here with `code` + `state`. Verify, sign in, and hand
-  // the JWT to the SPA via a URL fragment (never sent to servers or logged).
+  // Google redirects back here with `code` + `state`. Verify, sign in, set the
+  // session cookies, then redirect the SPA into the app (no token in the URL).
   googleCallback: asyncHandler(async (req, res) => {
     const loginError = (code: string): void =>
       res.redirect(`${env.CORS_ORIGIN}/login?error=${code}`);
@@ -99,13 +137,9 @@ export const authController = {
     try {
       const gUser = await fetchGoogleUser(code, callbackUrl(req));
       if (!gUser.verified) return loginError('oauth_unverified');
-      const { token } = await authService.loginWithGoogle(
-        gUser.email,
-        gUser.name,
-      );
-      res.redirect(
-        `${env.CORS_ORIGIN}/oauth#token=${encodeURIComponent(token)}`,
-      );
+      const user = await authService.loginWithGoogle(gUser.email, gUser.name);
+      await establishSession(req, res, user);
+      res.redirect(`${env.CORS_ORIGIN}/oauth`);
     } catch {
       loginError('oauth_failed');
     }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   TASK_STATUS_LABELS,
   TASK_STATUS_ORDER,
@@ -68,7 +68,22 @@ export function TaskBoardSwimlanes({
 }: TaskBoardSwimlanesProps) {
   const lanes = groupByFeature(tasks, features);
   const memberById = new Map(members.map((m) => [m.id, m]));
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  // Default view: feature lanes start collapsed; only pinned features (which
+  // float to the top) are expanded. The "No feature" lane isn't a feature, so
+  // it's left expanded. Non-pinned feature keys make up the initial set.
+  const nonPinnedKeys = () =>
+    new Set(features.filter((f) => !f.pinned).map((f) => f.id));
+  const [collapsed, setCollapsed] = useState<Set<string>>(nonPinnedKeys);
+  // Features load asynchronously; if none were present at mount, seed the
+  // default once they arrive — but only once, so it never clobbers the user's
+  // own expand/collapse choices on later re-renders.
+  const seededRef = useRef(features.length > 0);
+  useEffect(() => {
+    if (seededRef.current || features.length === 0) return;
+    seededRef.current = true;
+    setCollapsed(nonPinnedKeys());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [features]);
   const [dropCell, setDropCell] = useState<DropCell | null>(null);
   // Swimlane reordering: the dragged feature id + where it would land
   // (insert before this feature id; null = after the last feature).

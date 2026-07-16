@@ -1,47 +1,77 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { userRoleSchema, type UserRole } from '@cnsofts/shared';
-import { authStorage } from '@/lib/auth-storage';
+import { useSyncExternalStore } from 'react';
+import type { UserRole } from '@cnsofts/shared';
+import { authApi } from './auth.api';
 
 export interface Principal {
   role: UserRole;
   email: string;
 }
 
-/** Decode the role + email from the stored JWT payload (UI gating only — the
- *  backend is the real authority). Returns null if there's no/invalid token. */
-function readPrincipal(): Principal | null {
-  const token = authStorage.get();
-  if (!token) return null;
-  const part = token.split('.')[1];
-  if (!part) return null;
-  try {
-    const base64 = part.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
-    const payload = JSON.parse(atob(padded)) as {
-      role?: unknown;
-      email?: unknown;
-    };
-    return {
-      role: userRoleSchema.parse(payload.role),
-      email: typeof payload.email === 'string' ? payload.email : '',
-    };
-  } catch {
-    return null;
-  }
+/**
+ * The signed-in principal, loaded once from `/auth/me` and shared across the app
+ * via an external store. With httpOnly cookie auth the client can't read the
+ * JWT, so identity comes from the API, not from decoding a token. `null` until
+ * loaded (and when signed out).
+ */
+interface State {
+  principal: Principal | null;
+  loaded: boolean;
 }
 
-/**
- * The stored principal, resolved after mount (client-only) to avoid a hydration
- * mismatch. `null` on the server and until the first effect runs.
- */
+const SIGNED_OUT: State = { principal: null, loaded: true };
+const INITIAL: State = { principal: null, loaded: false };
+
+let state: State = INITIAL;
+let inflight: Promise<void> | null = null;
+const listeners = new Set<() => void>();
+
+function emit(): void {
+  for (const l of listeners) l();
+}
+
+function ensureLoaded(): void {
+  if (state.loaded || inflight) return;
+  inflight = authApi
+    .me()
+    .then((res) => {
+      state = {
+        principal: { role: res.user.role, email: res.user.email },
+        loaded: true,
+      };
+    })
+    .catch(() => {
+      state = SIGNED_OUT;
+    })
+    .finally(() => {
+      inflight = null;
+      emit();
+    });
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  ensureLoaded();
+  return () => listeners.delete(listener);
+}
+
+/** Drop the cached principal and reload it — call after login/logout so the UI
+ *  reflects the new session immediately. */
+export function invalidatePrincipal(): void {
+  state = INITIAL;
+  inflight = null;
+  ensureLoaded();
+  emit();
+}
+
 export function usePrincipal(): Principal | null {
-  const [principal, setPrincipal] = useState<Principal | null>(null);
-  useEffect(() => {
-    setPrincipal(readPrincipal());
-  }, []);
-  return principal;
+  const snapshot = useSyncExternalStore(
+    subscribe,
+    () => state,
+    () => INITIAL,
+  );
+  return snapshot.principal;
 }
 
 export interface Permissions {

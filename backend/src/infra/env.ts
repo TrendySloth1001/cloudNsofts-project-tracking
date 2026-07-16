@@ -19,7 +19,12 @@ const envSchema = z.object({
   ADMIN_PASSWORD: z.string().min(1, 'ADMIN_PASSWORD is required'),
   // Secret used to sign auth tokens. Override with a strong value in production.
   AUTH_SECRET: z.string().min(16).default('dev-insecure-secret-change-me!!'),
-  AUTH_TOKEN_TTL: z.string().default('7d'),
+  // Short-lived access JWT (browser cookie). Keep small — a stolen access token
+  // is only replayable for this long; the refresh token silently renews it.
+  ACCESS_TOKEN_TTL: z.string().default('30m'),
+  // Refresh token lifetime (days). Rotated on every use and revocable via the
+  // sessions table, so this is the outer bound of an idle session.
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
 
   // Google OAuth (optional). When both are set, "Continue with Google" works;
   // unset = the feature stays off and the button reports it's unavailable.
@@ -34,6 +39,16 @@ const envSchema = z.object({
   // Per-token (or per-IP) API rate limit.
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
+
+  // Stricter per-IP limit for the unauthenticated auth endpoints (login/signup/
+  // OAuth) — a brute-force / credential-stuffing gate. Only FAILED attempts are
+  // counted, so legitimate users are never throttled by their own success.
+  AUTH_RATE_LIMIT_WINDOW_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(15 * 60_000),
+  AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
 
   // S3-compatible object storage (MinIO in dev) for uploaded images. Bytes live
   // here; only metadata rows live in Postgres. Defaults match docker-compose so

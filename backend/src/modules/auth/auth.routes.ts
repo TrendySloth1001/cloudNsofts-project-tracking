@@ -1,11 +1,21 @@
 import { Router } from 'express';
+import { authRateLimiter } from '../../shared/http/rate-limit';
 import { authController } from './auth.controller';
 import { requireAuth } from './auth.middleware';
 
 export const authRoutes = Router();
 
-authRoutes.post('/login', authController.login);
-authRoutes.post('/signup', authController.signup);
+// Brute-force gate: the unauthenticated credential endpoints get a strict
+// per-IP limiter (failed attempts only) in front of the controllers. The OAuth
+// routes are left out — they return redirects (which the "skip successful"
+// filter would miscount) and are already guarded by the anti-CSRF state cookie.
+authRoutes.post('/login', authRateLimiter, authController.login);
+authRoutes.post('/signup', authRateLimiter, authController.signup);
+
+// Session lifecycle (cookie-based; no bearer required — the refresh cookie is
+// the credential). Refresh rotates the tokens; logout revokes the session.
+authRoutes.post('/refresh', authController.refresh);
+authRoutes.post('/logout', authController.logout);
 
 // Google OAuth (public redirect flow).
 authRoutes.get('/google', authController.googleStart);

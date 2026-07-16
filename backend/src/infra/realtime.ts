@@ -17,6 +17,7 @@ import { createRedis } from './redis';
 import { authService } from '../modules/auth/auth.service';
 import { canAccessProject } from '../modules/auth/access';
 import { isPlatformAdmin } from '../modules/auth/platform-admin';
+import { COOKIE_ACCESS, readCookie } from '../modules/auth/cookies';
 
 let io: SocketIOServer | null = null;
 
@@ -34,6 +35,15 @@ export function initRealtime(httpServer: HttpServer): SocketIOServer {
     cors: { origin: env.CORS_ORIGIN },
     // WebSocket-only: skip the HTTP long-poll handshake (no sticky sessions).
     transports: ['websocket'],
+    // Survive brief drops (mobile network blips, tab sleep): buffer events for
+    // up to 2 minutes and replay them on reconnect, auto-restoring the socket's
+    // rooms and data. This avoids a REST catch-up round-trip and a re-join on
+    // every transient disconnect. `skipMiddlewares` trusts the recovered
+    // session (already authenticated) so it doesn't re-verify on recovery.
+    connectionStateRecovery: {
+      maxDisconnectionDuration: 2 * 60 * 1000,
+      skipMiddlewares: true,
+    },
   });
 
   // With REDIS_URL set, fan events out across instances via the Redis adapter,
@@ -45,10 +55,14 @@ export function initRealtime(httpServer: HttpServer): SocketIOServer {
     io.adapter(createAdapter(pubClient, subClient));
   }
 
-  // Reject any socket without a valid bearer token in the connect handshake.
+  // Authenticate the connect handshake. Prefer the browser session (the access
+  // JWT rides in the httpOnly cookie sent on the WS upgrade); fall back to an
+  // explicit `auth.token` (bearer JWT) for non-cookie clients.
   io.use((socket, next) => {
     try {
-      const token = (socket.handshake.auth?.token ?? '') as string;
+      const token =
+        readCookie(socket.handshake.headers.cookie, COOKIE_ACCESS) ??
+        ((socket.handshake.auth?.token ?? '') as string);
       if (!token) throw new Error('missing token');
       socket.data.user = authService.verify(token);
       next();
@@ -70,20 +84,30 @@ export function initRealtime(httpServer: HttpServer): SocketIOServer {
           const user = socket.data.user as AuthUser;
           const { projectId, channelId } = channelRoomSchema.parse(payload);
           // Same authorization as REST: project access + channel membership.
-          if (!(await canAccessProject(user, projectId))) {
+          // Run both lookups in parallel — the membership query is scoped to a
+          // channel *in this project*, so a hit also proves the channel exists
+          // and belongs here. Common (member) path is 2 round-trips, not 4.
+          const [access, membership] = await Promise.all([
+            canAccessProject(user, projectId),
+            prisma.channelMember.findFirst({
+              where: { channelId, email: user.email, channel: { projectId } },
+              select: { channelId: true },
+            }),
+          ]);
+          if (!access) {
             ack?.({ ok: false, error: 'Channel not found' });
             return;
           }
-          const channel = await prisma.channel.findFirst({
-            where: { id: channelId, projectId },
-            select: { id: true },
-          });
-          const isMember =
-            isPlatformAdmin(user) ||
-            (await prisma.channelMember.count({
-              where: { channelId, email: user.email },
-            })) > 0;
-          if (!channel || !isMember) {
+          // The platform admin may enter any channel; it just needs to exist in
+          // this project (one extra lookup only on that rare path).
+          let allowed = membership !== null;
+          if (!allowed && isPlatformAdmin(user)) {
+            allowed =
+              (await prisma.channel.count({
+                where: { id: channelId, projectId },
+              })) > 0;
+          }
+          if (!allowed) {
             ack?.({ ok: false, error: 'Channel not found' });
             return;
           }

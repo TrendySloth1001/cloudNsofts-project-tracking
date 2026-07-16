@@ -9,7 +9,6 @@ import {
   type AppTheme,
   type ApiTokenScope,
   type ApiTokenSummary,
-  type AuthResponse,
   type AuthUser,
   type CreateApiTokenInput,
   type CreatedApiToken,
@@ -49,6 +48,30 @@ interface TokenPayload {
   name: string;
   role: AuthUser['role'];
 }
+
+/**
+ * Pre-hash a password before bcrypt. bcrypt silently truncates its input at 72
+ * bytes, so without this two long passwords sharing a 72-byte prefix would
+ * authenticate interchangeably (and the tail of a long password would carry no
+ * weight). Feeding bcrypt a fixed-size SHA-256 digest preserves the full
+ * password's entropy regardless of length. base64 (~44 bytes) stays under 72.
+ */
+function preHash(plain: string): string {
+  return createHash('sha256').update(plain, 'utf8').digest('base64');
+}
+
+/** bcrypt hash of a password (via {@link preHash}). The one place hashing
+ *  happens, so signup and admin-provisioning stay in lockstep with verify. */
+function hashPassword(plain: string): Promise<string> {
+  return bcrypt.hash(preHash(plain), BCRYPT_ROUNDS);
+}
+
+/**
+ * A throwaway bcrypt hash, computed once at startup, compared against when the
+ * email is unknown. Login always performs the same bcrypt work whether or not
+ * the account exists, so response time can't be used to enumerate valid emails.
+ */
+const DUMMY_HASH = bcrypt.hashSync(preHash('no-such-account'), BCRYPT_ROUNDS);
 
 /** Personal Access Tokens carry this prefix so they're told apart from JWTs. */
 const PAT_PREFIX = 'cnsofts_pat_';
@@ -121,16 +144,56 @@ async function principalFromId(userId: string): Promise<AuthUser | null> {
   };
 }
 
-function issueToken(user: AuthUser): string {
+/** Mint a short-lived access JWT for a browser session (carried in an httpOnly
+ *  cookie). Short by design — the refresh token silently renews it, and its
+ *  brevity bounds how long a leaked access token is replayable. */
+function issueAccessToken(user: AuthUser): string {
   const signOptions: jwt.SignOptions = {
     subject: user.id,
-    expiresIn: env.AUTH_TOKEN_TTL as unknown as jwt.SignOptions['expiresIn'],
+    expiresIn: env.ACCESS_TOKEN_TTL as unknown as jwt.SignOptions['expiresIn'],
   };
   return jwt.sign(
     { email: user.email, name: user.name, role: user.role },
     env.AUTH_SECRET,
     signOptions,
   );
+}
+
+/** Metadata captured on a session for auditing / anomaly checks. */
+interface SessionMeta {
+  userAgent?: string;
+  ip?: string;
+}
+
+/** A freshly minted access token + the raw refresh token to drop in a cookie. */
+export interface SessionTokens {
+  accessToken: string;
+  refreshToken: string;
+}
+
+/** Opaque refresh token — random, never a JWT (it carries no claims; the DB row
+ *  is the source of truth so it can be revoked). */
+function newRefreshToken(): string {
+  return randomBytes(32).toString('base64url');
+}
+
+/** Open a new session for a user: persist the (hashed) refresh token and return
+ *  both tokens. */
+async function createSession(
+  user: AuthUser,
+  meta: SessionMeta,
+): Promise<SessionTokens> {
+  const refreshToken = newRefreshToken();
+  await prisma.session.create({
+    data: {
+      userId: user.id,
+      tokenHash: hashToken(refreshToken),
+      expiresAt: new Date(Date.now() + env.REFRESH_TOKEN_TTL_DAYS * DAY_MS),
+      userAgent: meta.userAgent?.slice(0, 300),
+      ip: meta.ip,
+    },
+  });
+  return { accessToken: issueAccessToken(user), refreshToken };
 }
 
 /** Empty profile defaults for a principal with no `users` row yet. */
@@ -207,7 +270,7 @@ function normalizeSkills(skills: string[]): string[] {
 export const authService = {
   /** Hash a plaintext password for storage (used when provisioning users). */
   hashPassword(plain: string): Promise<string> {
-    return bcrypt.hash(plain, BCRYPT_ROUNDS);
+    return hashPassword(plain);
   },
 
   /** The signed-in user's full profile (identity + DB profile fields). */
@@ -255,32 +318,48 @@ export const authService = {
     return toProfile(user, row);
   },
 
-  async login(input: LoginInput): Promise<AuthResponse> {
+  async login(input: LoginInput): Promise<AuthUser> {
     // 1) Bootstrap admin from env (constant-time compare).
     if (safeEqual(input.email, env.ADMIN_EMAIL)) {
       if (!safeEqual(input.password, env.ADMIN_PASSWORD)) {
         throw HttpError.unauthorized('Invalid email or password');
       }
-      return { token: issueToken(adminUser), user: adminUser };
+      return adminUser;
     }
 
-    // 2) DB-backed users must have a password set (invite-provisioned).
+    // 2) DB-backed users. Run the SAME bcrypt work whether or not the account
+    //    exists (compare against a dummy hash when it doesn't) so response time
+    //    never reveals which emails are registered. Two comparisons cover both
+    //    the current pre-hash scheme and any legacy raw-bcrypt hash.
     const record = await prisma.user.findUnique({
       where: { email: input.email },
     });
-    if (!record?.passwordHash) {
+    const hash = record?.passwordHash ?? DUMMY_HASH;
+    const newSchemeOk = await bcrypt.compare(preHash(input.password), hash);
+    const legacyOk = await bcrypt.compare(input.password, hash);
+    const authed = Boolean(record?.passwordHash) && (newSchemeOk || legacyOk);
+    if (!authed || !record) {
       throw HttpError.unauthorized('Invalid email or password');
     }
-    const matches = await bcrypt.compare(input.password, record.passwordHash);
-    if (!matches) throw HttpError.unauthorized('Invalid email or password');
 
-    const user: AuthUser = {
+    // Lazily upgrade a legacy raw-bcrypt hash to the pre-hash scheme, in the
+    // background so it never delays the login response.
+    if (legacyOk && !newSchemeOk) {
+      void (async () => {
+        const migrated = await hashPassword(input.password);
+        await prisma.user.update({
+          where: { id: record.id },
+          data: { passwordHash: migrated },
+        });
+      })().catch(() => undefined);
+    }
+
+    return {
       id: record.id,
       email: record.email,
       name: record.name,
       role: record.role,
     };
-    return { token: issueToken(user), user };
   },
 
   /**
@@ -289,9 +368,9 @@ export const authService = {
    * access until invited, and has no password (they sign in via Google only).
    * The reserved env admin email resolves to the bootstrap admin principal.
    */
-  async loginWithGoogle(email: string, name: string): Promise<AuthResponse> {
+  async loginWithGoogle(email: string, name: string): Promise<AuthUser> {
     if (safeEqual(email, env.ADMIN_EMAIL)) {
-      return { token: issueToken(adminUser), user: adminUser };
+      return adminUser;
     }
     let record = await prisma.user.findUnique({ where: { email } });
     if (!record) {
@@ -299,18 +378,17 @@ export const authService = {
         data: { email, name, role: 'MEMBER' },
       });
     }
-    const user: AuthUser = {
+    return {
       id: record.id,
       email: record.email,
       name: record.name,
       role: record.role,
     };
-    return { token: issueToken(user), user };
   },
 
   /** Open self-service signup. New accounts are plain MEMBERs with no project
    *  access until they accept an invitation (or an admin adds them). */
-  async signup(input: SignupInput): Promise<AuthResponse> {
+  async signup(input: SignupInput): Promise<AuthUser> {
     // The bootstrap admin email is reserved.
     if (safeEqual(input.email, env.ADMIN_EMAIL)) {
       throw HttpError.conflict('That email is already registered.');
@@ -321,7 +399,7 @@ export const authService = {
     if (existing) {
       throw HttpError.conflict('That email is already registered.');
     }
-    const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+    const passwordHash = await hashPassword(input.password);
     const record = await prisma.user.create({
       data: {
         email: input.email,
@@ -330,13 +408,77 @@ export const authService = {
         passwordHash,
       },
     });
-    const user: AuthUser = {
+    return {
       id: record.id,
       email: record.email,
       name: record.name,
       role: record.role,
     };
-    return { token: issueToken(user), user };
+  },
+
+  /** Open a browser session for a freshly-authenticated user: mint the access
+   *  JWT and a persisted, revocable refresh token. */
+  startSession(user: AuthUser, meta: SessionMeta): Promise<SessionTokens> {
+    return createSession(user, meta);
+  },
+
+  /**
+   * Exchange a refresh token for a new access token + a rotated refresh token.
+   * Returns null (caller → 401) if the token is unknown, expired, or revoked.
+   * Reuse of an already-rotated token is treated as theft: every live session
+   * for that user is revoked.
+   */
+  async refreshSession(
+    rawRefresh: string,
+    meta: SessionMeta,
+  ): Promise<{ user: AuthUser; tokens: SessionTokens } | null> {
+    const row = await prisma.session.findUnique({
+      where: { tokenHash: hashToken(rawRefresh) },
+    });
+    if (!row) return null;
+    if (row.revokedAt !== null) {
+      // A revoked token being presented again → the chain leaked. Burn it all.
+      await prisma.session.updateMany({
+        where: { userId: row.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      return null;
+    }
+    if (row.expiresAt.getTime() < Date.now()) return null;
+    const principal = await principalFromId(row.userId);
+    if (!principal) return null;
+
+    // Rotate: mint a successor and revoke the consumed token.
+    const refreshToken = newRefreshToken();
+    const created = await prisma.session.create({
+      data: {
+        userId: row.userId,
+        tokenHash: hashToken(refreshToken),
+        expiresAt: new Date(Date.now() + env.REFRESH_TOKEN_TTL_DAYS * DAY_MS),
+        userAgent: meta.userAgent?.slice(0, 300),
+        ip: meta.ip,
+      },
+    });
+    await prisma.session.update({
+      where: { id: row.id },
+      data: {
+        revokedAt: new Date(),
+        replacedById: created.id,
+        lastUsedAt: new Date(),
+      },
+    });
+    return {
+      user: principal,
+      tokens: { accessToken: issueAccessToken(principal), refreshToken },
+    };
+  },
+
+  /** Revoke a single session by its refresh token (logout). Idempotent. */
+  async revokeSession(rawRefresh: string): Promise<void> {
+    await prisma.session.updateMany({
+      where: { tokenHash: hashToken(rawRefresh), revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
   },
 
   /** Verify a token and reconstruct the principal from its payload (no DB hit). */

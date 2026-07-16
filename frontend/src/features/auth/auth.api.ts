@@ -1,40 +1,31 @@
 import {
   apiPaths,
-  type AuthResponse,
+  type AuthUser,
   type LoginInput,
   type SignupInput,
   type UpdateProfileInput,
   type UserProfile,
 } from '@cnsofts/shared';
 import { apiClient } from '@/lib/api-client';
-import { authStorage } from '@/lib/auth-storage';
 
-/** Auth data-access. Paths come from the shared single source of truth. */
+/**
+ * Auth data-access. The session lives in httpOnly cookies the server sets on
+ * login/signup (and rotates on refresh), so there's no token to store client
+ * side — the browser carries it automatically. Paths come from the shared
+ * single source of truth.
+ */
 export const authApi = {
-  async login(input: LoginInput): Promise<AuthResponse> {
-    const result = await apiClient.post<AuthResponse>(
-      apiPaths.auth.login(),
-      input,
-    );
-    authStorage.set(result.token);
-    return result;
-  },
+  login: (input: LoginInput) =>
+    apiClient.post<{ user: AuthUser }>(apiPaths.auth.login(), input),
 
-  async signup(input: SignupInput): Promise<AuthResponse> {
-    const result = await apiClient.post<AuthResponse>(
-      apiPaths.auth.signup(),
-      input,
-    );
-    authStorage.set(result.token);
-    return result;
-  },
+  signup: (input: SignupInput) =>
+    apiClient.post<{ user: AuthUser }>(apiPaths.auth.signup(), input),
 
   me: () => apiClient.get<{ user: UserProfile }>(apiPaths.auth.me()),
 
   updateProfile: (input: UpdateProfileInput) =>
     apiClient.patch<{ user: UserProfile }>(apiPaths.auth.me(), input),
 
-  logout: () => authStorage.clear(),
-
-  isAuthenticated: () => authStorage.get() !== null,
+  /** Revoke the current session server-side and clear its cookies. */
+  logout: () => apiClient.post<void>(apiPaths.auth.logout(), {}),
 };
