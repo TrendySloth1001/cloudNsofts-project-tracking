@@ -7058,8 +7058,8 @@ var require_ZodError = __commonJS({
       "not_finite"
     ]);
     var quotelessJson2 = (obj) => {
-      const json = JSON.stringify(obj, null, 2);
-      return json.replace(/"([^"]+)":/g, "$1:");
+      const json2 = JSON.stringify(obj, null, 2);
+      return json2.replace(/"([^"]+)":/g, "$1:");
     };
     exports.quotelessJson = quotelessJson2;
     var ZodError3 = class _ZodError extends Error {
@@ -11067,21 +11067,24 @@ var require_dist2 = __commonJS({
   "../shared/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.messageAttachmentSchema = exports.CHANNEL_VISIBILITY_LABELS = exports.channelVisibilitySchema = exports.createCommentSchema = exports.updateSubtaskSchema = exports.createSubtaskSchema = exports.reorderTasksSchema = exports.updateTaskSchema = exports.reorderFeaturesSchema = exports.updateFeatureSchema = exports.createFeatureSchema = exports.createTaskSchema = exports.createInvitationSchema = exports.invitationStatusSchema = exports.updateMemberRoleSchema = exports.addMemberSchema = exports.addClientSchema = exports.createProjectSchema = exports.FEATURE_STATUS_ORDER = exports.FEATURE_STATUS_LABELS = exports.featureStatusSchema = exports.MILESTONE_DESC_MAX_LENGTH = exports.MILESTONE_TITLE_MAX_LENGTH = exports.MILESTONE_STATUS_ORDER = exports.MILESTONE_STATUS_LABELS = exports.milestoneStatusSchema = exports.taskEventKindSchema = exports.TASK_PRIORITY_LABELS = exports.taskPrioritySchema = exports.TASK_STATUS_ORDER = exports.TASK_STATUS_LABELS = exports.taskStatusSchema = exports.projectRoleSchema = exports.MEMBER_ROLE_LABELS = exports.memberRoleSchema = exports.PROJECT_STATUS_LABELS = exports.projectStatusSchema = exports.updateUserSchema = exports.createUserSchema = exports.userRoleSchema = exports.updateApiTokenSchema = exports.createApiTokenSchema = exports.API_TOKEN_SCOPE_LABELS = exports.apiTokenScopeSchema = exports.updateProfileSchema = exports.PROFILE_MAX_SKILLS = exports.PROFILE_BIO_MAX_LENGTH = exports.signupSchema = exports.PASSWORD_MIN_LENGTH = exports.loginSchema = void 0;
-    exports.USER_ROLE_LABELS = exports.apiPaths = exports.API_ROUTES = exports.searchConversationsQuerySchema = exports.listMessagesQuerySchema = exports.channelRoomSchema = exports.WS_EVENTS = exports.notificationKindSchema = exports.updateProjectSchema = exports.reorderMilestonesSchema = exports.updateMilestoneSchema = exports.createMilestoneSchema = exports.IMAGE_MAX_BYTES = exports.IMAGE_ALLOWED_MIME = exports.updateDocSchema = exports.createDocSchema = exports.DOC_BODY_MAX_LENGTH = exports.DOC_TITLE_MAX_LENGTH = exports.resolveChannelSchema = exports.channelWaitStatusSchema = exports.channelWaitQuerySchema = exports.CHANNEL_WAIT_MAX_MS = exports.scheduleMessageSchema = exports.scheduledMessageStatusSchema = exports.postMessageSchema = exports.MESSAGE_BODY_MAX_LENGTH = exports.createChannelSchema = exports.addChannelMemberSchema = void 0;
+    exports.createSubtaskSchema = exports.reorderTasksSchema = exports.updateTaskSchema = exports.reorderFeaturesSchema = exports.updateFeatureSchema = exports.createFeatureSchema = exports.createTaskSchema = exports.createInvitationSchema = exports.invitationStatusSchema = exports.updateMemberRoleSchema = exports.addMemberSchema = exports.addClientSchema = exports.createProjectSchema = exports.FEATURE_STATUS_ORDER = exports.FEATURE_STATUS_LABELS = exports.featureStatusSchema = exports.MILESTONE_DESC_MAX_LENGTH = exports.MILESTONE_TITLE_MAX_LENGTH = exports.MILESTONE_STATUS_ORDER = exports.MILESTONE_STATUS_LABELS = exports.milestoneStatusSchema = exports.taskEventKindSchema = exports.TASK_PRIORITY_LABELS = exports.taskPrioritySchema = exports.TASK_STATUS_ORDER = exports.TASK_STATUS_LABELS = exports.taskStatusSchema = exports.projectRoleSchema = exports.INVITATION_ROLE_LABELS = exports.invitationRoleSchema = exports.MEMBER_ROLE_LABELS = exports.memberRoleSchema = exports.PROJECT_STATUS_LABELS = exports.projectStatusSchema = exports.updateUserSchema = exports.createUserSchema = exports.userRoleSchema = exports.updateApiTokenSchema = exports.createApiTokenSchema = exports.API_TOKEN_SCOPE_LABELS = exports.apiTokenScopeSchema = exports.updateProfileSchema = exports.PROFILE_MAX_SKILLS = exports.PROFILE_BIO_MAX_LENGTH = exports.appDensitySchema = exports.appThemeSchema = exports.signupSchema = exports.loginSchema = exports.PASSWORD_MAX_LENGTH = exports.PASSWORD_MIN_LENGTH = void 0;
+    exports.USER_ROLE_LABELS = exports.apiPaths = exports.API_ROUTES = exports.searchConversationsQuerySchema = exports.listMessagesQuerySchema = exports.channelRoomSchema = exports.WS_EVENTS = exports.updateNotificationPreferenceSchema = exports.NOTIFICATION_PREF_KINDS = exports.NOTIFICATION_KIND_DESCRIPTIONS = exports.NOTIFICATION_KIND_LABELS = exports.notificationKindSchema = exports.updateProjectSchema = exports.reorderMilestonesSchema = exports.updateMilestoneSchema = exports.createMilestoneSchema = exports.IMAGE_MAX_BYTES = exports.IMAGE_ALLOWED_MIME = exports.updateDocSchema = exports.reorderDocsSchema = exports.createDocSchema = exports.DOC_VISIBILITY_LABELS = exports.docVisibilitySchema = exports.DOC_BODY_MAX_LENGTH = exports.DOC_TITLE_MAX_LENGTH = exports.resolveChannelSchema = exports.channelWaitStatusSchema = exports.channelWaitQuerySchema = exports.CHANNEL_WAIT_MAX_MS = exports.scheduleMessageSchema = exports.scheduledMessageStatusSchema = exports.postMessageSchema = exports.MESSAGE_BODY_MAX_LENGTH = exports.createChannelSchema = exports.addChannelMemberSchema = exports.messageAttachmentSchema = exports.CHANNEL_VISIBILITY_LABELS = exports.channelVisibilitySchema = exports.createCommentSchema = exports.updateSubtaskSchema = void 0;
     exports.projectAbilities = projectAbilities;
     exports.channelSlug = channelSlug;
     var zod_1 = require_zod();
+    exports.PASSWORD_MIN_LENGTH = 8;
+    exports.PASSWORD_MAX_LENGTH = 200;
     exports.loginSchema = zod_1.z.object({
       email: zod_1.z.string().trim().toLowerCase().email("Enter a valid email address"),
-      password: zod_1.z.string().min(1, "Password is required")
+      password: zod_1.z.string().min(1, "Password is required").max(exports.PASSWORD_MAX_LENGTH)
     });
-    exports.PASSWORD_MIN_LENGTH = 8;
     exports.signupSchema = zod_1.z.object({
       name: zod_1.z.string().trim().min(1, "Name is required").max(120),
       email: zod_1.z.string().trim().toLowerCase().email("Enter a valid email address").max(200),
-      password: zod_1.z.string().min(exports.PASSWORD_MIN_LENGTH, `Use at least ${exports.PASSWORD_MIN_LENGTH} characters`).max(200)
+      password: zod_1.z.string().min(exports.PASSWORD_MIN_LENGTH, `Use at least ${exports.PASSWORD_MIN_LENGTH} characters`).max(exports.PASSWORD_MAX_LENGTH)
     });
+    exports.appThemeSchema = zod_1.z.enum(["light", "dark"]);
+    exports.appDensitySchema = zod_1.z.enum(["comfortable", "compact"]);
     exports.PROFILE_BIO_MAX_LENGTH = 2e3;
     exports.PROFILE_MAX_SKILLS = 40;
     var profileText = (max) => zod_1.z.string().trim().max(max);
@@ -11094,7 +11097,9 @@ var require_dist2 = __commonJS({
       timezone: profileText(60).optional(),
       githubUrl: profileText(200).optional(),
       websiteUrl: profileText(200).optional(),
-      linkedinUrl: profileText(200).optional()
+      linkedinUrl: profileText(200).optional(),
+      theme: exports.appThemeSchema.optional(),
+      density: exports.appDensitySchema.optional()
     });
     exports.apiTokenScopeSchema = zod_1.z.enum(["full", "read_only"]);
     exports.API_TOKEN_SCOPE_LABELS = {
@@ -11144,6 +11149,20 @@ var require_dist2 = __commonJS({
       manager: "Manager",
       member: "Member",
       viewer: "Viewer"
+    };
+    exports.invitationRoleSchema = zod_1.z.enum([
+      "admin",
+      "manager",
+      "member",
+      "viewer",
+      "client"
+    ]);
+    exports.INVITATION_ROLE_LABELS = {
+      admin: "Admin",
+      manager: "Manager",
+      member: "Member",
+      viewer: "Viewer",
+      client: "Client"
     };
     exports.projectRoleSchema = zod_1.z.enum([
       "admin",
@@ -11242,7 +11261,7 @@ var require_dist2 = __commonJS({
     ]);
     exports.createInvitationSchema = zod_1.z.object({
       email: zod_1.z.string().trim().toLowerCase().email("A valid email is required").max(200),
-      role: exports.memberRoleSchema.default("member")
+      role: exports.invitationRoleSchema.default("member")
     });
     exports.createTaskSchema = zod_1.z.object({
       title: zod_1.z.string().trim().min(1, "Task title is required").max(200),
@@ -11357,9 +11376,21 @@ var require_dist2 = __commonJS({
     });
     exports.DOC_TITLE_MAX_LENGTH = 120;
     exports.DOC_BODY_MAX_LENGTH = 1e5;
+    exports.docVisibilitySchema = zod_1.z.enum(["internal", "client"]);
+    exports.DOC_VISIBILITY_LABELS = {
+      internal: "Team review",
+      client: "Client review"
+    };
     exports.createDocSchema = zod_1.z.object({
       title: zod_1.z.string().trim().min(1, "A title is required").max(exports.DOC_TITLE_MAX_LENGTH),
-      body: zod_1.z.string().max(exports.DOC_BODY_MAX_LENGTH).default("")
+      body: zod_1.z.string().max(exports.DOC_BODY_MAX_LENGTH).default(""),
+      // New docs default to team-only; they're deliberately moved to the client
+      // section when ready to share.
+      visibility: exports.docVisibilitySchema.default("internal")
+    });
+    exports.reorderDocsSchema = zod_1.z.object({
+      visibility: exports.docVisibilitySchema,
+      orderedIds: zod_1.z.array(zod_1.z.string().min(1))
     });
     exports.updateDocSchema = zod_1.z.object({
       title: zod_1.z.string().trim().min(1, "A title is required").max(exports.DOC_TITLE_MAX_LENGTH),
@@ -11399,11 +11430,40 @@ var require_dist2 = __commonJS({
       "member_added",
       "system"
     ]);
+    exports.NOTIFICATION_KIND_LABELS = {
+      task_created: "New tasks",
+      task_completed: "Task completed",
+      comment_added: "Task comments",
+      message_posted: "Channel messages",
+      member_added: "People added",
+      system: "System"
+    };
+    exports.NOTIFICATION_KIND_DESCRIPTIONS = {
+      task_created: "A task is created in a project you\u2019re on.",
+      task_completed: "A task is marked done.",
+      comment_added: "Someone comments on a task.",
+      message_posted: "A new message is posted in a channel you\u2019re in.",
+      member_added: "A member or client is added to a project.",
+      system: "Important account and platform notices."
+    };
+    exports.NOTIFICATION_PREF_KINDS = [
+      "task_created",
+      "task_completed",
+      "comment_added",
+      "message_posted",
+      "member_added"
+    ];
+    exports.updateNotificationPreferenceSchema = zod_1.z.object({
+      kind: exports.notificationKindSchema,
+      enabled: zod_1.z.boolean()
+    });
     exports.WS_EVENTS = {
       joinChannel: "channel:join",
       leaveChannel: "channel:leave",
       messageCreated: "message:created",
-      messageDeleted: "message:deleted"
+      messageDeleted: "message:deleted",
+      /** Server → client: a new notification for the connected user. */
+      notificationCreated: "notification:created"
     };
     exports.channelRoomSchema = zod_1.z.object({
       projectId: zod_1.z.string().min(1),
@@ -11428,17 +11488,22 @@ var require_dist2 = __commonJS({
       notifications: "/api/notifications",
       invitations: "/api/invitations",
       images: "/api/images",
-      agent: "/api/agent"
+      agent: "/api/agent",
+      storage: "/api/storage"
     };
     exports.apiPaths = {
       health: () => exports.API_ROUTES.health,
       auth: {
         login: () => `${exports.API_ROUTES.auth}/login`,
         signup: () => `${exports.API_ROUTES.auth}/signup`,
+        refresh: () => `${exports.API_ROUTES.auth}/refresh`,
+        logout: () => `${exports.API_ROUTES.auth}/logout`,
+        google: () => `${exports.API_ROUTES.auth}/google`,
         me: () => `${exports.API_ROUTES.auth}/me`,
         tokens: () => `${exports.API_ROUTES.auth}/tokens`,
         token: (id) => `${exports.API_ROUTES.auth}/tokens/${id}`,
         tokenRotate: (id) => `${exports.API_ROUTES.auth}/tokens/${id}/rotate`,
+        tokenVerify: (id) => `${exports.API_ROUTES.auth}/tokens/${id}/verify`,
         agentActivity: () => `${exports.API_ROUTES.auth}/agent-activity`
       },
       users: {
@@ -11479,6 +11544,7 @@ var require_dist2 = __commonJS({
         milestonesReorder: (id) => `${exports.API_ROUTES.projects}/${id}/milestones/reorder`,
         milestone: (id, milestoneId2) => `${exports.API_ROUTES.projects}/${id}/milestones/${milestoneId2}`,
         docs: (id) => `${exports.API_ROUTES.projects}/${id}/docs`,
+        docsReorder: (id) => `${exports.API_ROUTES.projects}/${id}/docs/reorder`,
         doc: (id, docId2) => `${exports.API_ROUTES.projects}/${id}/docs/${docId2}`,
         // Upload an image to the project (auth + canEditBoard). Bytes go to object
         // storage; the response carries the public serve URL.
@@ -11489,7 +11555,8 @@ var require_dist2 = __commonJS({
       notifications: {
         list: () => exports.API_ROUTES.notifications,
         read: (id) => `${exports.API_ROUTES.notifications}/${id}/read`,
-        readAll: () => `${exports.API_ROUTES.notifications}/read-all`
+        readAll: () => `${exports.API_ROUTES.notifications}/read-all`,
+        preferences: () => `${exports.API_ROUTES.notifications}/preferences`
       },
       // The signed-in user's own pending invitations (accept / decline).
       invitations: {
@@ -11507,6 +11574,11 @@ var require_dist2 = __commonJS({
       // supplied separately at runtime, so the bundle itself carries no secret.
       agent: {
         mcpServer: () => `${exports.API_ROUTES.agent}/mcp-server.mjs`
+      },
+      // Platform-super-admin storage reconciliation: audit (dry-run) and purge.
+      storage: {
+        audit: () => `${exports.API_ROUTES.storage}/audit`,
+        auditPurge: () => `${exports.API_ROUTES.storage}/audit/purge`
       }
     };
     exports.USER_ROLE_LABELS = {
@@ -11788,8 +11860,8 @@ var ZodIssueCode = util.arrayToEnum([
   "not_finite"
 ]);
 var quotelessJson = (obj) => {
-  const json = JSON.stringify(obj, null, 2);
-  return json.replace(/"([^"]+)":/g, "$1:");
+  const json2 = JSON.stringify(obj, null, 2);
+  return json2.replace(/"([^"]+)":/g, "$1:");
 };
 var ZodError = class _ZodError extends Error {
   get errors() {
@@ -18651,24 +18723,24 @@ var JSONSchemaGenerator = class {
         const _json = result.schema;
         switch (def.type) {
           case "string": {
-            const json = _json;
-            json.type = "string";
+            const json2 = _json;
+            json2.type = "string";
             const { minimum, maximum, format, patterns, contentEncoding } = schema._zod.bag;
             if (typeof minimum === "number")
-              json.minLength = minimum;
+              json2.minLength = minimum;
             if (typeof maximum === "number")
-              json.maxLength = maximum;
+              json2.maxLength = maximum;
             if (format) {
-              json.format = formatMap[format] ?? format;
-              if (json.format === "")
-                delete json.format;
+              json2.format = formatMap[format] ?? format;
+              if (json2.format === "")
+                delete json2.format;
             }
             if (contentEncoding)
-              json.contentEncoding = contentEncoding;
+              json2.contentEncoding = contentEncoding;
             if (patterns && patterns.size > 0) {
               const regexes = [...patterns];
               if (regexes.length === 1)
-                json.pattern = regexes[0].source;
+                json2.pattern = regexes[0].source;
               else if (regexes.length > 1) {
                 result.schema.allOf = [
                   ...regexes.map((regex) => ({
@@ -18681,41 +18753,41 @@ var JSONSchemaGenerator = class {
             break;
           }
           case "number": {
-            const json = _json;
+            const json2 = _json;
             const { minimum, maximum, format, multipleOf, exclusiveMaximum, exclusiveMinimum } = schema._zod.bag;
             if (typeof format === "string" && format.includes("int"))
-              json.type = "integer";
+              json2.type = "integer";
             else
-              json.type = "number";
+              json2.type = "number";
             if (typeof exclusiveMinimum === "number")
-              json.exclusiveMinimum = exclusiveMinimum;
+              json2.exclusiveMinimum = exclusiveMinimum;
             if (typeof minimum === "number") {
-              json.minimum = minimum;
+              json2.minimum = minimum;
               if (typeof exclusiveMinimum === "number") {
                 if (exclusiveMinimum >= minimum)
-                  delete json.minimum;
+                  delete json2.minimum;
                 else
-                  delete json.exclusiveMinimum;
+                  delete json2.exclusiveMinimum;
               }
             }
             if (typeof exclusiveMaximum === "number")
-              json.exclusiveMaximum = exclusiveMaximum;
+              json2.exclusiveMaximum = exclusiveMaximum;
             if (typeof maximum === "number") {
-              json.maximum = maximum;
+              json2.maximum = maximum;
               if (typeof exclusiveMaximum === "number") {
                 if (exclusiveMaximum <= maximum)
-                  delete json.maximum;
+                  delete json2.maximum;
                 else
-                  delete json.exclusiveMaximum;
+                  delete json2.exclusiveMaximum;
               }
             }
             if (typeof multipleOf === "number")
-              json.multipleOf = multipleOf;
+              json2.multipleOf = multipleOf;
             break;
           }
           case "boolean": {
-            const json = _json;
-            json.type = "boolean";
+            const json2 = _json;
+            json2.type = "boolean";
             break;
           }
           case "bigint": {
@@ -18763,23 +18835,23 @@ var JSONSchemaGenerator = class {
             break;
           }
           case "array": {
-            const json = _json;
+            const json2 = _json;
             const { minimum, maximum } = schema._zod.bag;
             if (typeof minimum === "number")
-              json.minItems = minimum;
+              json2.minItems = minimum;
             if (typeof maximum === "number")
-              json.maxItems = maximum;
-            json.type = "array";
-            json.items = this.process(def.element, { ...params, path: [...params.path, "items"] });
+              json2.maxItems = maximum;
+            json2.type = "array";
+            json2.items = this.process(def.element, { ...params, path: [...params.path, "items"] });
             break;
           }
           case "object": {
-            const json = _json;
-            json.type = "object";
-            json.properties = {};
+            const json2 = _json;
+            json2.type = "object";
+            json2.properties = {};
             const shape = def.shape;
             for (const key in shape) {
-              json.properties[key] = this.process(shape[key], {
+              json2.properties[key] = this.process(shape[key], {
                 ...params,
                 path: [...params.path, "properties", key]
               });
@@ -18794,15 +18866,15 @@ var JSONSchemaGenerator = class {
               }
             }));
             if (requiredKeys.size > 0) {
-              json.required = Array.from(requiredKeys);
+              json2.required = Array.from(requiredKeys);
             }
             if (def.catchall?._zod.def.type === "never") {
-              json.additionalProperties = false;
+              json2.additionalProperties = false;
             } else if (!def.catchall) {
               if (this.io === "output")
-                json.additionalProperties = false;
+                json2.additionalProperties = false;
             } else if (def.catchall) {
-              json.additionalProperties = this.process(def.catchall, {
+              json2.additionalProperties = this.process(def.catchall, {
                 ...params,
                 path: [...params.path, "additionalProperties"]
               });
@@ -18810,15 +18882,15 @@ var JSONSchemaGenerator = class {
             break;
           }
           case "union": {
-            const json = _json;
-            json.anyOf = def.options.map((x, i) => this.process(x, {
+            const json2 = _json;
+            json2.anyOf = def.options.map((x, i) => this.process(x, {
               ...params,
               path: [...params.path, "anyOf", i]
             }));
             break;
           }
           case "intersection": {
-            const json = _json;
+            const json2 = _json;
             const a = this.process(def.left, {
               ...params,
               path: [...params.path, "allOf", 0]
@@ -18832,17 +18904,17 @@ var JSONSchemaGenerator = class {
               ...isSimpleIntersection(a) ? a.allOf : [a],
               ...isSimpleIntersection(b) ? b.allOf : [b]
             ];
-            json.allOf = allOf;
+            json2.allOf = allOf;
             break;
           }
           case "tuple": {
-            const json = _json;
-            json.type = "array";
+            const json2 = _json;
+            json2.type = "array";
             const prefixItems = def.items.map((x, i) => this.process(x, { ...params, path: [...params.path, "prefixItems", i] }));
             if (this.target === "draft-2020-12") {
-              json.prefixItems = prefixItems;
+              json2.prefixItems = prefixItems;
             } else {
-              json.items = prefixItems;
+              json2.items = prefixItems;
             }
             if (def.rest) {
               const rest = this.process(def.rest, {
@@ -18850,29 +18922,29 @@ var JSONSchemaGenerator = class {
                 path: [...params.path, "items"]
               });
               if (this.target === "draft-2020-12") {
-                json.items = rest;
+                json2.items = rest;
               } else {
-                json.additionalItems = rest;
+                json2.additionalItems = rest;
               }
             }
             if (def.rest) {
-              json.items = this.process(def.rest, {
+              json2.items = this.process(def.rest, {
                 ...params,
                 path: [...params.path, "items"]
               });
             }
             const { minimum, maximum } = schema._zod.bag;
             if (typeof minimum === "number")
-              json.minItems = minimum;
+              json2.minItems = minimum;
             if (typeof maximum === "number")
-              json.maxItems = maximum;
+              json2.maxItems = maximum;
             break;
           }
           case "record": {
-            const json = _json;
-            json.type = "object";
-            json.propertyNames = this.process(def.keyType, { ...params, path: [...params.path, "propertyNames"] });
-            json.additionalProperties = this.process(def.valueType, {
+            const json2 = _json;
+            json2.type = "object";
+            json2.propertyNames = this.process(def.keyType, { ...params, path: [...params.path, "propertyNames"] });
+            json2.additionalProperties = this.process(def.valueType, {
               ...params,
               path: [...params.path, "additionalProperties"]
             });
@@ -18891,17 +18963,17 @@ var JSONSchemaGenerator = class {
             break;
           }
           case "enum": {
-            const json = _json;
+            const json2 = _json;
             const values = getEnumValues(def.entries);
             if (values.every((v) => typeof v === "number"))
-              json.type = "number";
+              json2.type = "number";
             if (values.every((v) => typeof v === "string"))
-              json.type = "string";
-            json.enum = values;
+              json2.type = "string";
+            json2.enum = values;
             break;
           }
           case "literal": {
-            const json = _json;
+            const json2 = _json;
             const vals = [];
             for (const val of def.values) {
               if (val === void 0) {
@@ -18922,23 +18994,23 @@ var JSONSchemaGenerator = class {
             if (vals.length === 0) {
             } else if (vals.length === 1) {
               const val = vals[0];
-              json.type = val === null ? "null" : typeof val;
-              json.const = val;
+              json2.type = val === null ? "null" : typeof val;
+              json2.const = val;
             } else {
               if (vals.every((v) => typeof v === "number"))
-                json.type = "number";
+                json2.type = "number";
               if (vals.every((v) => typeof v === "string"))
-                json.type = "string";
+                json2.type = "string";
               if (vals.every((v) => typeof v === "boolean"))
-                json.type = "string";
+                json2.type = "string";
               if (vals.every((v) => v === null))
-                json.type = "null";
-              json.enum = vals;
+                json2.type = "null";
+              json2.enum = vals;
             }
             break;
           }
           case "file": {
-            const json = _json;
+            const json2 = _json;
             const file = {
               type: "string",
               format: "binary",
@@ -18952,15 +19024,15 @@ var JSONSchemaGenerator = class {
             if (mime) {
               if (mime.length === 1) {
                 file.contentMediaType = mime[0];
-                Object.assign(json, file);
+                Object.assign(json2, file);
               } else {
-                json.anyOf = mime.map((m) => {
+                json2.anyOf = mime.map((m) => {
                   const mFile = { ...file, contentMediaType: m };
                   return mFile;
                 });
               }
             } else {
-              Object.assign(json, file);
+              Object.assign(json2, file);
             }
             break;
           }
@@ -18981,8 +19053,8 @@ var JSONSchemaGenerator = class {
             break;
           }
           case "success": {
-            const json = _json;
-            json.type = "boolean";
+            const json2 = _json;
+            json2.type = "boolean";
             break;
           }
           case "default": {
@@ -19017,12 +19089,12 @@ var JSONSchemaGenerator = class {
             break;
           }
           case "template_literal": {
-            const json = _json;
+            const json2 = _json;
             const pattern = schema._zod.pattern;
             if (!pattern)
               throw new Error("Pattern not found in template literal");
-            json.type = "string";
-            json.pattern = pattern.source;
+            json2.type = "string";
+            json2.pattern = pattern.source;
             break;
           }
           case "pipe": {
@@ -24765,6 +24837,15 @@ var Server = class extends Protocol {
 
 // ../node_modules/@modelcontextprotocol/sdk/dist/esm/server/completable.js
 var COMPLETABLE_SYMBOL = /* @__PURE__ */ Symbol.for("mcp.completable");
+function completable(schema, complete) {
+  Object.defineProperty(schema, COMPLETABLE_SYMBOL, {
+    value: { complete },
+    enumerable: false,
+    writable: false,
+    configurable: false
+  });
+  return schema;
+}
 function isCompletable(schema) {
   return !!schema && typeof schema === "object" && COMPLETABLE_SYMBOL in schema;
 }
@@ -24776,6 +24857,228 @@ var McpZodTypeKind;
 (function(McpZodTypeKind2) {
   McpZodTypeKind2["Completable"] = "McpCompletable";
 })(McpZodTypeKind || (McpZodTypeKind = {}));
+
+// ../node_modules/@modelcontextprotocol/sdk/dist/esm/shared/uriTemplate.js
+var MAX_TEMPLATE_LENGTH = 1e6;
+var MAX_VARIABLE_LENGTH = 1e6;
+var MAX_TEMPLATE_EXPRESSIONS = 1e4;
+var MAX_REGEX_LENGTH = 1e6;
+var UriTemplate = class _UriTemplate {
+  /**
+   * Returns true if the given string contains any URI template expressions.
+   * A template expression is a sequence of characters enclosed in curly braces,
+   * like {foo} or {?bar}.
+   */
+  static isTemplate(str) {
+    return /\{[^}\s]+\}/.test(str);
+  }
+  static validateLength(str, max, context) {
+    if (str.length > max) {
+      throw new Error(`${context} exceeds maximum length of ${max} characters (got ${str.length})`);
+    }
+  }
+  get variableNames() {
+    return this.parts.flatMap((part) => typeof part === "string" ? [] : part.names);
+  }
+  constructor(template) {
+    _UriTemplate.validateLength(template, MAX_TEMPLATE_LENGTH, "Template");
+    this.template = template;
+    this.parts = this.parse(template);
+  }
+  toString() {
+    return this.template;
+  }
+  parse(template) {
+    const parts = [];
+    let currentText = "";
+    let i = 0;
+    let expressionCount = 0;
+    while (i < template.length) {
+      if (template[i] === "{") {
+        if (currentText) {
+          parts.push(currentText);
+          currentText = "";
+        }
+        const end = template.indexOf("}", i);
+        if (end === -1)
+          throw new Error("Unclosed template expression");
+        expressionCount++;
+        if (expressionCount > MAX_TEMPLATE_EXPRESSIONS) {
+          throw new Error(`Template contains too many expressions (max ${MAX_TEMPLATE_EXPRESSIONS})`);
+        }
+        const expr = template.slice(i + 1, end);
+        const operator = this.getOperator(expr);
+        const exploded = expr.includes("*");
+        const names = this.getNames(expr);
+        const name = names[0];
+        for (const name2 of names) {
+          _UriTemplate.validateLength(name2, MAX_VARIABLE_LENGTH, "Variable name");
+        }
+        parts.push({ name, operator, names, exploded });
+        i = end + 1;
+      } else {
+        currentText += template[i];
+        i++;
+      }
+    }
+    if (currentText) {
+      parts.push(currentText);
+    }
+    return parts;
+  }
+  getOperator(expr) {
+    const operators = ["+", "#", ".", "/", "?", "&"];
+    return operators.find((op) => expr.startsWith(op)) || "";
+  }
+  getNames(expr) {
+    const operator = this.getOperator(expr);
+    return expr.slice(operator.length).split(",").map((name) => name.replace("*", "").trim()).filter((name) => name.length > 0);
+  }
+  encodeValue(value, operator) {
+    _UriTemplate.validateLength(value, MAX_VARIABLE_LENGTH, "Variable value");
+    if (operator === "+" || operator === "#") {
+      return encodeURI(value);
+    }
+    return encodeURIComponent(value);
+  }
+  expandPart(part, variables) {
+    if (part.operator === "?" || part.operator === "&") {
+      const pairs = part.names.map((name) => {
+        const value2 = variables[name];
+        if (value2 === void 0)
+          return "";
+        const encoded2 = Array.isArray(value2) ? value2.map((v) => this.encodeValue(v, part.operator)).join(",") : this.encodeValue(value2.toString(), part.operator);
+        return `${name}=${encoded2}`;
+      }).filter((pair) => pair.length > 0);
+      if (pairs.length === 0)
+        return "";
+      const separator = part.operator === "?" ? "?" : "&";
+      return separator + pairs.join("&");
+    }
+    if (part.names.length > 1) {
+      const values2 = part.names.map((name) => variables[name]).filter((v) => v !== void 0);
+      if (values2.length === 0)
+        return "";
+      return values2.map((v) => Array.isArray(v) ? v[0] : v).join(",");
+    }
+    const value = variables[part.name];
+    if (value === void 0)
+      return "";
+    const values = Array.isArray(value) ? value : [value];
+    const encoded = values.map((v) => this.encodeValue(v, part.operator));
+    switch (part.operator) {
+      case "":
+        return encoded.join(",");
+      case "+":
+        return encoded.join(",");
+      case "#":
+        return "#" + encoded.join(",");
+      case ".":
+        return "." + encoded.join(".");
+      case "/":
+        return "/" + encoded.join("/");
+      default:
+        return encoded.join(",");
+    }
+  }
+  expand(variables) {
+    let result = "";
+    let hasQueryParam = false;
+    for (const part of this.parts) {
+      if (typeof part === "string") {
+        result += part;
+        continue;
+      }
+      const expanded = this.expandPart(part, variables);
+      if (!expanded)
+        continue;
+      if ((part.operator === "?" || part.operator === "&") && hasQueryParam) {
+        result += expanded.replace("?", "&");
+      } else {
+        result += expanded;
+      }
+      if (part.operator === "?" || part.operator === "&") {
+        hasQueryParam = true;
+      }
+    }
+    return result;
+  }
+  escapeRegExp(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+  partToRegExp(part) {
+    const patterns = [];
+    for (const name2 of part.names) {
+      _UriTemplate.validateLength(name2, MAX_VARIABLE_LENGTH, "Variable name");
+    }
+    if (part.operator === "?" || part.operator === "&") {
+      for (let i = 0; i < part.names.length; i++) {
+        const name2 = part.names[i];
+        const prefix = i === 0 ? "\\" + part.operator : "&";
+        patterns.push({
+          pattern: prefix + this.escapeRegExp(name2) + "=([^&]+)",
+          name: name2
+        });
+      }
+      return patterns;
+    }
+    let pattern;
+    const name = part.name;
+    switch (part.operator) {
+      case "":
+        pattern = part.exploded ? "([^/,]+(?:,[^/,]+)*)" : "([^/,]+)";
+        break;
+      case "+":
+      case "#":
+        pattern = "(.+)";
+        break;
+      case ".":
+        pattern = "\\.([^/,]+)";
+        break;
+      case "/":
+        pattern = "/" + (part.exploded ? "([^/,]+(?:,[^/,]+)*)" : "([^/,]+)");
+        break;
+      default:
+        pattern = "([^/]+)";
+    }
+    patterns.push({ pattern, name });
+    return patterns;
+  }
+  match(uri) {
+    _UriTemplate.validateLength(uri, MAX_TEMPLATE_LENGTH, "URI");
+    let pattern = "^";
+    const names = [];
+    for (const part of this.parts) {
+      if (typeof part === "string") {
+        pattern += this.escapeRegExp(part);
+      } else {
+        const patterns = this.partToRegExp(part);
+        for (const { pattern: partPattern, name } of patterns) {
+          pattern += partPattern;
+          names.push({ name, exploded: part.exploded });
+        }
+      }
+    }
+    pattern += "$";
+    _UriTemplate.validateLength(pattern, MAX_REGEX_LENGTH, "Generated regex pattern");
+    const regex = new RegExp(pattern);
+    const match = uri.match(regex);
+    if (!match)
+      return null;
+    const result = {};
+    for (let i = 0; i < names.length; i++) {
+      const { name, exploded } = names[i];
+      const value = match[i + 1];
+      const cleanName = name.replace("*", "");
+      if (exploded && value.includes(",")) {
+        result[cleanName] = value.split(",");
+      } else {
+        result[cleanName] = value;
+      }
+    }
+    return result;
+  }
+};
 
 // ../node_modules/@modelcontextprotocol/sdk/dist/esm/shared/toolNameValidation.js
 var TOOL_NAME_REGEX = /^[A-Za-z0-9._-]{1,128}$/;
@@ -25566,6 +25869,30 @@ var McpServer = class {
     }
   }
 };
+var ResourceTemplate = class {
+  constructor(uriTemplate, _callbacks) {
+    this._callbacks = _callbacks;
+    this._uriTemplate = typeof uriTemplate === "string" ? new UriTemplate(uriTemplate) : uriTemplate;
+  }
+  /**
+   * Gets the URI template pattern.
+   */
+  get uriTemplate() {
+    return this._uriTemplate;
+  }
+  /**
+   * Gets the list callback, if one was provided.
+   */
+  get listCallback() {
+    return this._callbacks.list;
+  }
+  /**
+   * Gets the callback for completing a specific URI template variable, if one was provided.
+   */
+  completeCallback(variable) {
+    return this._callbacks.complete?.[variable];
+  }
+};
 var EMPTY_OBJECT_JSON_SCHEMA = {
   type: "object",
   properties: {}
@@ -25724,8 +26051,8 @@ var StdioServerTransport = class {
   }
   send(message) {
     return new Promise((resolve) => {
-      const json = serializeMessage(message);
-      if (this._stdout.write(json)) {
+      const json2 = serializeMessage(message);
+      if (this._stdout.write(json2)) {
         resolve();
       } else {
         this._stdout.once("drain", resolve);
@@ -25735,7 +26062,7 @@ var StdioServerTransport = class {
 };
 
 // src/index.ts
-var import_shared = __toESM(require_dist2(), 1);
+var import_shared3 = __toESM(require_dist2(), 1);
 
 // src/config.ts
 var envSchema = external_exports.object({
@@ -25825,6 +26152,367 @@ var api = {
   getBinary
 };
 
+// src/shape.ts
+function compactTask(t) {
+  return {
+    id: t.id,
+    title: t.title,
+    status: t.status,
+    priority: t.priority,
+    featureId: t.featureId,
+    assigneeIds: t.assigneeIds,
+    dueDate: t.dueDate,
+    subtaskCount: t.subtasks.length,
+    doneSubtasks: t.subtasks.filter((s) => s.done).length,
+    commentCount: t.events.filter((e) => e.kind === "comment").length,
+    // For optimistic concurrency: pass this back as expectedUpdatedAt on update.
+    updatedAt: t.updatedAt
+  };
+}
+function compactFeature(p, f) {
+  return {
+    id: f.id,
+    name: f.name,
+    status: f.status,
+    pinned: f.pinned,
+    ownerIds: f.ownerIds,
+    targetDate: f.targetDate,
+    taskCount: p.tasks.filter((t) => t.featureId === f.id).length,
+    updatedAt: f.updatedAt
+  };
+}
+function compactMilestone(m) {
+  return {
+    id: m.id,
+    title: m.title,
+    description: m.description,
+    status: m.status,
+    dueDate: m.dueDate,
+    position: m.position,
+    completedAt: m.completedAt,
+    updatedAt: m.updatedAt
+  };
+}
+function compactProject(p) {
+  return {
+    id: p.id,
+    name: p.name,
+    status: p.status,
+    clients: p.clients.map((c) => ({
+      id: c.id,
+      name: c.name,
+      email: c.email
+    })),
+    members: p.members.map((m) => ({ id: m.id, name: m.name, role: m.role })),
+    features: p.features.map((f) => compactFeature(p, f)),
+    tasks: p.tasks.map(compactTask),
+    milestones: p.milestones.map(compactMilestone)
+  };
+}
+function leanMessage(m) {
+  const MAX = 240;
+  const truncated = m.body.length > MAX;
+  return {
+    id: m.id,
+    author: m.author,
+    agentName: m.agentName,
+    time: m.createdAt,
+    body: truncated ? `${m.body.slice(0, MAX).trimEnd()}\u2026` : m.body,
+    ...truncated ? { truncated: true } : {},
+    ...m.attachment ? { attachment: m.attachment } : {}
+  };
+}
+function newest(items) {
+  return items.reduce((a, b) => a.updatedAt >= b.updatedAt ? a : b);
+}
+function findTask(p, taskId2) {
+  const t = p.tasks.find((x) => x.id === taskId2);
+  if (!t) throw new Error(`Task ${taskId2} not found in project`);
+  return t;
+}
+function findFeature(p, featureId2) {
+  const f = p.features.find((x) => x.id === featureId2);
+  if (!f) throw new Error(`Feature ${featureId2} not found in project`);
+  return f;
+}
+function findMilestone(p, milestoneId2) {
+  const m = p.milestones.find((x) => x.id === milestoneId2);
+  if (!m) throw new Error(`Milestone ${milestoneId2} not found in project`);
+  return m;
+}
+
+// src/resources.ts
+var import_shared = __toESM(require_dist2(), 1);
+var listProjects = () => api.get(import_shared.apiPaths.projects.list());
+function json(uri, data) {
+  return {
+    contents: [
+      {
+        uri: uri.href,
+        mimeType: "application/json",
+        text: JSON.stringify(data, null, 2)
+      }
+    ]
+  };
+}
+async function completeProjectId(value) {
+  const projects = await listProjects();
+  return projects.map((p) => p.id).filter((id) => id.startsWith(value)).slice(0, 25);
+}
+function registerResources(server2) {
+  server2.registerResource(
+    "projects",
+    "cnsofts://projects",
+    {
+      title: "Projects",
+      description: "Every project the connected account can access (id, name, status).",
+      mimeType: "application/json"
+    },
+    async (uri) => json(uri, await listProjects())
+  );
+  server2.registerResource(
+    "project-board",
+    new ResourceTemplate("cnsofts://project/{projectId}", {
+      list: async () => ({
+        resources: (await listProjects()).map((p) => ({
+          uri: `cnsofts://project/${p.id}`,
+          name: `${p.name} \u2014 board`,
+          description: `Board for ${p.name} (${p.status})`,
+          mimeType: "application/json"
+        }))
+      }),
+      complete: { projectId: completeProjectId }
+    }),
+    {
+      title: "Project board",
+      description: "A project's features (swimlanes), tasks, members and milestones \u2014 compact.",
+      mimeType: "application/json"
+    },
+    async (uri, { projectId: projectId2 }) => json(
+      uri,
+      compactProject(
+        await api.get(import_shared.apiPaths.projects.detail(String(projectId2)))
+      )
+    )
+  );
+  server2.registerResource(
+    "project-docs",
+    new ResourceTemplate("cnsofts://project/{projectId}/docs", {
+      list: void 0,
+      complete: { projectId: completeProjectId }
+    }),
+    {
+      title: "Project docs",
+      description: "Documentation pages in a project (titles + ids; read one at cnsofts://project/{id}/doc/{docId}).",
+      mimeType: "application/json"
+    },
+    async (uri, { projectId: projectId2 }) => json(
+      uri,
+      await api.get(import_shared.apiPaths.projects.docs(String(projectId2)))
+    )
+  );
+  server2.registerResource(
+    "doc",
+    new ResourceTemplate("cnsofts://project/{projectId}/doc/{docId}", {
+      list: void 0,
+      complete: {
+        projectId: completeProjectId,
+        docId: async (value, ctx) => {
+          const pid = ctx?.arguments?.projectId;
+          if (!pid) return [];
+          const docs = await api.get(import_shared.apiPaths.projects.docs(pid));
+          return docs.filter((d) => d.id.startsWith(value)).map((d) => d.id).slice(0, 25);
+        }
+      }
+    }),
+    {
+      title: "Doc",
+      description: "A single documentation page (markdown).",
+      mimeType: "text/markdown"
+    },
+    async (uri, { projectId: projectId2, docId: docId2 }) => {
+      const doc = await api.get(
+        import_shared.apiPaths.projects.doc(String(projectId2), String(docId2))
+      );
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: "text/markdown",
+            text: `# ${doc.title}
+
+${doc.body}`
+          }
+        ]
+      };
+    }
+  );
+  server2.registerResource(
+    "project-channels",
+    new ResourceTemplate("cnsofts://project/{projectId}/channels", {
+      list: void 0,
+      complete: { projectId: completeProjectId }
+    }),
+    {
+      title: "Project channels",
+      description: "Discussion channels in a project (read one at cnsofts://project/{id}/channel/{channelId}).",
+      mimeType: "application/json"
+    },
+    async (uri, { projectId: projectId2 }) => json(uri, await api.get(import_shared.apiPaths.projects.channels(String(projectId2))))
+  );
+  server2.registerResource(
+    "channel",
+    new ResourceTemplate("cnsofts://project/{projectId}/channel/{channelId}", {
+      list: void 0,
+      complete: {
+        projectId: completeProjectId,
+        channelId: async (value, ctx) => {
+          const pid = ctx?.arguments?.projectId;
+          if (!pid) return [];
+          const channels = await api.get(
+            import_shared.apiPaths.projects.channels(pid)
+          );
+          return channels.map((c) => c.id).filter((id) => id.startsWith(value)).slice(0, 25);
+        }
+      }
+    }),
+    {
+      title: "Channel",
+      description: "A channel overview: counts, participants, and recent message previews.",
+      mimeType: "application/json"
+    },
+    async (uri, { projectId: projectId2, channelId: channelId2 }) => {
+      const overview = await api.get(
+        import_shared.apiPaths.projects.channelOverview(
+          String(projectId2),
+          String(channelId2)
+        )
+      );
+      const shaped = overview.recent ? { ...overview, recent: overview.recent.map(leanMessage) } : overview;
+      return json(uri, shaped);
+    }
+  );
+}
+
+// src/prompts.ts
+var import_shared2 = __toESM(require_dist2(), 1);
+var projectIdArg = completable(
+  external_exports.string().describe("The project id (see the cnsofts://projects resource)"),
+  async (value) => {
+    const projects = await api.get(import_shared2.apiPaths.projects.list()).catch(() => []);
+    return projects.map((p) => p.id).filter((id) => id.startsWith(value)).slice(0, 25);
+  }
+);
+function userMessage(text) {
+  return {
+    messages: [{ role: "user", content: { type: "text", text } }]
+  };
+}
+function registerPrompts(server2) {
+  server2.registerPrompt(
+    "standup",
+    {
+      title: "Stand-up summary",
+      description: "Summarize a project's recent progress as a short stand-up update.",
+      argsSchema: { projectId: projectIdArg }
+    },
+    ({ projectId: projectId2 }) => userMessage(
+      [
+        `Write a concise stand-up update for project ${projectId2}.`,
+        "",
+        `Read the board resource cnsofts://project/${projectId2} (or call get_project),`,
+        `and skim recent channel activity (get_channel_overview / search_conversations).`,
+        "Then summarize, as a short bulleted list:",
+        "  \u2022 Shipped \u2014 tasks moved to Done and milestones completed recently.",
+        "  \u2022 In progress \u2014 what is actively being worked on.",
+        "  \u2022 Blockers / needs input.",
+        "  \u2022 Next \u2014 the most important upcoming items.",
+        "",
+        "Keep it tight \u2014 a status update a human would skim in 15 seconds. Do NOT",
+        "paste the whole board. If nothing changed in an area, omit it."
+      ].join("\n")
+    )
+  );
+  server2.registerPrompt(
+    "triage",
+    {
+      title: "Triage the board",
+      description: "Find unassigned, overdue, stale, or mis-prioritized tasks and propose fixes.",
+      argsSchema: { projectId: projectIdArg }
+    },
+    ({ projectId: projectId2 }) => userMessage(
+      [
+        `Triage the board for project ${projectId2}.`,
+        "",
+        `Read cnsofts://project/${projectId2} (or get_project / list_tasks). Identify:`,
+        "  \u2022 Tasks with no assignee.",
+        "  \u2022 Tasks past their dueDate that are not Done.",
+        "  \u2022 Tasks stuck in In Progress with no recent activity.",
+        "  \u2022 Priorities that look wrong given due dates / milestones.",
+        "",
+        "Propose a concrete plan (assignee, priority, or status changes). Ask before",
+        "making sweeping changes; for clearly-correct fixes, apply them with the",
+        "update_task / assign_task / move_task tools and post a one-line summary to",
+        "the team channel pointing at the board."
+      ].join("\n")
+    )
+  );
+  server2.registerPrompt(
+    "client-update",
+    {
+      title: "Draft a client update",
+      description: "Draft a client-facing progress update from the roadmap and recently shipped work.",
+      argsSchema: { projectId: projectIdArg }
+    },
+    ({ projectId: projectId2 }) => userMessage(
+      [
+        `Draft a client-facing progress update for project ${projectId2}.`,
+        "",
+        `Base it on the roadmap milestones and shipped work in`,
+        `cnsofts://project/${projectId2} (get_project \u2192 milestones + Done tasks).`,
+        "Write in plain, reassuring language for a non-technical client:",
+        "  \u2022 What was delivered since the last update.",
+        "  \u2022 Where each roadmap checkpoint stands and expected dates.",
+        "  \u2022 Anything you need from them.",
+        "",
+        "Keep internal/engineering detail OUT \u2014 clients only see client-shared docs",
+        "and client channels. Show me the draft first; once approved, post it to the",
+        "client channel (list_channels \u2192 the client-visible one) or a Client-review",
+        "doc, not the internal team channel."
+      ].join("\n")
+    )
+  );
+  server2.registerPrompt(
+    "plan-feature",
+    {
+      title: "Plan a feature into tasks",
+      description: "Break a feature description into a feature + ordered tasks on the board.",
+      argsSchema: {
+        projectId: projectIdArg,
+        feature: external_exports.string().describe("What the feature should do (a sentence or a paragraph)")
+      }
+    },
+    ({ projectId: projectId2, feature }) => userMessage(
+      [
+        `Plan this feature into board work for project ${projectId2}:`,
+        "",
+        `"""${feature}"""`,
+        "",
+        `First read cnsofts://project/${projectId2} to see existing features, tasks,`,
+        "members and conventions (avoid duplicates, match naming/priorities).",
+        "Then propose:",
+        "  \u2022 A feature (swimlane) name + short description.",
+        "  \u2022 A small ordered set of concrete, independently-shippable tasks, each",
+        "    with a priority and a suggested assignee from the roster.",
+        "",
+        "Show the plan for approval FIRST. On approval, create it with create_feature",
+        "then create_task (set featureId), and post a one-line note to the team",
+        "channel pointing at the new swimlane."
+      ].join("\n")
+    )
+  );
+}
+
 // src/index.ts
 async function run(work) {
   try {
@@ -25873,102 +26561,15 @@ async function loadImageBytes(input) {
   }
   if (!mime) {
     throw new Error(
-      `Could not determine the image type \u2014 pass mimeType (one of: ${import_shared.IMAGE_ALLOWED_MIME.join(", ")}).`
+      `Could not determine the image type \u2014 pass mimeType (one of: ${import_shared3.IMAGE_ALLOWED_MIME.join(", ")}).`
     );
   }
-  if (!import_shared.IMAGE_ALLOWED_MIME.includes(mime)) {
+  if (!import_shared3.IMAGE_ALLOWED_MIME.includes(mime)) {
     throw new Error(
-      `Unsupported image type "${mime}". Allowed: ${import_shared.IMAGE_ALLOWED_MIME.join(", ")}.`
+      `Unsupported image type "${mime}". Allowed: ${import_shared3.IMAGE_ALLOWED_MIME.join(", ")}.`
     );
   }
   return { buffer, mimeType: mime };
-}
-function compactTask(t) {
-  return {
-    id: t.id,
-    title: t.title,
-    status: t.status,
-    priority: t.priority,
-    featureId: t.featureId,
-    assigneeIds: t.assigneeIds,
-    dueDate: t.dueDate,
-    subtaskCount: t.subtasks.length,
-    doneSubtasks: t.subtasks.filter((s) => s.done).length,
-    commentCount: t.events.filter((e) => e.kind === "comment").length,
-    // For optimistic concurrency: pass this back as expectedUpdatedAt on update.
-    updatedAt: t.updatedAt
-  };
-}
-function compactProject(p) {
-  return {
-    id: p.id,
-    name: p.name,
-    status: p.status,
-    clients: p.clients.map((c) => ({
-      id: c.id,
-      name: c.name,
-      email: c.email
-    })),
-    members: p.members.map((m) => ({ id: m.id, name: m.name, role: m.role })),
-    features: p.features.map((f) => compactFeature(p, f)),
-    tasks: p.tasks.map(compactTask),
-    milestones: p.milestones.map(compactMilestone)
-  };
-}
-function leanMessage(m) {
-  const MAX = 240;
-  const truncated = m.body.length > MAX;
-  return {
-    id: m.id,
-    author: m.author,
-    agentName: m.agentName,
-    time: m.createdAt,
-    body: truncated ? `${m.body.slice(0, MAX).trimEnd()}\u2026` : m.body,
-    ...truncated ? { truncated: true } : {},
-    ...m.attachment ? { attachment: m.attachment } : {}
-  };
-}
-function compactFeature(p, f) {
-  return {
-    id: f.id,
-    name: f.name,
-    status: f.status,
-    pinned: f.pinned,
-    ownerIds: f.ownerIds,
-    targetDate: f.targetDate,
-    taskCount: p.tasks.filter((t) => t.featureId === f.id).length,
-    updatedAt: f.updatedAt
-  };
-}
-function compactMilestone(m) {
-  return {
-    id: m.id,
-    title: m.title,
-    description: m.description,
-    status: m.status,
-    dueDate: m.dueDate,
-    position: m.position,
-    completedAt: m.completedAt,
-    updatedAt: m.updatedAt
-  };
-}
-function newest(items) {
-  return items.reduce((a, b) => a.updatedAt >= b.updatedAt ? a : b);
-}
-function findTask(p, taskId2) {
-  const t = p.tasks.find((x) => x.id === taskId2);
-  if (!t) throw new Error(`Task ${taskId2} not found in project`);
-  return t;
-}
-function findFeature(p, featureId2) {
-  const f = p.features.find((x) => x.id === featureId2);
-  if (!f) throw new Error(`Feature ${featureId2} not found in project`);
-  return f;
-}
-function findMilestone(p, milestoneId2) {
-  const m = p.milestones.find((x) => x.id === milestoneId2);
-  if (!m) throw new Error(`Milestone ${milestoneId2} not found in project`);
-  return m;
 }
 var projectId = external_exports.string().min(1).describe("The project id");
 var taskId = external_exports.string().min(1).describe("The task id");
@@ -26058,7 +26659,7 @@ server.registerTool(
     description: "List every project the connected account can access (id, name, status).",
     inputSchema: {}
   },
-  () => run(() => api.get(import_shared.apiPaths.projects.list()))
+  () => run(() => api.get(import_shared3.apiPaths.projects.list()))
 );
 server.registerTool(
   "get_project",
@@ -26068,7 +26669,7 @@ server.registerTool(
     inputSchema: { projectId }
   },
   ({ projectId: projectId2 }) => run(
-    async () => compactProject(await api.get(import_shared.apiPaths.projects.detail(projectId2)))
+    async () => compactProject(await api.get(import_shared3.apiPaths.projects.detail(projectId2)))
   )
 );
 server.registerTool(
@@ -26079,7 +26680,7 @@ server.registerTool(
     inputSchema: { projectId, taskId }
   },
   ({ projectId: projectId2, taskId: taskId2 }) => run(
-    async () => findTask(await api.get(import_shared.apiPaths.projects.detail(projectId2)), taskId2)
+    async () => findTask(await api.get(import_shared3.apiPaths.projects.detail(projectId2)), taskId2)
   )
 );
 server.registerTool(
@@ -26089,13 +26690,13 @@ server.registerTool(
     description: "List a project\u2019s tasks (compact), optionally filtered by status, feature, or assignee (member id).",
     inputSchema: {
       projectId,
-      status: import_shared.taskStatusSchema.optional(),
+      status: import_shared3.taskStatusSchema.optional(),
       featureId: external_exports.string().optional().describe("Filter to one feature"),
       assigneeId: external_exports.string().optional().describe("Filter to one member id")
     }
   },
   ({ projectId: projectId2, status, featureId: featureId2, assigneeId }) => run(async () => {
-    const p = await api.get(import_shared.apiPaths.projects.detail(projectId2));
+    const p = await api.get(import_shared3.apiPaths.projects.detail(projectId2));
     let tasks = p.tasks;
     if (status) tasks = tasks.filter((t) => t.status === status);
     if (featureId2) tasks = tasks.filter((t) => t.featureId === featureId2);
@@ -26111,7 +26712,7 @@ server.registerTool(
     description: "List the discussion channels of a project.",
     inputSchema: { projectId }
   },
-  ({ projectId: projectId2 }) => run(() => api.get(import_shared.apiPaths.projects.channels(projectId2)))
+  ({ projectId: projectId2 }) => run(() => api.get(import_shared3.apiPaths.projects.channels(projectId2)))
 );
 server.registerTool(
   "get_channel_overview",
@@ -26120,7 +26721,7 @@ server.registerTool(
     description: "Cheap orientation for a channel: message count, participants, first/last activity, and the last few message previews. Call this before read_channel to decide whether you even need to read more.",
     inputSchema: { projectId, channelId }
   },
-  ({ projectId: projectId2, channelId: channelId2 }) => run(() => api.get(import_shared.apiPaths.projects.channelOverview(projectId2, channelId2)))
+  ({ projectId: projectId2, channelId: channelId2 }) => run(() => api.get(import_shared3.apiPaths.projects.channelOverview(projectId2, channelId2)))
 );
 server.registerTool(
   "search_conversations",
@@ -26137,7 +26738,7 @@ server.registerTool(
   ({ projectId: projectId2, query, channelId: channelId2, limit }) => run(() => {
     const params = new URLSearchParams({ q: query, limit: String(limit) });
     if (channelId2) params.set("channelId", channelId2);
-    return api.get(`${import_shared.apiPaths.projects.search(projectId2)}?${params.toString()}`);
+    return api.get(`${import_shared3.apiPaths.projects.search(projectId2)}?${params.toString()}`);
   })
 );
 server.registerTool(
@@ -26162,7 +26763,7 @@ server.registerTool(
     });
     if (afterMessageId) params.set("after", afterMessageId);
     return api.get(
-      `${import_shared.apiPaths.projects.channelWait(projectId2, channelId2)}?${params.toString()}`
+      `${import_shared3.apiPaths.projects.channelWait(projectId2, channelId2)}?${params.toString()}`
     );
   })
 );
@@ -26181,7 +26782,7 @@ server.registerTool(
   ({ projectId: projectId2, channelId: channelId2, limit, before }) => run(async () => {
     const qs = `?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ""}`;
     const messages = await api.get(
-      `${import_shared.apiPaths.projects.channelMessages(projectId2, channelId2)}${qs}`
+      `${import_shared3.apiPaths.projects.channelMessages(projectId2, channelId2)}${qs}`
     );
     const hasMore = messages.length === limit;
     return {
@@ -26204,7 +26805,7 @@ server.registerTool(
     }
   },
   ({ projectId: projectId2, channelId: channelId2, messageId }) => run(
-    () => api.get(import_shared.apiPaths.projects.channelMessage(projectId2, channelId2, messageId))
+    () => api.get(import_shared3.apiPaths.projects.channelMessage(projectId2, channelId2, messageId))
   )
 );
 server.registerTool(
@@ -26221,7 +26822,7 @@ server.registerTool(
       const marker = "/api/images/";
       const id = image.includes(marker) ? image.slice(image.indexOf(marker) + marker.length).split(/[?#/]/)[0] : image.trim();
       const { data, contentType } = await api.getBinary(
-        import_shared.apiPaths.images.serve(id)
+        import_shared3.apiPaths.images.serve(id)
       );
       return {
         content: [
@@ -26248,7 +26849,7 @@ server.registerTool(
     description: "A project's documentation pages (id, title, when/who last edited) \u2014 metadata only, no body. Use this to orient before reading or writing a doc.",
     inputSchema: { projectId }
   },
-  ({ projectId: projectId2 }) => run(() => api.get(import_shared.apiPaths.projects.docs(projectId2)))
+  ({ projectId: projectId2 }) => run(() => api.get(import_shared3.apiPaths.projects.docs(projectId2)))
 );
 server.registerTool(
   "get_doc",
@@ -26257,7 +26858,7 @@ server.registerTool(
     description: "Fetch one documentation page with its full markdown body. Read it before update_doc so you preserve the parts you are not changing.",
     inputSchema: { projectId, docId }
   },
-  ({ projectId: projectId2, docId: docId2 }) => run(() => api.get(import_shared.apiPaths.projects.doc(projectId2, docId2)))
+  ({ projectId: projectId2, docId: docId2 }) => run(() => api.get(import_shared3.apiPaths.projects.doc(projectId2, docId2)))
 );
 if (!config2.readOnly) {
   server.registerTool(
@@ -26265,11 +26866,11 @@ if (!config2.readOnly) {
     {
       title: "Create feature",
       description: "Create a feature (kanban swimlane) in a project.",
-      inputSchema: { projectId, ...import_shared.createFeatureSchema.shape }
+      inputSchema: { projectId, ...import_shared3.createFeatureSchema.shape }
     },
     ({ projectId: projectId2, ...body }) => run(async () => {
       const p = await api.post(
-        import_shared.apiPaths.projects.features(projectId2),
+        import_shared3.apiPaths.projects.features(projectId2),
         body
       );
       return compactFeature(p, newest(p.features));
@@ -26280,11 +26881,11 @@ if (!config2.readOnly) {
     {
       title: "Update feature",
       description: "Update a feature \u2014 name, description, status, owners, target date, or pinned.",
-      inputSchema: { projectId, featureId, ...import_shared.updateFeatureSchema.shape }
+      inputSchema: { projectId, featureId, ...import_shared3.updateFeatureSchema.shape }
     },
     ({ projectId: projectId2, featureId: featureId2, ...body }) => run(async () => {
       const p = await api.patch(
-        import_shared.apiPaths.projects.feature(projectId2, featureId2),
+        import_shared3.apiPaths.projects.feature(projectId2, featureId2),
         body
       );
       return compactFeature(p, findFeature(p, featureId2));
@@ -26302,7 +26903,7 @@ if (!config2.readOnly) {
     },
     ({ projectId: projectId2, orderedIds }) => run(async () => {
       const p = await api.post(
-        import_shared.apiPaths.projects.featuresReorder(projectId2),
+        import_shared3.apiPaths.projects.featuresReorder(projectId2),
         { orderedIds }
       );
       return p.features.map((f) => compactFeature(p, f));
@@ -26313,10 +26914,10 @@ if (!config2.readOnly) {
     {
       title: "Create task",
       description: "Create a task on the board. First call get_project to get valid featureId (swimlane) and assigneeIds (member ids) \u2014 do not invent them.",
-      inputSchema: { projectId, ...import_shared.createTaskSchema.shape }
+      inputSchema: { projectId, ...import_shared3.createTaskSchema.shape }
     },
     ({ projectId: projectId2, ...body }) => run(async () => {
-      const p = await api.post(import_shared.apiPaths.projects.tasks(projectId2), body);
+      const p = await api.post(import_shared3.apiPaths.projects.tasks(projectId2), body);
       return compactTask(newest(p.tasks));
     })
   );
@@ -26325,11 +26926,11 @@ if (!config2.readOnly) {
     {
       title: "Reorder tasks",
       description: "Set the order of tasks within one status column. Pass the status and the full, final list of task ids in that column, in the desired order.",
-      inputSchema: { projectId, ...import_shared.reorderTasksSchema.shape }
+      inputSchema: { projectId, ...import_shared3.reorderTasksSchema.shape }
     },
     ({ projectId: projectId2, ...body }) => run(async () => {
       const p = await api.patch(
-        import_shared.apiPaths.projects.tasksReorder(projectId2),
+        import_shared3.apiPaths.projects.tasksReorder(projectId2),
         body
       );
       return p.tasks.filter((t) => t.status === body.status).map(compactTask);
@@ -26340,12 +26941,12 @@ if (!config2.readOnly) {
     {
       title: "Update task",
       description: "Update task fields (title, description, status, priority, assigneeIds, featureId, dueDate). Read the task via get_project first so you only change what you intend. Only fields you pass are changed.",
-      inputSchema: { projectId, taskId, ...import_shared.updateTaskSchema.shape }
+      inputSchema: { projectId, taskId, ...import_shared3.updateTaskSchema.shape }
     },
     ({ projectId: projectId2, taskId: taskId2, ...body }) => run(
       async () => compactTask(
         findTask(
-          await api.patch(import_shared.apiPaths.projects.task(projectId2, taskId2), body),
+          await api.patch(import_shared3.apiPaths.projects.task(projectId2, taskId2), body),
           taskId2
         )
       )
@@ -26356,12 +26957,12 @@ if (!config2.readOnly) {
     {
       title: "Move task",
       description: "Move a task to another status column on the board.",
-      inputSchema: { projectId, taskId, status: import_shared.taskStatusSchema }
+      inputSchema: { projectId, taskId, status: import_shared3.taskStatusSchema }
     },
     ({ projectId: projectId2, taskId: taskId2, status }) => run(
       async () => compactTask(
         findTask(
-          await api.patch(import_shared.apiPaths.projects.task(projectId2, taskId2), {
+          await api.patch(import_shared3.apiPaths.projects.task(projectId2, taskId2), {
             status
           }),
           taskId2
@@ -26383,7 +26984,7 @@ if (!config2.readOnly) {
     ({ projectId: projectId2, taskId: taskId2, assigneeIds }) => run(
       async () => compactTask(
         findTask(
-          await api.patch(import_shared.apiPaths.projects.task(projectId2, taskId2), {
+          await api.patch(import_shared3.apiPaths.projects.task(projectId2, taskId2), {
             assigneeIds
           }),
           taskId2
@@ -26396,12 +26997,12 @@ if (!config2.readOnly) {
     {
       title: "Add subtask",
       description: "Add a checklist subtask to a task.",
-      inputSchema: { projectId, taskId, ...import_shared.createSubtaskSchema.shape }
+      inputSchema: { projectId, taskId, ...import_shared3.createSubtaskSchema.shape }
     },
     ({ projectId: projectId2, taskId: taskId2, ...body }) => run(
       async () => findTask(
         await api.post(
-          import_shared.apiPaths.projects.subtasks(projectId2, taskId2),
+          import_shared3.apiPaths.projects.subtasks(projectId2, taskId2),
           body
         ),
         taskId2
@@ -26424,7 +27025,7 @@ if (!config2.readOnly) {
     ({ projectId: projectId2, taskId: taskId2, subtaskId: subtaskId2, ...body }) => run(
       async () => findTask(
         await api.patch(
-          import_shared.apiPaths.projects.subtask(projectId2, taskId2, subtaskId2),
+          import_shared3.apiPaths.projects.subtask(projectId2, taskId2, subtaskId2),
           body
         ),
         taskId2
@@ -26436,18 +27037,18 @@ if (!config2.readOnly) {
     {
       title: "Create channel",
       description: 'Create a discussion channel. visibility "internal" = team-only, "client" = shared with clients.',
-      inputSchema: { projectId, ...import_shared.createChannelSchema.shape }
+      inputSchema: { projectId, ...import_shared3.createChannelSchema.shape }
     },
-    ({ projectId: projectId2, ...body }) => run(() => api.post(import_shared.apiPaths.projects.channels(projectId2), body))
+    ({ projectId: projectId2, ...body }) => run(() => api.post(import_shared3.apiPaths.projects.channels(projectId2), body))
   );
   server.registerTool(
     "create_doc",
     {
       title: "Create doc",
       description: `Create a documentation page in the project's Docs \u2014 long-form project docs (architecture, onboarding, decisions, status) the team and agents read to stay aware of what's going on. Give it a clear title and a markdown body. ${MARKDOWN_HINT}`,
-      inputSchema: { projectId, ...import_shared.createDocSchema.shape }
+      inputSchema: { projectId, ...import_shared3.createDocSchema.shape }
     },
-    ({ projectId: projectId2, ...body }) => run(() => api.post(import_shared.apiPaths.projects.docs(projectId2), body))
+    ({ projectId: projectId2, ...body }) => run(() => api.post(import_shared3.apiPaths.projects.docs(projectId2), body))
   );
   server.registerTool(
     "update_doc",
@@ -26457,11 +27058,11 @@ if (!config2.readOnly) {
       inputSchema: {
         projectId,
         docId,
-        title: import_shared.createDocSchema.shape.title.optional(),
-        body: import_shared.createDocSchema.shape.body.optional()
+        title: import_shared3.createDocSchema.shape.title.optional(),
+        body: import_shared3.createDocSchema.shape.body.optional()
       }
     },
-    ({ projectId: projectId2, docId: docId2, ...body }) => run(() => api.patch(import_shared.apiPaths.projects.doc(projectId2, docId2), body))
+    ({ projectId: projectId2, docId: docId2, ...body }) => run(() => api.patch(import_shared3.apiPaths.projects.doc(projectId2, docId2), body))
   );
   server.registerTool(
     "upload_image",
@@ -26476,7 +27077,7 @@ if (!config2.readOnly) {
         data: external_exports.string().min(1).optional().describe(
           "Fallback only, when you have no file path: the raw image bytes base64-encoded. Prefer `path`."
         ),
-        mimeType: external_exports.enum(import_shared.IMAGE_ALLOWED_MIME).optional().describe(
+        mimeType: external_exports.enum(import_shared3.IMAGE_ALLOWED_MIME).optional().describe(
           "Usually inferred from the file extension or URL. Set only if it cannot be inferred. One of: image/png, image/jpeg, image/gif, image/webp."
         ),
         alt: external_exports.string().max(200).optional().describe("Alt text for the image")
@@ -26488,7 +27089,7 @@ if (!config2.readOnly) {
         data,
         mimeType
       });
-      const image = await api.postBinary(import_shared.apiPaths.projects.images(projectId2), buffer, mime);
+      const image = await api.postBinary(import_shared3.apiPaths.projects.images(projectId2), buffer, mime);
       return { ...image, markdown: `![${alt ?? "image"}](${image.url})` };
     })
   );
@@ -26497,11 +27098,11 @@ if (!config2.readOnly) {
     {
       title: "Create checkpoint",
       description: "Add a checkpoint to the project roadmap (a client-facing delivery marker). Provide a title, optional description, dueDate (YYYY-MM-DD), and status (upcoming | in_progress | done).",
-      inputSchema: { projectId, ...import_shared.createMilestoneSchema.shape }
+      inputSchema: { projectId, ...import_shared3.createMilestoneSchema.shape }
     },
     ({ projectId: projectId2, ...body }) => run(async () => {
       const p = await api.post(
-        import_shared.apiPaths.projects.milestones(projectId2),
+        import_shared3.apiPaths.projects.milestones(projectId2),
         body
       );
       return compactMilestone(newest(p.milestones));
@@ -26515,15 +27116,15 @@ if (!config2.readOnly) {
       inputSchema: {
         projectId,
         milestoneId,
-        title: import_shared.createMilestoneSchema.shape.title.optional(),
-        description: import_shared.createMilestoneSchema.shape.description.optional(),
-        dueDate: import_shared.createMilestoneSchema.shape.dueDate.optional(),
-        status: import_shared.createMilestoneSchema.shape.status.optional()
+        title: import_shared3.createMilestoneSchema.shape.title.optional(),
+        description: import_shared3.createMilestoneSchema.shape.description.optional(),
+        dueDate: import_shared3.createMilestoneSchema.shape.dueDate.optional(),
+        status: import_shared3.createMilestoneSchema.shape.status.optional()
       }
     },
     ({ projectId: projectId2, milestoneId: milestoneId2, ...body }) => run(async () => {
       const p = await api.patch(
-        import_shared.apiPaths.projects.milestone(projectId2, milestoneId2),
+        import_shared3.apiPaths.projects.milestone(projectId2, milestoneId2),
         body
       );
       return compactMilestone(findMilestone(p, milestoneId2));
@@ -26541,7 +27142,7 @@ if (!config2.readOnly) {
     },
     ({ projectId: projectId2, orderedIds }) => run(async () => {
       const p = await api.patch(
-        import_shared.apiPaths.projects.milestonesReorder(projectId2),
+        import_shared3.apiPaths.projects.milestonesReorder(projectId2),
         { orderedIds }
       );
       return p.milestones.map(compactMilestone);
@@ -26552,13 +27153,13 @@ if (!config2.readOnly) {
     {
       title: "Comment on task",
       description: `Post a comment on a task thread. ${MARKDOWN_HINT}`,
-      inputSchema: { projectId, taskId, ...import_shared.createCommentSchema.shape }
+      inputSchema: { projectId, taskId, ...import_shared3.createCommentSchema.shape }
     },
     ({ projectId: projectId2, taskId: taskId2, ...body }) => run(
       async () => compactTask(
         findTask(
           await api.post(
-            import_shared.apiPaths.projects.comments(projectId2, taskId2),
+            import_shared3.apiPaths.projects.comments(projectId2, taskId2),
             body
           ),
           taskId2
@@ -26575,13 +27176,13 @@ if (!config2.readOnly) {
         projectId,
         channelId,
         body: external_exports.string().max(4e3).optional().describe(`Message text. ${MARKDOWN_HINT}`),
-        attachment: import_shared.messageAttachmentSchema.nullable().optional().describe(
+        attachment: import_shared3.messageAttachmentSchema.nullable().optional().describe(
           'Optional { kind: "task"|"feature"|"milestone", id } to share'
         )
       }
     },
     ({ projectId: projectId2, channelId: channelId2, ...body }) => run(
-      () => api.post(import_shared.apiPaths.projects.channelMessages(projectId2, channelId2), body)
+      () => api.post(import_shared3.apiPaths.projects.channelMessages(projectId2, channelId2), body)
     )
   );
   {
@@ -26593,7 +27194,7 @@ if (!config2.readOnly) {
         inputSchema: { projectId, taskId }
       },
       ({ projectId: projectId2, taskId: taskId2 }) => run(async () => {
-        await api.delete(import_shared.apiPaths.projects.task(projectId2, taskId2));
+        await api.delete(import_shared3.apiPaths.projects.task(projectId2, taskId2));
         return "Task deleted.";
       })
     );
@@ -26605,7 +27206,7 @@ if (!config2.readOnly) {
         inputSchema: { projectId, featureId }
       },
       ({ projectId: projectId2, featureId: featureId2 }) => run(async () => {
-        await api.delete(import_shared.apiPaths.projects.feature(projectId2, featureId2));
+        await api.delete(import_shared3.apiPaths.projects.feature(projectId2, featureId2));
         return "Feature deleted.";
       })
     );
@@ -26617,12 +27218,14 @@ if (!config2.readOnly) {
         inputSchema: { projectId, milestoneId }
       },
       ({ projectId: projectId2, milestoneId: milestoneId2 }) => run(async () => {
-        await api.delete(import_shared.apiPaths.projects.milestone(projectId2, milestoneId2));
+        await api.delete(import_shared3.apiPaths.projects.milestone(projectId2, milestoneId2));
         return "Checkpoint deleted.";
       })
     );
   }
 }
+registerResources(server);
+registerPrompts(server);
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
