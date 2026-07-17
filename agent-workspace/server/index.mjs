@@ -1300,7 +1300,7 @@ var require_errors = __commonJS({
       gen.if((0, codegen_1._)`${names_1.default.vErrors} !== null`, () => gen.if(errsCount, () => gen.assign((0, codegen_1._)`${names_1.default.vErrors}.length`, errsCount), () => gen.assign(names_1.default.vErrors, null)));
     }
     exports.resetErrorsCount = resetErrorsCount;
-    function extendErrors({ gen, keyword, schemaValue, data, errsCount, it }) {
+    function extendErrors({ gen, keyword, schemaValue, data: data2, errsCount, it }) {
       if (errsCount === void 0)
         throw new Error("ajv implementation error");
       const err = gen.name("err");
@@ -1310,7 +1310,7 @@ var require_errors = __commonJS({
         gen.assign((0, codegen_1._)`${err}.schemaPath`, (0, codegen_1.str)`${it.errSchemaPath}/${keyword}`);
         if (it.opts.verbose) {
           gen.assign((0, codegen_1._)`${err}.schema`, schemaValue);
-          gen.assign((0, codegen_1._)`${err}.data`, data);
+          gen.assign((0, codegen_1._)`${err}.data`, data2);
         }
       });
     }
@@ -1366,14 +1366,14 @@ var require_errors = __commonJS({
       return [E.schemaPath, schPath];
     }
     function extraErrorProps(cxt, { params, message }, keyValues) {
-      const { keyword, data, schemaValue, it } = cxt;
+      const { keyword, data: data2, schemaValue, it } = cxt;
       const { opts, propertyName, topSchemaRef, schemaPath } = it;
       keyValues.push([E.keyword, keyword], [E.params, typeof params == "function" ? params(cxt) : params || (0, codegen_1._)`{}`]);
       if (opts.messages) {
         keyValues.push([E.message, typeof message == "function" ? message(cxt) : message]);
       }
       if (opts.verbose) {
-        keyValues.push([E.schema, schemaValue], [E.parentSchema, (0, codegen_1._)`${topSchemaRef}${schemaPath}`], [names_1.default.data, data]);
+        keyValues.push([E.schema, schemaValue], [E.parentSchema, (0, codegen_1._)`${topSchemaRef}${schemaPath}`], [names_1.default.data, data2]);
       }
       if (propertyName)
         keyValues.push([E.propertyName, propertyName]);
@@ -1416,11 +1416,11 @@ var require_boolSchema = __commonJS({
     }
     exports.boolOrEmptySchema = boolOrEmptySchema;
     function falseSchemaError(it, overrideAllErrors) {
-      const { gen, data } = it;
+      const { gen, data: data2 } = it;
       const cxt = {
         gen,
         keyword: "false schema",
-        data,
+        data: data2,
         schema: false,
         schemaCode: false,
         schemaValue: false,
@@ -1526,11 +1526,11 @@ var require_dataType = __commonJS({
     }
     exports.getJSONTypes = getJSONTypes;
     function coerceAndCheckDataType(it, types) {
-      const { gen, data, opts } = it;
+      const { gen, data: data2, opts } = it;
       const coerceTo = coerceToTypes(types, opts.coerceTypes);
       const checkTypes = types.length > 0 && !(coerceTo.length === 0 && types.length === 1 && (0, applicability_1.schemaHasRulesForType)(it, types[0]));
       if (checkTypes) {
-        const wrongType = checkDataTypes(types, data, opts.strictNumbers, DataType.Wrong);
+        const wrongType = checkDataTypes(types, data2, opts.strictNumbers, DataType.Wrong);
         gen.if(wrongType, () => {
           if (coerceTo.length)
             coerceData(it, types, coerceTo);
@@ -1546,11 +1546,11 @@ var require_dataType = __commonJS({
       return coerceTypes ? types.filter((t) => COERCIBLE.has(t) || coerceTypes === "array" && t === "array") : [];
     }
     function coerceData(it, types, coerceTo) {
-      const { gen, data, opts } = it;
-      const dataType = gen.let("dataType", (0, codegen_1._)`typeof ${data}`);
+      const { gen, data: data2, opts } = it;
+      const dataType = gen.let("dataType", (0, codegen_1._)`typeof ${data2}`);
       const coerced = gen.let("coerced", (0, codegen_1._)`undefined`);
       if (opts.coerceTypes === "array") {
-        gen.if((0, codegen_1._)`${dataType} == 'object' && Array.isArray(${data}) && ${data}.length == 1`, () => gen.assign(data, (0, codegen_1._)`${data}[0]`).assign(dataType, (0, codegen_1._)`typeof ${data}`).if(checkDataTypes(types, data, opts.strictNumbers), () => gen.assign(coerced, data)));
+        gen.if((0, codegen_1._)`${dataType} == 'object' && Array.isArray(${data2}) && ${data2}.length == 1`, () => gen.assign(data2, (0, codegen_1._)`${data2}[0]`).assign(dataType, (0, codegen_1._)`typeof ${data2}`).if(checkDataTypes(types, data2, opts.strictNumbers), () => gen.assign(coerced, data2)));
       }
       gen.if((0, codegen_1._)`${coerced} !== undefined`);
       for (const t of coerceTo) {
@@ -1562,74 +1562,74 @@ var require_dataType = __commonJS({
       reportTypeError(it);
       gen.endIf();
       gen.if((0, codegen_1._)`${coerced} !== undefined`, () => {
-        gen.assign(data, coerced);
+        gen.assign(data2, coerced);
         assignParentData(it, coerced);
       });
       function coerceSpecificType(t) {
         switch (t) {
           case "string":
-            gen.elseIf((0, codegen_1._)`${dataType} == "number" || ${dataType} == "boolean"`).assign(coerced, (0, codegen_1._)`"" + ${data}`).elseIf((0, codegen_1._)`${data} === null`).assign(coerced, (0, codegen_1._)`""`);
+            gen.elseIf((0, codegen_1._)`${dataType} == "number" || ${dataType} == "boolean"`).assign(coerced, (0, codegen_1._)`"" + ${data2}`).elseIf((0, codegen_1._)`${data2} === null`).assign(coerced, (0, codegen_1._)`""`);
             return;
           case "number":
-            gen.elseIf((0, codegen_1._)`${dataType} == "boolean" || ${data} === null
-              || (${dataType} == "string" && ${data} && ${data} == +${data})`).assign(coerced, (0, codegen_1._)`+${data}`);
+            gen.elseIf((0, codegen_1._)`${dataType} == "boolean" || ${data2} === null
+              || (${dataType} == "string" && ${data2} && ${data2} == +${data2})`).assign(coerced, (0, codegen_1._)`+${data2}`);
             return;
           case "integer":
-            gen.elseIf((0, codegen_1._)`${dataType} === "boolean" || ${data} === null
-              || (${dataType} === "string" && ${data} && ${data} == +${data} && !(${data} % 1))`).assign(coerced, (0, codegen_1._)`+${data}`);
+            gen.elseIf((0, codegen_1._)`${dataType} === "boolean" || ${data2} === null
+              || (${dataType} === "string" && ${data2} && ${data2} == +${data2} && !(${data2} % 1))`).assign(coerced, (0, codegen_1._)`+${data2}`);
             return;
           case "boolean":
-            gen.elseIf((0, codegen_1._)`${data} === "false" || ${data} === 0 || ${data} === null`).assign(coerced, false).elseIf((0, codegen_1._)`${data} === "true" || ${data} === 1`).assign(coerced, true);
+            gen.elseIf((0, codegen_1._)`${data2} === "false" || ${data2} === 0 || ${data2} === null`).assign(coerced, false).elseIf((0, codegen_1._)`${data2} === "true" || ${data2} === 1`).assign(coerced, true);
             return;
           case "null":
-            gen.elseIf((0, codegen_1._)`${data} === "" || ${data} === 0 || ${data} === false`);
+            gen.elseIf((0, codegen_1._)`${data2} === "" || ${data2} === 0 || ${data2} === false`);
             gen.assign(coerced, null);
             return;
           case "array":
             gen.elseIf((0, codegen_1._)`${dataType} === "string" || ${dataType} === "number"
-              || ${dataType} === "boolean" || ${data} === null`).assign(coerced, (0, codegen_1._)`[${data}]`);
+              || ${dataType} === "boolean" || ${data2} === null`).assign(coerced, (0, codegen_1._)`[${data2}]`);
         }
       }
     }
     function assignParentData({ gen, parentData, parentDataProperty }, expr) {
       gen.if((0, codegen_1._)`${parentData} !== undefined`, () => gen.assign((0, codegen_1._)`${parentData}[${parentDataProperty}]`, expr));
     }
-    function checkDataType(dataType, data, strictNums, correct = DataType.Correct) {
+    function checkDataType(dataType, data2, strictNums, correct = DataType.Correct) {
       const EQ = correct === DataType.Correct ? codegen_1.operators.EQ : codegen_1.operators.NEQ;
       let cond;
       switch (dataType) {
         case "null":
-          return (0, codegen_1._)`${data} ${EQ} null`;
+          return (0, codegen_1._)`${data2} ${EQ} null`;
         case "array":
-          cond = (0, codegen_1._)`Array.isArray(${data})`;
+          cond = (0, codegen_1._)`Array.isArray(${data2})`;
           break;
         case "object":
-          cond = (0, codegen_1._)`${data} && typeof ${data} == "object" && !Array.isArray(${data})`;
+          cond = (0, codegen_1._)`${data2} && typeof ${data2} == "object" && !Array.isArray(${data2})`;
           break;
         case "integer":
-          cond = numCond((0, codegen_1._)`!(${data} % 1) && !isNaN(${data})`);
+          cond = numCond((0, codegen_1._)`!(${data2} % 1) && !isNaN(${data2})`);
           break;
         case "number":
           cond = numCond();
           break;
         default:
-          return (0, codegen_1._)`typeof ${data} ${EQ} ${dataType}`;
+          return (0, codegen_1._)`typeof ${data2} ${EQ} ${dataType}`;
       }
       return correct === DataType.Correct ? cond : (0, codegen_1.not)(cond);
       function numCond(_cond = codegen_1.nil) {
-        return (0, codegen_1.and)((0, codegen_1._)`typeof ${data} == "number"`, _cond, strictNums ? (0, codegen_1._)`isFinite(${data})` : codegen_1.nil);
+        return (0, codegen_1.and)((0, codegen_1._)`typeof ${data2} == "number"`, _cond, strictNums ? (0, codegen_1._)`isFinite(${data2})` : codegen_1.nil);
       }
     }
     exports.checkDataType = checkDataType;
-    function checkDataTypes(dataTypes, data, strictNums, correct) {
+    function checkDataTypes(dataTypes, data2, strictNums, correct) {
       if (dataTypes.length === 1) {
-        return checkDataType(dataTypes[0], data, strictNums, correct);
+        return checkDataType(dataTypes[0], data2, strictNums, correct);
       }
       let cond;
       const types = (0, util_1.toHash)(dataTypes);
       if (types.array && types.object) {
-        const notObj = (0, codegen_1._)`typeof ${data} != "object"`;
-        cond = types.null ? notObj : (0, codegen_1._)`!${data} || ${notObj}`;
+        const notObj = (0, codegen_1._)`typeof ${data2} != "object"`;
+        cond = types.null ? notObj : (0, codegen_1._)`!${data2} || ${notObj}`;
         delete types.null;
         delete types.array;
         delete types.object;
@@ -1639,7 +1639,7 @@ var require_dataType = __commonJS({
       if (types.number)
         delete types.integer;
       for (const t in types)
-        cond = (0, codegen_1.and)(cond, checkDataType(t, data, strictNums, correct));
+        cond = (0, codegen_1.and)(cond, checkDataType(t, data2, strictNums, correct));
       return cond;
     }
     exports.checkDataTypes = checkDataTypes;
@@ -1653,12 +1653,12 @@ var require_dataType = __commonJS({
     }
     exports.reportTypeError = reportTypeError;
     function getTypeErrorContext(it) {
-      const { gen, data, schema } = it;
+      const { gen, data: data2, schema } = it;
       const schemaCode = (0, util_1.schemaRefOrVal)(it, schema, "type");
       return {
         gen,
         keyword: "type",
-        data,
+        data: data2,
         schema: schema.type,
         schemaCode,
         schemaValue: schemaCode,
@@ -1690,10 +1690,10 @@ var require_defaults = __commonJS({
     }
     exports.assignDefaults = assignDefaults;
     function assignDefault(it, prop, defaultValue) {
-      const { gen, compositeRule, data, opts } = it;
+      const { gen, compositeRule, data: data2, opts } = it;
       if (defaultValue === void 0)
         return;
-      const childData = (0, codegen_1._)`${data}${(0, codegen_1.getProperty)(prop)}`;
+      const childData = (0, codegen_1._)`${data2}${(0, codegen_1.getProperty)(prop)}`;
       if (compositeRule) {
         (0, util_1.checkStrictMode)(it, `default is ignored for: ${childData}`);
         return;
@@ -1718,15 +1718,15 @@ var require_code2 = __commonJS({
     var names_1 = require_names();
     var util_2 = require_util();
     function checkReportMissingProp(cxt, prop) {
-      const { gen, data, it } = cxt;
-      gen.if(noPropertyInData(gen, data, prop, it.opts.ownProperties), () => {
+      const { gen, data: data2, it } = cxt;
+      gen.if(noPropertyInData(gen, data2, prop, it.opts.ownProperties), () => {
         cxt.setParams({ missingProperty: (0, codegen_1._)`${prop}` }, true);
         cxt.error();
       });
     }
     exports.checkReportMissingProp = checkReportMissingProp;
-    function checkMissingProp({ gen, data, it: { opts } }, properties, missing) {
-      return (0, codegen_1.or)(...properties.map((prop) => (0, codegen_1.and)(noPropertyInData(gen, data, prop, opts.ownProperties), (0, codegen_1._)`${missing} = ${prop}`)));
+    function checkMissingProp({ gen, data: data2, it: { opts } }, properties, missing) {
+      return (0, codegen_1.or)(...properties.map((prop) => (0, codegen_1.and)(noPropertyInData(gen, data2, prop, opts.ownProperties), (0, codegen_1._)`${missing} = ${prop}`)));
     }
     exports.checkMissingProp = checkMissingProp;
     function reportMissingProp(cxt, missing) {
@@ -1742,18 +1742,18 @@ var require_code2 = __commonJS({
       });
     }
     exports.hasPropFunc = hasPropFunc;
-    function isOwnProperty(gen, data, property) {
-      return (0, codegen_1._)`${hasPropFunc(gen)}.call(${data}, ${property})`;
+    function isOwnProperty(gen, data2, property) {
+      return (0, codegen_1._)`${hasPropFunc(gen)}.call(${data2}, ${property})`;
     }
     exports.isOwnProperty = isOwnProperty;
-    function propertyInData(gen, data, property, ownProperties) {
-      const cond = (0, codegen_1._)`${data}${(0, codegen_1.getProperty)(property)} !== undefined`;
-      return ownProperties ? (0, codegen_1._)`${cond} && ${isOwnProperty(gen, data, property)}` : cond;
+    function propertyInData(gen, data2, property, ownProperties) {
+      const cond = (0, codegen_1._)`${data2}${(0, codegen_1.getProperty)(property)} !== undefined`;
+      return ownProperties ? (0, codegen_1._)`${cond} && ${isOwnProperty(gen, data2, property)}` : cond;
     }
     exports.propertyInData = propertyInData;
-    function noPropertyInData(gen, data, property, ownProperties) {
-      const cond = (0, codegen_1._)`${data}${(0, codegen_1.getProperty)(property)} === undefined`;
-      return ownProperties ? (0, codegen_1.or)(cond, (0, codegen_1.not)(isOwnProperty(gen, data, property))) : cond;
+    function noPropertyInData(gen, data2, property, ownProperties) {
+      const cond = (0, codegen_1._)`${data2}${(0, codegen_1.getProperty)(property)} === undefined`;
+      return ownProperties ? (0, codegen_1.or)(cond, (0, codegen_1.not)(isOwnProperty(gen, data2, property))) : cond;
     }
     exports.noPropertyInData = noPropertyInData;
     function allSchemaProperties(schemaMap) {
@@ -1764,8 +1764,8 @@ var require_code2 = __commonJS({
       return allSchemaProperties(schemaMap).filter((p) => !(0, util_1.alwaysValidSchema)(it, schemaMap[p]));
     }
     exports.schemaProperties = schemaProperties;
-    function callValidateCode({ schemaCode, data, it: { gen, topSchemaRef, schemaPath, errorPath }, it }, func, context, passSchema) {
-      const dataAndSchema = passSchema ? (0, codegen_1._)`${schemaCode}, ${data}, ${topSchemaRef}${schemaPath}` : data;
+    function callValidateCode({ schemaCode, data: data2, it: { gen, topSchemaRef, schemaPath, errorPath }, it }, func, context, passSchema) {
+      const dataAndSchema = passSchema ? (0, codegen_1._)`${schemaCode}, ${data2}, ${topSchemaRef}${schemaPath}` : data2;
       const valCxt = [
         [names_1.default.instancePath, (0, codegen_1.strConcat)(names_1.default.instancePath, errorPath)],
         [names_1.default.parentData, it.parentData],
@@ -1791,7 +1791,7 @@ var require_code2 = __commonJS({
     }
     exports.usePattern = usePattern;
     function validateArray(cxt) {
-      const { gen, data, keyword, it } = cxt;
+      const { gen, data: data2, keyword, it } = cxt;
       const valid = gen.name("valid");
       if (it.allErrors) {
         const validArr = gen.let("valid", true);
@@ -1802,7 +1802,7 @@ var require_code2 = __commonJS({
       validateItems(() => gen.break());
       return valid;
       function validateItems(notValid) {
-        const len = gen.const("len", (0, codegen_1._)`${data}.length`);
+        const len = gen.const("len", (0, codegen_1._)`${data2}.length`);
         gen.forRange("i", 0, len, (i) => {
           cxt.subschema({
             keyword,
@@ -1912,8 +1912,8 @@ var require_keyword = __commonJS({
     }
     exports.funcKeywordCode = funcKeywordCode;
     function modifyData(cxt) {
-      const { gen, data, it } = cxt;
-      gen.if(it.parentData, () => gen.assign(data, (0, codegen_1._)`${it.parentData}[${it.parentDataProperty}]`));
+      const { gen, data: data2, it } = cxt;
+      gen.if(it.parentData, () => gen.assign(data2, (0, codegen_1._)`${it.parentData}[${it.parentDataProperty}]`));
     }
     function addErrs(cxt, errs) {
       const { gen } = cxt;
@@ -1996,8 +1996,8 @@ var require_subschema = __commonJS({
       throw new Error('either "keyword" or "schema" must be passed');
     }
     exports.getSubschema = getSubschema;
-    function extendSubschemaData(subschema, it, { dataProp, dataPropType: dpType, data, dataTypes, propertyName }) {
-      if (data !== void 0 && dataProp !== void 0) {
+    function extendSubschemaData(subschema, it, { dataProp, dataPropType: dpType, data: data2, dataTypes, propertyName }) {
+      if (data2 !== void 0 && dataProp !== void 0) {
         throw new Error('both "data" and "dataProp" passed, only one allowed');
       }
       const { gen } = it;
@@ -2009,8 +2009,8 @@ var require_subschema = __commonJS({
         subschema.parentDataProperty = (0, codegen_1._)`${dataProp}`;
         subschema.dataPathArr = [...dataPathArr, subschema.parentDataProperty];
       }
-      if (data !== void 0) {
-        const nextData = data instanceof codegen_1.Name ? data : gen.let("data", data, true);
+      if (data2 !== void 0) {
+        const nextData = data2 instanceof codegen_1.Name ? data2 : gen.let("data", data2, true);
         dataContextProps(nextData);
         if (propertyName !== void 0)
           subschema.propertyName = propertyName;
@@ -2496,7 +2496,7 @@ var require_validate = __commonJS({
         gen.assign((0, codegen_1._)`${evaluated}.items`, items);
     }
     function schemaKeywords(it, types, typeErrors, errsCount) {
-      const { gen, schema, data, allErrors, opts, self } = it;
+      const { gen, schema, data: data2, allErrors, opts, self } = it;
       const { RULES } = self;
       if (schema.$ref && (opts.ignoreKeywordsWithRef || !(0, util_1.schemaHasRulesButRef)(schema, RULES))) {
         gen.block(() => keywordCode(it, "$ref", RULES.all.$ref.definition));
@@ -2513,7 +2513,7 @@ var require_validate = __commonJS({
         if (!(0, applicability_1.shouldUseGroup)(schema, group))
           return;
         if (group.type) {
-          gen.if((0, dataType_2.checkDataType)(group.type, data, opts.strictNumbers));
+          gen.if((0, dataType_2.checkDataType)(group.type, data2, opts.strictNumbers));
           iterateKeywords(it, group);
           if (types.length === 1 && types[0] === group.type && typeErrors) {
             gen.else();
@@ -2786,14 +2786,14 @@ var require_validate = __commonJS({
     var RELATIVE_JSON_POINTER = /^([0-9]+)(#|\/(?:[^~]|~0|~1)*)?$/;
     function getData($data, { dataLevel, dataNames, dataPathArr }) {
       let jsonPointer;
-      let data;
+      let data2;
       if ($data === "")
         return names_1.default.rootData;
       if ($data[0] === "/") {
         if (!JSON_POINTER.test($data))
           throw new Error(`Invalid JSON-pointer: ${$data}`);
         jsonPointer = $data;
-        data = names_1.default.rootData;
+        data2 = names_1.default.rootData;
       } else {
         const matches = RELATIVE_JSON_POINTER.exec($data);
         if (!matches)
@@ -2807,16 +2807,16 @@ var require_validate = __commonJS({
         }
         if (up > dataLevel)
           throw new Error(errorMsg("data", up));
-        data = dataNames[dataLevel - up];
+        data2 = dataNames[dataLevel - up];
         if (!jsonPointer)
-          return data;
+          return data2;
       }
-      let expr = data;
+      let expr = data2;
       const segments = jsonPointer.split("/");
       for (const segment of segments) {
         if (segment) {
-          data = (0, codegen_1._)`${data}${(0, codegen_1.getProperty)((0, util_1.unescapeJsonPointer)(segment))}`;
-          expr = (0, codegen_1._)`${expr} && ${data}`;
+          data2 = (0, codegen_1._)`${data2}${(0, codegen_1.getProperty)((0, util_1.unescapeJsonPointer)(segment))}`;
+          expr = (0, codegen_1._)`${expr} && ${data2}`;
         }
       }
       return expr;
@@ -2985,7 +2985,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve.call(this, root, ref);
+      let _sch = resolve2.call(this, root, ref);
       if (_sch === void 0) {
         const schema = (_a = root.localRefs) === null || _a === void 0 ? void 0 : _a[ref];
         const { schemaId } = this.opts;
@@ -3012,7 +3012,7 @@ var require_compile = __commonJS({
     function sameSchemaEnv(s1, s2) {
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
-    function resolve(root, ref) {
+    function resolve2(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -3643,7 +3643,7 @@ var require_fast_uri = __commonJS({
       }
       return uri;
     }
-    function resolve(baseURI, relativeURI, options) {
+    function resolve2(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const resolved = resolveComponent(parse3(baseURI, schemelessOptions), parse3(relativeURI, schemelessOptions), schemelessOptions, true);
       schemelessOptions.skipEscape = true;
@@ -3901,7 +3901,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize,
-      resolve,
+      resolve: resolve2,
       resolveComponent,
       equal,
       serialize,
@@ -4079,7 +4079,7 @@ var require_core = __commonJS({
         const { meta, schemaId } = this.opts;
         return this.opts.defaultMeta = typeof meta == "object" ? meta[schemaId] || meta : void 0;
       }
-      validate(schemaKeyRef, data) {
+      validate(schemaKeyRef, data2) {
         let v;
         if (typeof schemaKeyRef == "string") {
           v = this.getSchema(schemaKeyRef);
@@ -4088,7 +4088,7 @@ var require_core = __commonJS({
         } else {
           v = this.compile(schemaKeyRef);
         }
-        const valid = v(data);
+        const valid = v(data2);
         if (!("$async" in v))
           this.errors = v.errors;
         return valid;
@@ -4717,8 +4717,8 @@ var require_limitNumber = __commonJS({
       $data: true,
       error: error2,
       code(cxt) {
-        const { keyword, data, schemaCode } = cxt;
-        cxt.fail$data((0, codegen_1._)`${data} ${KWDs[keyword].fail} ${schemaCode} || isNaN(${data})`);
+        const { keyword, data: data2, schemaCode } = cxt;
+        cxt.fail$data((0, codegen_1._)`${data2} ${KWDs[keyword].fail} ${schemaCode} || isNaN(${data2})`);
       }
     };
     exports.default = def;
@@ -4742,11 +4742,11 @@ var require_multipleOf = __commonJS({
       $data: true,
       error: error2,
       code(cxt) {
-        const { gen, data, schemaCode, it } = cxt;
+        const { gen, data: data2, schemaCode, it } = cxt;
         const prec = it.opts.multipleOfPrecision;
         const res = gen.let("res");
         const invalid = prec ? (0, codegen_1._)`Math.abs(Math.round(${res}) - ${res}) > 1e-${prec}` : (0, codegen_1._)`${res} !== parseInt(${res})`;
-        cxt.fail$data((0, codegen_1._)`(${schemaCode} === 0 || (${res} = ${data}/${schemaCode}, ${invalid}))`);
+        cxt.fail$data((0, codegen_1._)`(${schemaCode} === 0 || (${res} = ${data2}/${schemaCode}, ${invalid}))`);
       }
     };
     exports.default = def;
@@ -4801,9 +4801,9 @@ var require_limitLength = __commonJS({
       $data: true,
       error: error2,
       code(cxt) {
-        const { keyword, data, schemaCode, it } = cxt;
+        const { keyword, data: data2, schemaCode, it } = cxt;
         const op = keyword === "maxLength" ? codegen_1.operators.GT : codegen_1.operators.LT;
-        const len = it.opts.unicode === false ? (0, codegen_1._)`${data}.length` : (0, codegen_1._)`${(0, util_1.useFunc)(cxt.gen, ucs2length_1.default)}(${data})`;
+        const len = it.opts.unicode === false ? (0, codegen_1._)`${data2}.length` : (0, codegen_1._)`${(0, util_1.useFunc)(cxt.gen, ucs2length_1.default)}(${data2})`;
         cxt.fail$data((0, codegen_1._)`${len} ${op} ${schemaCode}`);
       }
     };
@@ -4830,17 +4830,17 @@ var require_pattern = __commonJS({
       $data: true,
       error: error2,
       code(cxt) {
-        const { gen, data, $data, schema, schemaCode, it } = cxt;
+        const { gen, data: data2, $data, schema, schemaCode, it } = cxt;
         const u = it.opts.unicodeRegExp ? "u" : "";
         if ($data) {
           const { regExp } = it.opts.code;
           const regExpCode = regExp.code === "new RegExp" ? (0, codegen_1._)`new RegExp` : (0, util_1.useFunc)(gen, regExp);
           const valid = gen.let("valid");
-          gen.try(() => gen.assign(valid, (0, codegen_1._)`${regExpCode}(${schemaCode}, ${u}).test(${data})`), () => gen.assign(valid, false));
+          gen.try(() => gen.assign(valid, (0, codegen_1._)`${regExpCode}(${schemaCode}, ${u}).test(${data2})`), () => gen.assign(valid, false));
           cxt.fail$data((0, codegen_1._)`!${valid}`);
         } else {
           const regExp = (0, code_1.usePattern)(cxt, schema);
-          cxt.fail$data((0, codegen_1._)`!${regExp}.test(${data})`);
+          cxt.fail$data((0, codegen_1._)`!${regExp}.test(${data2})`);
         }
       }
     };
@@ -4868,9 +4868,9 @@ var require_limitProperties = __commonJS({
       $data: true,
       error: error2,
       code(cxt) {
-        const { keyword, data, schemaCode } = cxt;
+        const { keyword, data: data2, schemaCode } = cxt;
         const op = keyword === "maxProperties" ? codegen_1.operators.GT : codegen_1.operators.LT;
-        cxt.fail$data((0, codegen_1._)`Object.keys(${data}).length ${op} ${schemaCode}`);
+        cxt.fail$data((0, codegen_1._)`Object.keys(${data2}).length ${op} ${schemaCode}`);
       }
     };
     exports.default = def;
@@ -4896,7 +4896,7 @@ var require_required = __commonJS({
       $data: true,
       error: error2,
       code(cxt) {
-        const { gen, schema, schemaCode, data, $data, it } = cxt;
+        const { gen, schema, schemaCode, data: data2, $data, it } = cxt;
         const { opts } = it;
         if (!$data && schema.length === 0)
           return;
@@ -4940,13 +4940,13 @@ var require_required = __commonJS({
         function loopAllRequired() {
           gen.forOf("prop", schemaCode, (prop) => {
             cxt.setParams({ missingProperty: prop });
-            gen.if((0, code_1.noPropertyInData)(gen, data, prop, opts.ownProperties), () => cxt.error());
+            gen.if((0, code_1.noPropertyInData)(gen, data2, prop, opts.ownProperties), () => cxt.error());
           });
         }
         function loopUntilMissing(missing, valid) {
           cxt.setParams({ missingProperty: missing });
           gen.forOf(missing, schemaCode, () => {
-            gen.assign(valid, (0, code_1.propertyInData)(gen, data, missing, opts.ownProperties));
+            gen.assign(valid, (0, code_1.propertyInData)(gen, data2, missing, opts.ownProperties));
             gen.if((0, codegen_1.not)(valid), () => {
               cxt.error();
               gen.break();
@@ -4979,9 +4979,9 @@ var require_limitItems = __commonJS({
       $data: true,
       error: error2,
       code(cxt) {
-        const { keyword, data, schemaCode } = cxt;
+        const { keyword, data: data2, schemaCode } = cxt;
         const op = keyword === "maxItems" ? codegen_1.operators.GT : codegen_1.operators.LT;
-        cxt.fail$data((0, codegen_1._)`${data}.length ${op} ${schemaCode}`);
+        cxt.fail$data((0, codegen_1._)`${data2}.length ${op} ${schemaCode}`);
       }
     };
     exports.default = def;
@@ -5019,7 +5019,7 @@ var require_uniqueItems = __commonJS({
       $data: true,
       error: error2,
       code(cxt) {
-        const { gen, data, $data, schema, parentSchema, schemaCode, it } = cxt;
+        const { gen, data: data2, $data, schema, parentSchema, schemaCode, it } = cxt;
         if (!$data && !schema)
           return;
         const valid = gen.let("valid");
@@ -5027,7 +5027,7 @@ var require_uniqueItems = __commonJS({
         cxt.block$data(valid, validateUniqueItems, (0, codegen_1._)`${schemaCode} === false`);
         cxt.ok(valid);
         function validateUniqueItems() {
-          const i = gen.let("i", (0, codegen_1._)`${data}.length`);
+          const i = gen.let("i", (0, codegen_1._)`${data2}.length`);
           const j = gen.let("j");
           cxt.setParams({ i, j });
           gen.assign(valid, true);
@@ -5041,7 +5041,7 @@ var require_uniqueItems = __commonJS({
           const wrongType = (0, dataType_1.checkDataTypes)(itemTypes, item, it.opts.strictNumbers, dataType_1.DataType.Wrong);
           const indices = gen.const("indices", (0, codegen_1._)`{}`);
           gen.for((0, codegen_1._)`;${i}--;`, () => {
-            gen.let(item, (0, codegen_1._)`${data}[${i}]`);
+            gen.let(item, (0, codegen_1._)`${data2}[${i}]`);
             gen.if(wrongType, (0, codegen_1._)`continue`);
             if (itemTypes.length > 1)
               gen.if((0, codegen_1._)`typeof ${item} == "string"`, (0, codegen_1._)`${item} += "_"`);
@@ -5055,7 +5055,7 @@ var require_uniqueItems = __commonJS({
         function loopN2(i, j) {
           const eql = (0, util_1.useFunc)(gen, equal_1.default);
           const outer = gen.name("outer");
-          gen.label(outer).for((0, codegen_1._)`;${i}--;`, () => gen.for((0, codegen_1._)`${j} = ${i}; ${j}--;`, () => gen.if((0, codegen_1._)`${eql}(${data}[${i}], ${data}[${j}])`, () => {
+          gen.label(outer).for((0, codegen_1._)`;${i}--;`, () => gen.for((0, codegen_1._)`${j} = ${i}; ${j}--;`, () => gen.if((0, codegen_1._)`${eql}(${data2}[${i}], ${data2}[${j}])`, () => {
             cxt.error();
             gen.assign(valid, false).break(outer);
           })));
@@ -5083,11 +5083,11 @@ var require_const = __commonJS({
       $data: true,
       error: error2,
       code(cxt) {
-        const { gen, data, $data, schemaCode, schema } = cxt;
+        const { gen, data: data2, $data, schemaCode, schema } = cxt;
         if ($data || schema && typeof schema == "object") {
-          cxt.fail$data((0, codegen_1._)`!${(0, util_1.useFunc)(gen, equal_1.default)}(${data}, ${schemaCode})`);
+          cxt.fail$data((0, codegen_1._)`!${(0, util_1.useFunc)(gen, equal_1.default)}(${data2}, ${schemaCode})`);
         } else {
-          cxt.fail((0, codegen_1._)`${schema} !== ${data}`);
+          cxt.fail((0, codegen_1._)`${schema} !== ${data2}`);
         }
       }
     };
@@ -5113,7 +5113,7 @@ var require_enum = __commonJS({
       $data: true,
       error: error2,
       code(cxt) {
-        const { gen, data, $data, schema, schemaCode, it } = cxt;
+        const { gen, data: data2, $data, schema, schemaCode, it } = cxt;
         if (!$data && schema.length === 0)
           throw new Error("enum must have non-empty array");
         const useLoop = schema.length >= it.opts.loopEnum;
@@ -5132,11 +5132,11 @@ var require_enum = __commonJS({
         cxt.pass(valid);
         function loopEnum() {
           gen.assign(valid, false);
-          gen.forOf("v", schemaCode, (v) => gen.if((0, codegen_1._)`${getEql()}(${data}, ${v})`, () => gen.assign(valid, true).break()));
+          gen.forOf("v", schemaCode, (v) => gen.if((0, codegen_1._)`${getEql()}(${data2}, ${v})`, () => gen.assign(valid, true).break()));
         }
         function equalCode(vSchema, i) {
           const sch = schema[i];
-          return typeof sch === "object" && sch !== null ? (0, codegen_1._)`${getEql()}(${data}, ${vSchema}[${i}])` : (0, codegen_1._)`${data} === ${sch}`;
+          return typeof sch === "object" && sch !== null ? (0, codegen_1._)`${getEql()}(${data2}, ${vSchema}[${i}])` : (0, codegen_1._)`${data2} === ${sch}`;
         }
       }
     };
@@ -5211,9 +5211,9 @@ var require_additionalItems = __commonJS({
       }
     };
     function validateAdditionalItems(cxt, items) {
-      const { gen, schema, data, keyword, it } = cxt;
+      const { gen, schema, data: data2, keyword, it } = cxt;
       it.items = true;
-      const len = gen.const("len", (0, codegen_1._)`${data}.length`);
+      const len = gen.const("len", (0, codegen_1._)`${data2}.length`);
       if (schema === false) {
         cxt.setParams({ len: items.length });
         cxt.pass((0, codegen_1._)`${len} <= ${items.length}`);
@@ -5260,13 +5260,13 @@ var require_items = __commonJS({
       }
     };
     function validateTuple(cxt, extraItems, schArr = cxt.schema) {
-      const { gen, parentSchema, data, keyword, it } = cxt;
+      const { gen, parentSchema, data: data2, keyword, it } = cxt;
       checkStrictTuple(parentSchema);
       if (it.opts.unevaluated && schArr.length && it.items !== true) {
         it.items = util_1.mergeEvaluated.items(gen, schArr.length, it.items);
       }
       const valid = gen.name("valid");
-      const len = gen.const("len", (0, codegen_1._)`${data}.length`);
+      const len = gen.const("len", (0, codegen_1._)`${data2}.length`);
       schArr.forEach((sch, i) => {
         if ((0, util_1.alwaysValidSchema)(it, sch))
           return;
@@ -5363,7 +5363,7 @@ var require_contains = __commonJS({
       trackErrors: true,
       error: error2,
       code(cxt) {
-        const { gen, schema, parentSchema, data, it } = cxt;
+        const { gen, schema, parentSchema, data: data2, it } = cxt;
         let min;
         let max;
         const { minContains, maxContains } = parentSchema;
@@ -5373,7 +5373,7 @@ var require_contains = __commonJS({
         } else {
           min = 1;
         }
-        const len = gen.const("len", (0, codegen_1._)`${data}.length`);
+        const len = gen.const("len", (0, codegen_1._)`${data2}.length`);
         cxt.setParams({ min, max });
         if (max === void 0 && min === 0) {
           (0, util_1.checkStrictMode)(it, `"minContains" == 0 without "maxContains": "contains" keyword ignored`);
@@ -5398,7 +5398,7 @@ var require_contains = __commonJS({
         } else if (min === 0) {
           gen.let(valid, true);
           if (max !== void 0)
-            gen.if((0, codegen_1._)`${data}.length > 0`, validateItemsWithCount);
+            gen.if((0, codegen_1._)`${data2}.length > 0`, validateItemsWithCount);
         } else {
           gen.let(valid, false);
           validateItemsWithCount();
@@ -5481,7 +5481,7 @@ var require_dependencies = __commonJS({
       return [propertyDeps, schemaDeps];
     }
     function validatePropertyDeps(cxt, propertyDeps = cxt.schema) {
-      const { gen, data, it } = cxt;
+      const { gen, data: data2, it } = cxt;
       if (Object.keys(propertyDeps).length === 0)
         return;
       const missing = gen.let("missing");
@@ -5489,7 +5489,7 @@ var require_dependencies = __commonJS({
         const deps = propertyDeps[prop];
         if (deps.length === 0)
           continue;
-        const hasProperty = (0, code_1.propertyInData)(gen, data, prop, it.opts.ownProperties);
+        const hasProperty = (0, code_1.propertyInData)(gen, data2, prop, it.opts.ownProperties);
         cxt.setParams({
           property: prop,
           depsCount: deps.length,
@@ -5510,13 +5510,13 @@ var require_dependencies = __commonJS({
     }
     exports.validatePropertyDeps = validatePropertyDeps;
     function validateSchemaDeps(cxt, schemaDeps = cxt.schema) {
-      const { gen, data, keyword, it } = cxt;
+      const { gen, data: data2, keyword, it } = cxt;
       const valid = gen.name("valid");
       for (const prop in schemaDeps) {
         if ((0, util_1.alwaysValidSchema)(it, schemaDeps[prop]))
           continue;
         gen.if(
-          (0, code_1.propertyInData)(gen, data, prop, it.opts.ownProperties),
+          (0, code_1.propertyInData)(gen, data2, prop, it.opts.ownProperties),
           () => {
             const schCxt = cxt.subschema({ keyword, schemaProp: prop }, valid);
             cxt.mergeValidEvaluated(schCxt, valid);
@@ -5549,11 +5549,11 @@ var require_propertyNames = __commonJS({
       schemaType: ["object", "boolean"],
       error: error2,
       code(cxt) {
-        const { gen, schema, data, it } = cxt;
+        const { gen, schema, data: data2, it } = cxt;
         if ((0, util_1.alwaysValidSchema)(it, schema))
           return;
         const valid = gen.name("valid");
-        gen.forIn("key", data, (key) => {
+        gen.forIn("key", data2, (key) => {
           cxt.setParams({ propertyName: key });
           cxt.subschema({
             keyword: "propertyNames",
@@ -5596,7 +5596,7 @@ var require_additionalProperties = __commonJS({
       trackErrors: true,
       error: error2,
       code(cxt) {
-        const { gen, schema, parentSchema, data, errsCount, it } = cxt;
+        const { gen, schema, parentSchema, data: data2, errsCount, it } = cxt;
         if (!errsCount)
           throw new Error("ajv implementation error");
         const { allErrors, opts } = it;
@@ -5608,7 +5608,7 @@ var require_additionalProperties = __commonJS({
         checkAdditionalProperties();
         cxt.ok((0, codegen_1._)`${errsCount} === ${names_1.default.errors}`);
         function checkAdditionalProperties() {
-          gen.forIn("key", data, (key) => {
+          gen.forIn("key", data2, (key) => {
             if (!props.length && !patProps.length)
               additionalPropertyCode(key);
             else
@@ -5631,7 +5631,7 @@ var require_additionalProperties = __commonJS({
           return (0, codegen_1.not)(definedProp);
         }
         function deleteAdditional(key) {
-          gen.code((0, codegen_1._)`delete ${data}[${key}]`);
+          gen.code((0, codegen_1._)`delete ${data2}[${key}]`);
         }
         function additionalPropertyCode(key) {
           if (opts.removeAdditional === "all" || opts.removeAdditional && schema === false) {
@@ -5695,7 +5695,7 @@ var require_properties = __commonJS({
       type: "object",
       schemaType: "object",
       code(cxt) {
-        const { gen, schema, parentSchema, data, it } = cxt;
+        const { gen, schema, parentSchema, data: data2, it } = cxt;
         if (it.opts.removeAdditional === "all" && parentSchema.additionalProperties === void 0) {
           additionalProperties_1.default.code(new validate_1.KeywordCxt(it, additionalProperties_1.default, "additionalProperties"));
         }
@@ -5714,7 +5714,7 @@ var require_properties = __commonJS({
           if (hasDefault(prop)) {
             applyPropertySchema(prop);
           } else {
-            gen.if((0, code_1.propertyInData)(gen, data, prop, it.opts.ownProperties));
+            gen.if((0, code_1.propertyInData)(gen, data2, prop, it.opts.ownProperties));
             applyPropertySchema(prop);
             if (!it.allErrors)
               gen.else().var(valid, true);
@@ -5753,7 +5753,7 @@ var require_patternProperties = __commonJS({
       type: "object",
       schemaType: "object",
       code(cxt) {
-        const { gen, schema, data, parentSchema, it } = cxt;
+        const { gen, schema, data: data2, parentSchema, it } = cxt;
         const { opts } = it;
         const patterns = (0, code_1.allSchemaProperties)(schema);
         const alwaysValidPatterns = patterns.filter((p) => (0, util_1.alwaysValidSchema)(it, schema[p]));
@@ -5788,7 +5788,7 @@ var require_patternProperties = __commonJS({
           }
         }
         function validateProperties(pat) {
-          gen.forIn("key", data, (key) => {
+          gen.forIn("key", data2, (key) => {
             gen.if((0, codegen_1._)`${(0, code_1.usePattern)(cxt, pat)}.test(${key})`, () => {
               const alwaysValid = alwaysValidPatterns.includes(pat);
               if (!alwaysValid) {
@@ -6098,7 +6098,7 @@ var require_format = __commonJS({
       $data: true,
       error: error2,
       code(cxt, ruleType) {
-        const { gen, data, $data, schema, schemaCode, it } = cxt;
+        const { gen, data: data2, $data, schema, schemaCode, it } = cxt;
         const { opts, errSchemaPath, schemaEnv, self } = it;
         if (!opts.validateFormats)
           return;
@@ -6122,8 +6122,8 @@ var require_format = __commonJS({
             return (0, codegen_1._)`${schemaCode} && !${format}`;
           }
           function invalidFmt() {
-            const callFormat = schemaEnv.$async ? (0, codegen_1._)`(${fDef}.async ? await ${format}(${data}) : ${format}(${data}))` : (0, codegen_1._)`${format}(${data})`;
-            const validData = (0, codegen_1._)`(typeof ${format} == "function" ? ${callFormat} : ${format}.test(${data}))`;
+            const callFormat = schemaEnv.$async ? (0, codegen_1._)`(${fDef}.async ? await ${format}(${data2}) : ${format}(${data2}))` : (0, codegen_1._)`${format}(${data2})`;
+            const validData = (0, codegen_1._)`(typeof ${format} == "function" ? ${callFormat} : ${format}.test(${data2}))`;
             return (0, codegen_1._)`${format} && ${format} !== true && ${fType} === ${ruleType} && !${validData}`;
           }
         }
@@ -6160,9 +6160,9 @@ var require_format = __commonJS({
             if (typeof formatDef == "object" && !(formatDef instanceof RegExp) && formatDef.async) {
               if (!schemaEnv.$async)
                 throw new Error("async format in sync schema");
-              return (0, codegen_1._)`await ${fmtRef}(${data})`;
+              return (0, codegen_1._)`await ${fmtRef}(${data2})`;
             }
-            return typeof format == "function" ? (0, codegen_1._)`${fmtRef}(${data})` : (0, codegen_1._)`${fmtRef}.test(${data})`;
+            return typeof format == "function" ? (0, codegen_1._)`${fmtRef}(${data2})` : (0, codegen_1._)`${fmtRef}.test(${data2})`;
           }
         }
       }
@@ -6261,7 +6261,7 @@ var require_discriminator = __commonJS({
       schemaType: "object",
       error: error2,
       code(cxt) {
-        const { gen, data, schema, parentSchema, it } = cxt;
+        const { gen, data: data2, schema, parentSchema, it } = cxt;
         const { oneOf } = parentSchema;
         if (!it.opts.discriminator) {
           throw new Error("discriminator: requires discriminator option");
@@ -6274,7 +6274,7 @@ var require_discriminator = __commonJS({
         if (!oneOf)
           throw new Error("discriminator: requires oneOf keyword");
         const valid = gen.let("valid", false);
-        const tag = gen.const("tag", (0, codegen_1._)`${data}${(0, codegen_1.getProperty)(tagName)}`);
+        const tag = gen.const("tag", (0, codegen_1._)`${data2}${(0, codegen_1.getProperty)(tagName)}`);
         gen.if((0, codegen_1._)`typeof ${tag} == "string"`, () => validateMapping(), () => cxt.error(false, { discrError: types_1.DiscrError.Tag, tag, tagName }));
         cxt.ok(valid);
         function validateMapping() {
@@ -6802,7 +6802,7 @@ var require_limit = __commonJS({
       $data: true,
       error: error2,
       code(cxt) {
-        const { gen, data, schemaCode, keyword, it } = cxt;
+        const { gen, data: data2, schemaCode, keyword, it } = cxt;
         const { opts, self } = it;
         if (!opts.validateFormats)
           return;
@@ -6835,7 +6835,7 @@ var require_limit = __commonJS({
           cxt.fail$data(compareCode(fmt));
         }
         function compareCode(fmt) {
-          return (0, codegen_1._)`${fmt}.compare(${data}, ${schemaCode}) ${KWDs[keyword].fail} 0`;
+          return (0, codegen_1._)`${fmt}.compare(${data2}, ${schemaCode}) ${KWDs[keyword].fail} 0`;
         }
       },
       dependencies: ["format"]
@@ -6987,15 +6987,15 @@ var require_util2 = __commonJS({
       "map",
       "set"
     ]);
-    var getParsedType3 = (data) => {
-      const t = typeof data;
+    var getParsedType3 = (data2) => {
+      const t = typeof data2;
       switch (t) {
         case "undefined":
           return exports.ZodParsedType.undefined;
         case "string":
           return exports.ZodParsedType.string;
         case "number":
-          return Number.isNaN(data) ? exports.ZodParsedType.nan : exports.ZodParsedType.number;
+          return Number.isNaN(data2) ? exports.ZodParsedType.nan : exports.ZodParsedType.number;
         case "boolean":
           return exports.ZodParsedType.boolean;
         case "function":
@@ -7005,22 +7005,22 @@ var require_util2 = __commonJS({
         case "symbol":
           return exports.ZodParsedType.symbol;
         case "object":
-          if (Array.isArray(data)) {
+          if (Array.isArray(data2)) {
             return exports.ZodParsedType.array;
           }
-          if (data === null) {
+          if (data2 === null) {
             return exports.ZodParsedType.null;
           }
-          if (data.then && typeof data.then === "function" && data.catch && typeof data.catch === "function") {
+          if (data2.then && typeof data2.then === "function" && data2.catch && typeof data2.catch === "function") {
             return exports.ZodParsedType.promise;
           }
-          if (typeof Map !== "undefined" && data instanceof Map) {
+          if (typeof Map !== "undefined" && data2 instanceof Map) {
             return exports.ZodParsedType.map;
           }
-          if (typeof Set !== "undefined" && data instanceof Set) {
+          if (typeof Set !== "undefined" && data2 instanceof Set) {
             return exports.ZodParsedType.set;
           }
-          if (typeof Date !== "undefined" && data instanceof Date) {
+          if (typeof Date !== "undefined" && data2 instanceof Date) {
             return exports.ZodParsedType.date;
           }
           return exports.ZodParsedType.object;
@@ -7307,7 +7307,7 @@ var require_parseUtil = __commonJS({
     var errors_js_1 = require_errors2();
     var en_js_1 = __importDefault(require_en());
     var makeIssue2 = (params) => {
-      const { data, path, errorMaps, issueData } = params;
+      const { data: data2, path, errorMaps, issueData } = params;
       const fullPath = [...path, ...issueData.path || []];
       const fullIssue = {
         ...issueData,
@@ -7323,7 +7323,7 @@ var require_parseUtil = __commonJS({
       let errorMessage = "";
       const maps = errorMaps.filter((m) => !!m).slice().reverse();
       for (const map of maps) {
-        errorMessage = map(fullIssue, { data, defaultError: errorMessage }).message;
+        errorMessage = map(fullIssue, { data: data2, defaultError: errorMessage }).message;
       }
       return {
         ...issueData,
@@ -7563,13 +7563,13 @@ var require_types2 = __commonJS({
         const result = this._parse(input);
         return Promise.resolve(result);
       }
-      parse(data, params) {
-        const result = this.safeParse(data, params);
+      parse(data2, params) {
+        const result = this.safeParse(data2, params);
         if (result.success)
           return result.data;
         throw result.error;
       }
-      safeParse(data, params) {
+      safeParse(data2, params) {
         const ctx = {
           common: {
             issues: [],
@@ -7579,13 +7579,13 @@ var require_types2 = __commonJS({
           path: params?.path || [],
           schemaErrorMap: this._def.errorMap,
           parent: null,
-          data,
-          parsedType: (0, util_js_1.getParsedType)(data)
+          data: data2,
+          parsedType: (0, util_js_1.getParsedType)(data2)
         };
-        const result = this._parseSync({ data, path: ctx.path, parent: ctx });
+        const result = this._parseSync({ data: data2, path: ctx.path, parent: ctx });
         return handleResult2(ctx, result);
       }
-      "~validate"(data) {
+      "~validate"(data2) {
         const ctx = {
           common: {
             issues: [],
@@ -7594,12 +7594,12 @@ var require_types2 = __commonJS({
           path: [],
           schemaErrorMap: this._def.errorMap,
           parent: null,
-          data,
-          parsedType: (0, util_js_1.getParsedType)(data)
+          data: data2,
+          parsedType: (0, util_js_1.getParsedType)(data2)
         };
         if (!this["~standard"].async) {
           try {
-            const result = this._parseSync({ data, path: [], parent: ctx });
+            const result = this._parseSync({ data: data2, path: [], parent: ctx });
             return (0, parseUtil_js_1.isValid)(result) ? {
               value: result.value
             } : {
@@ -7615,19 +7615,19 @@ var require_types2 = __commonJS({
             };
           }
         }
-        return this._parseAsync({ data, path: [], parent: ctx }).then((result) => (0, parseUtil_js_1.isValid)(result) ? {
+        return this._parseAsync({ data: data2, path: [], parent: ctx }).then((result) => (0, parseUtil_js_1.isValid)(result) ? {
           value: result.value
         } : {
           issues: ctx.common.issues
         });
       }
-      async parseAsync(data, params) {
-        const result = await this.safeParseAsync(data, params);
+      async parseAsync(data2, params) {
+        const result = await this.safeParseAsync(data2, params);
         if (result.success)
           return result.data;
         throw result.error;
       }
-      async safeParseAsync(data, params) {
+      async safeParseAsync(data2, params) {
         const ctx = {
           common: {
             issues: [],
@@ -7637,10 +7637,10 @@ var require_types2 = __commonJS({
           path: params?.path || [],
           schemaErrorMap: this._def.errorMap,
           parent: null,
-          data,
-          parsedType: (0, util_js_1.getParsedType)(data)
+          data: data2,
+          parsedType: (0, util_js_1.getParsedType)(data2)
         };
-        const maybeAsyncResult = this._parse({ data, path: ctx.path, parent: ctx });
+        const maybeAsyncResult = this._parse({ data: data2, path: ctx.path, parent: ctx });
         const result = await ((0, parseUtil_js_1.isAsync)(maybeAsyncResult) ? maybeAsyncResult : Promise.resolve(maybeAsyncResult));
         return handleResult2(ctx, result);
       }
@@ -7661,8 +7661,8 @@ var require_types2 = __commonJS({
             ...getIssueProperties(val)
           });
           if (typeof Promise !== "undefined" && result instanceof Promise) {
-            return result.then((data) => {
-              if (!data) {
+            return result.then((data2) => {
+              if (!data2) {
                 setError();
                 return false;
               } else {
@@ -7728,7 +7728,7 @@ var require_types2 = __commonJS({
         this["~standard"] = {
           version: 1,
           vendor: "zod",
-          validate: (data) => this["~validate"](data)
+          validate: (data2) => this["~validate"](data2)
         };
       }
       optional() {
@@ -8191,7 +8191,7 @@ var require_types2 = __commonJS({
         return { status: status.value, value: input.data };
       }
       _regex(regex, validation, message) {
-        return this.refinement((data) => regex.test(data), {
+        return this.refinement((data2) => regex.test(data2), {
           validation,
           code: ZodError_js_1.ZodIssueCode.invalid_string,
           ...errorUtil_js_1.errorUtil.errToObj(message)
@@ -10433,8 +10433,8 @@ var require_types2 = __commonJS({
           return parseUtil_js_1.INVALID;
         }
         const promisified = ctx.parsedType === util_js_1.ZodParsedType.promise ? ctx.data : Promise.resolve(ctx.data);
-        return (0, parseUtil_js_1.OK)(promisified.then((data) => {
-          return this._def.type.parseAsync(data, {
+        return (0, parseUtil_js_1.OK)(promisified.then((data2) => {
+          return this._def.type.parseAsync(data2, {
             path: ctx.path,
             errorMap: ctx.common.contextualErrorMap
           });
@@ -10633,12 +10633,12 @@ var require_types2 = __commonJS({
     var ZodDefault3 = class extends ZodType3 {
       _parse(input) {
         const { ctx } = this._processInputParams(input);
-        let data = ctx.data;
+        let data2 = ctx.data;
         if (ctx.parsedType === util_js_1.ZodParsedType.undefined) {
-          data = this._def.defaultValue();
+          data2 = this._def.defaultValue();
         }
         return this._def.innerType._parse({
-          data,
+          data: data2,
           path: ctx.path,
           parent: ctx
         });
@@ -10736,9 +10736,9 @@ var require_types2 = __commonJS({
     var ZodBranded2 = class extends ZodType3 {
       _parse(input) {
         const { ctx } = this._processInputParams(input);
-        const data = ctx.data;
+        const data2 = ctx.data;
         return this._def.type._parse({
-          data,
+          data: data2,
           path: ctx.path,
           parent: ctx
         });
@@ -10807,13 +10807,13 @@ var require_types2 = __commonJS({
     var ZodReadonly3 = class extends ZodType3 {
       _parse(input) {
         const result = this._def.innerType._parse(input);
-        const freeze = (data) => {
-          if ((0, parseUtil_js_1.isValid)(data)) {
-            data.value = Object.freeze(data.value);
+        const freeze = (data2) => {
+          if ((0, parseUtil_js_1.isValid)(data2)) {
+            data2.value = Object.freeze(data2.value);
           }
-          return data;
+          return data2;
         };
-        return (0, parseUtil_js_1.isAsync)(result) ? result.then((data) => freeze(data)) : freeze(result);
+        return (0, parseUtil_js_1.isAsync)(result) ? result.then((data2) => freeze(data2)) : freeze(result);
       }
       unwrap() {
         return this._def.innerType;
@@ -10827,26 +10827,26 @@ var require_types2 = __commonJS({
         ...processCreateParams2(params)
       });
     };
-    function cleanParams2(params, data) {
-      const p = typeof params === "function" ? params(data) : typeof params === "string" ? { message: params } : params;
+    function cleanParams2(params, data2) {
+      const p = typeof params === "function" ? params(data2) : typeof params === "string" ? { message: params } : params;
       const p2 = typeof p === "string" ? { message: p } : p;
       return p2;
     }
     function custom3(check2, _params = {}, fatal) {
       if (check2)
-        return ZodAny2.create().superRefine((data, ctx) => {
-          const r = check2(data);
+        return ZodAny2.create().superRefine((data2, ctx) => {
+          const r = check2(data2);
           if (r instanceof Promise) {
             return r.then((r2) => {
               if (!r2) {
-                const params = cleanParams2(_params, data);
+                const params = cleanParams2(_params, data2);
                 const _fatal = params.fatal ?? fatal ?? true;
                 ctx.addIssue({ code: "custom", ...params, fatal: _fatal });
               }
             });
           }
           if (!r) {
-            const params = cleanParams2(_params, data);
+            const params = cleanParams2(_params, data2);
             const _fatal = params.fatal ?? fatal ?? true;
             ctx.addIssue({ code: "custom", ...params, fatal: _fatal });
           }
@@ -10898,7 +10898,7 @@ var require_types2 = __commonJS({
     })(ZodFirstPartyTypeKind2 || (exports.ZodFirstPartyTypeKind = ZodFirstPartyTypeKind2 = {}));
     var instanceOfType2 = (cls, params = {
       message: `Input not instance of ${cls.name}`
-    }) => custom3((data) => data instanceof cls, params);
+    }) => custom3((data2) => data2 instanceof cls, params);
     exports.instanceof = instanceOfType2;
     var stringType2 = ZodString3.create;
     exports.string = stringType2;
@@ -11067,8 +11067,8 @@ var require_dist2 = __commonJS({
   "../shared/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.createSubtaskSchema = exports.reorderTasksSchema = exports.updateTaskSchema = exports.reorderFeaturesSchema = exports.updateFeatureSchema = exports.createFeatureSchema = exports.createTaskSchema = exports.createInvitationSchema = exports.invitationStatusSchema = exports.updateMemberRoleSchema = exports.addMemberSchema = exports.addClientSchema = exports.createProjectSchema = exports.FEATURE_STATUS_ORDER = exports.FEATURE_STATUS_LABELS = exports.featureStatusSchema = exports.MILESTONE_DESC_MAX_LENGTH = exports.MILESTONE_TITLE_MAX_LENGTH = exports.MILESTONE_STATUS_ORDER = exports.MILESTONE_STATUS_LABELS = exports.milestoneStatusSchema = exports.taskEventKindSchema = exports.TASK_PRIORITY_LABELS = exports.taskPrioritySchema = exports.TASK_STATUS_ORDER = exports.TASK_STATUS_LABELS = exports.taskStatusSchema = exports.projectRoleSchema = exports.INVITATION_ROLE_LABELS = exports.invitationRoleSchema = exports.MEMBER_ROLE_LABELS = exports.memberRoleSchema = exports.PROJECT_STATUS_LABELS = exports.projectStatusSchema = exports.updateUserSchema = exports.createUserSchema = exports.userRoleSchema = exports.updateApiTokenSchema = exports.createApiTokenSchema = exports.API_TOKEN_SCOPE_LABELS = exports.apiTokenScopeSchema = exports.updateProfileSchema = exports.PROFILE_MAX_SKILLS = exports.PROFILE_BIO_MAX_LENGTH = exports.appDensitySchema = exports.appThemeSchema = exports.signupSchema = exports.loginSchema = exports.PASSWORD_MAX_LENGTH = exports.PASSWORD_MIN_LENGTH = void 0;
-    exports.USER_ROLE_LABELS = exports.apiPaths = exports.API_ROUTES = exports.searchConversationsQuerySchema = exports.listMessagesQuerySchema = exports.channelRoomSchema = exports.WS_EVENTS = exports.updateNotificationPreferenceSchema = exports.NOTIFICATION_PREF_KINDS = exports.NOTIFICATION_KIND_DESCRIPTIONS = exports.NOTIFICATION_KIND_LABELS = exports.notificationKindSchema = exports.updateProjectSchema = exports.reorderMilestonesSchema = exports.updateMilestoneSchema = exports.createMilestoneSchema = exports.IMAGE_MAX_BYTES = exports.IMAGE_ALLOWED_MIME = exports.updateDocSchema = exports.reorderDocsSchema = exports.createDocSchema = exports.DOC_VISIBILITY_LABELS = exports.docVisibilitySchema = exports.DOC_BODY_MAX_LENGTH = exports.DOC_TITLE_MAX_LENGTH = exports.resolveChannelSchema = exports.channelWaitStatusSchema = exports.channelWaitQuerySchema = exports.CHANNEL_WAIT_MAX_MS = exports.scheduleMessageSchema = exports.scheduledMessageStatusSchema = exports.postMessageSchema = exports.MESSAGE_BODY_MAX_LENGTH = exports.createChannelSchema = exports.addChannelMemberSchema = exports.messageAttachmentSchema = exports.CHANNEL_VISIBILITY_LABELS = exports.channelVisibilitySchema = exports.createCommentSchema = exports.updateSubtaskSchema = void 0;
+    exports.createFeatureSchema = exports.createTaskSchema = exports.createInvitationSchema = exports.invitationStatusSchema = exports.updateMemberRoleSchema = exports.addMemberSchema = exports.addClientSchema = exports.createProjectSchema = exports.FEATURE_STATUS_ORDER = exports.FEATURE_STATUS_LABELS = exports.featureStatusSchema = exports.MILESTONE_DESC_MAX_LENGTH = exports.MILESTONE_TITLE_MAX_LENGTH = exports.MILESTONE_STATUS_ORDER = exports.MILESTONE_STATUS_LABELS = exports.milestoneStatusSchema = exports.taskEventKindSchema = exports.TASK_PRIORITY_LABELS = exports.taskPrioritySchema = exports.TASK_STATUS_ORDER = exports.TASK_STATUS_LABELS = exports.taskStatusSchema = exports.projectRoleSchema = exports.INVITATION_ROLE_LABELS = exports.invitationRoleSchema = exports.MEMBER_ROLE_LABELS = exports.memberRoleSchema = exports.PROJECT_STATUS_LABELS = exports.projectStatusSchema = exports.updateUserSchema = exports.createUserSchema = exports.userRoleSchema = exports.deviceTokenSchema = exports.deviceApproveSchema = exports.deviceStartSchema = exports.DEVICE_POLL_INTERVAL_SECONDS = exports.DEVICE_CODE_TTL_SECONDS = exports.updateApiTokenSchema = exports.createApiTokenSchema = exports.API_TOKEN_SCOPE_LABELS = exports.apiTokenScopeSchema = exports.updateProfileSchema = exports.PROFILE_MAX_SKILLS = exports.PROFILE_BIO_MAX_LENGTH = exports.appDensitySchema = exports.appThemeSchema = exports.signupSchema = exports.loginSchema = exports.PASSWORD_MAX_LENGTH = exports.PASSWORD_MIN_LENGTH = void 0;
+    exports.USER_ROLE_LABELS = exports.apiPaths = exports.API_ROUTES = exports.searchConversationsQuerySchema = exports.listMessagesQuerySchema = exports.channelRoomSchema = exports.WS_EVENTS = exports.updateNotificationPreferenceSchema = exports.NOTIFICATION_PREF_KINDS = exports.NOTIFICATION_KIND_DESCRIPTIONS = exports.NOTIFICATION_KIND_LABELS = exports.notificationKindSchema = exports.updateProjectSchema = exports.reorderMilestonesSchema = exports.updateMilestoneSchema = exports.createMilestoneSchema = exports.IMAGE_MAX_BYTES = exports.IMAGE_ALLOWED_MIME = exports.updateDocSchema = exports.reorderDocsSchema = exports.createDocSchema = exports.DOC_VISIBILITY_LABELS = exports.docVisibilitySchema = exports.DOC_BODY_MAX_LENGTH = exports.DOC_TITLE_MAX_LENGTH = exports.resolveChannelSchema = exports.channelWaitStatusSchema = exports.channelWaitQuerySchema = exports.CHANNEL_WAIT_MAX_MS = exports.scheduleMessageSchema = exports.scheduledMessageStatusSchema = exports.postMessageSchema = exports.MESSAGE_BODY_MAX_LENGTH = exports.createChannelSchema = exports.addChannelMemberSchema = exports.messageAttachmentSchema = exports.CHANNEL_VISIBILITY_LABELS = exports.channelVisibilitySchema = exports.createCommentSchema = exports.updateSubtaskSchema = exports.createSubtaskSchema = exports.reorderTasksSchema = exports.updateTaskSchema = exports.reorderFeaturesSchema = exports.updateFeatureSchema = void 0;
     exports.projectAbilities = projectAbilities;
     exports.channelSlug = channelSlug;
     var zod_1 = require_zod();
@@ -11118,6 +11118,17 @@ var require_dist2 = __commonJS({
     });
     exports.updateApiTokenSchema = zod_1.z.object({
       name: zod_1.z.string().trim().min(1, "Name is required").max(80)
+    });
+    exports.DEVICE_CODE_TTL_SECONDS = 600;
+    exports.DEVICE_POLL_INTERVAL_SECONDS = 3;
+    exports.deviceStartSchema = zod_1.z.object({
+      name: zod_1.z.string().trim().min(1).max(120).optional()
+    });
+    exports.deviceApproveSchema = zod_1.z.object({
+      userCode: zod_1.z.string().trim().min(1).max(20)
+    });
+    exports.deviceTokenSchema = zod_1.z.object({
+      deviceCode: zod_1.z.string().min(1)
     });
     exports.userRoleSchema = zod_1.z.enum(["ADMIN", "MEMBER", "VIEWER", "CLIENT"]);
     exports.createUserSchema = zod_1.z.object({
@@ -11500,6 +11511,12 @@ var require_dist2 = __commonJS({
         logout: () => `${exports.API_ROUTES.auth}/logout`,
         google: () => `${exports.API_ROUTES.auth}/google`,
         me: () => `${exports.API_ROUTES.auth}/me`,
+        // Device login (browser auth for a local coding agent).
+        deviceStart: () => `${exports.API_ROUTES.auth}/device/start`,
+        deviceLookup: () => `${exports.API_ROUTES.auth}/device/lookup`,
+        deviceApprove: () => `${exports.API_ROUTES.auth}/device/approve`,
+        deviceToken: () => `${exports.API_ROUTES.auth}/device/token`,
+        tokensRevokeCurrent: () => `${exports.API_ROUTES.auth}/tokens/revoke-current`,
         tokens: () => `${exports.API_ROUTES.auth}/tokens`,
         token: (id) => `${exports.API_ROUTES.auth}/tokens/${id}`,
         tokenRotate: (id) => `${exports.API_ROUTES.auth}/tokens/${id}/rotate`,
@@ -11591,7 +11608,7 @@ var require_dist2 = __commonJS({
 });
 
 // src/index.ts
-import { readFile } from "node:fs/promises";
+import { readFile as readFile2 } from "node:fs/promises";
 import { extname } from "node:path";
 
 // ../node_modules/zod/v3/external.js
@@ -11798,15 +11815,15 @@ var ZodParsedType = util.arrayToEnum([
   "map",
   "set"
 ]);
-var getParsedType = (data) => {
-  const t = typeof data;
+var getParsedType = (data2) => {
+  const t = typeof data2;
   switch (t) {
     case "undefined":
       return ZodParsedType.undefined;
     case "string":
       return ZodParsedType.string;
     case "number":
-      return Number.isNaN(data) ? ZodParsedType.nan : ZodParsedType.number;
+      return Number.isNaN(data2) ? ZodParsedType.nan : ZodParsedType.number;
     case "boolean":
       return ZodParsedType.boolean;
     case "function":
@@ -11816,22 +11833,22 @@ var getParsedType = (data) => {
     case "symbol":
       return ZodParsedType.symbol;
     case "object":
-      if (Array.isArray(data)) {
+      if (Array.isArray(data2)) {
         return ZodParsedType.array;
       }
-      if (data === null) {
+      if (data2 === null) {
         return ZodParsedType.null;
       }
-      if (data.then && typeof data.then === "function" && data.catch && typeof data.catch === "function") {
+      if (data2.then && typeof data2.then === "function" && data2.catch && typeof data2.catch === "function") {
         return ZodParsedType.promise;
       }
-      if (typeof Map !== "undefined" && data instanceof Map) {
+      if (typeof Map !== "undefined" && data2 instanceof Map) {
         return ZodParsedType.map;
       }
-      if (typeof Set !== "undefined" && data instanceof Set) {
+      if (typeof Set !== "undefined" && data2 instanceof Set) {
         return ZodParsedType.set;
       }
-      if (typeof Date !== "undefined" && data instanceof Date) {
+      if (typeof Date !== "undefined" && data2 instanceof Date) {
         return ZodParsedType.date;
       }
       return ZodParsedType.object;
@@ -12072,7 +12089,7 @@ function getErrorMap() {
 
 // ../node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path, errorMaps, issueData } = params;
+  const { data: data2, path, errorMaps, issueData } = params;
   const fullPath = [...path, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
@@ -12088,7 +12105,7 @@ var makeIssue = (params) => {
   let errorMessage = "";
   const maps = errorMaps.filter((m) => !!m).slice().reverse();
   for (const map of maps) {
-    errorMessage = map(fullIssue, { data, defaultError: errorMessage }).message;
+    errorMessage = map(fullIssue, { data: data2, defaultError: errorMessage }).message;
   }
   return {
     ...issueData,
@@ -12290,13 +12307,13 @@ var ZodType = class {
     const result = this._parse(input);
     return Promise.resolve(result);
   }
-  parse(data, params) {
-    const result = this.safeParse(data, params);
+  parse(data2, params) {
+    const result = this.safeParse(data2, params);
     if (result.success)
       return result.data;
     throw result.error;
   }
-  safeParse(data, params) {
+  safeParse(data2, params) {
     const ctx = {
       common: {
         issues: [],
@@ -12306,13 +12323,13 @@ var ZodType = class {
       path: params?.path || [],
       schemaErrorMap: this._def.errorMap,
       parent: null,
-      data,
-      parsedType: getParsedType(data)
+      data: data2,
+      parsedType: getParsedType(data2)
     };
-    const result = this._parseSync({ data, path: ctx.path, parent: ctx });
+    const result = this._parseSync({ data: data2, path: ctx.path, parent: ctx });
     return handleResult(ctx, result);
   }
-  "~validate"(data) {
+  "~validate"(data2) {
     const ctx = {
       common: {
         issues: [],
@@ -12321,12 +12338,12 @@ var ZodType = class {
       path: [],
       schemaErrorMap: this._def.errorMap,
       parent: null,
-      data,
-      parsedType: getParsedType(data)
+      data: data2,
+      parsedType: getParsedType(data2)
     };
     if (!this["~standard"].async) {
       try {
-        const result = this._parseSync({ data, path: [], parent: ctx });
+        const result = this._parseSync({ data: data2, path: [], parent: ctx });
         return isValid(result) ? {
           value: result.value
         } : {
@@ -12342,19 +12359,19 @@ var ZodType = class {
         };
       }
     }
-    return this._parseAsync({ data, path: [], parent: ctx }).then((result) => isValid(result) ? {
+    return this._parseAsync({ data: data2, path: [], parent: ctx }).then((result) => isValid(result) ? {
       value: result.value
     } : {
       issues: ctx.common.issues
     });
   }
-  async parseAsync(data, params) {
-    const result = await this.safeParseAsync(data, params);
+  async parseAsync(data2, params) {
+    const result = await this.safeParseAsync(data2, params);
     if (result.success)
       return result.data;
     throw result.error;
   }
-  async safeParseAsync(data, params) {
+  async safeParseAsync(data2, params) {
     const ctx = {
       common: {
         issues: [],
@@ -12364,10 +12381,10 @@ var ZodType = class {
       path: params?.path || [],
       schemaErrorMap: this._def.errorMap,
       parent: null,
-      data,
-      parsedType: getParsedType(data)
+      data: data2,
+      parsedType: getParsedType(data2)
     };
-    const maybeAsyncResult = this._parse({ data, path: ctx.path, parent: ctx });
+    const maybeAsyncResult = this._parse({ data: data2, path: ctx.path, parent: ctx });
     const result = await (isAsync(maybeAsyncResult) ? maybeAsyncResult : Promise.resolve(maybeAsyncResult));
     return handleResult(ctx, result);
   }
@@ -12388,8 +12405,8 @@ var ZodType = class {
         ...getIssueProperties(val)
       });
       if (typeof Promise !== "undefined" && result instanceof Promise) {
-        return result.then((data) => {
-          if (!data) {
+        return result.then((data2) => {
+          if (!data2) {
             setError();
             return false;
           } else {
@@ -12455,7 +12472,7 @@ var ZodType = class {
     this["~standard"] = {
       version: 1,
       vendor: "zod",
-      validate: (data) => this["~validate"](data)
+      validate: (data2) => this["~validate"](data2)
     };
   }
   optional() {
@@ -12915,7 +12932,7 @@ var ZodString = class _ZodString2 extends ZodType {
     return { status: status.value, value: input.data };
   }
   _regex(regex, validation, message) {
-    return this.refinement((data) => regex.test(data), {
+    return this.refinement((data2) => regex.test(data2), {
       validation,
       code: ZodIssueCode.invalid_string,
       ...errorUtil.errToObj(message)
@@ -15131,8 +15148,8 @@ var ZodPromise = class extends ZodType {
       return INVALID;
     }
     const promisified = ctx.parsedType === ZodParsedType.promise ? ctx.data : Promise.resolve(ctx.data);
-    return OK(promisified.then((data) => {
-      return this._def.type.parseAsync(data, {
+    return OK(promisified.then((data2) => {
+      return this._def.type.parseAsync(data2, {
         path: ctx.path,
         errorMap: ctx.common.contextualErrorMap
       });
@@ -15326,12 +15343,12 @@ ZodNullable.create = (type, params) => {
 var ZodDefault = class extends ZodType {
   _parse(input) {
     const { ctx } = this._processInputParams(input);
-    let data = ctx.data;
+    let data2 = ctx.data;
     if (ctx.parsedType === ZodParsedType.undefined) {
-      data = this._def.defaultValue();
+      data2 = this._def.defaultValue();
     }
     return this._def.innerType._parse({
-      data,
+      data: data2,
       path: ctx.path,
       parent: ctx
     });
@@ -15426,9 +15443,9 @@ var BRAND = /* @__PURE__ */ Symbol("zod_brand");
 var ZodBranded = class extends ZodType {
   _parse(input) {
     const { ctx } = this._processInputParams(input);
-    const data = ctx.data;
+    const data2 = ctx.data;
     return this._def.type._parse({
-      data,
+      data: data2,
       path: ctx.path,
       parent: ctx
     });
@@ -15495,13 +15512,13 @@ var ZodPipeline = class _ZodPipeline extends ZodType {
 var ZodReadonly = class extends ZodType {
   _parse(input) {
     const result = this._def.innerType._parse(input);
-    const freeze = (data) => {
-      if (isValid(data)) {
-        data.value = Object.freeze(data.value);
+    const freeze = (data2) => {
+      if (isValid(data2)) {
+        data2.value = Object.freeze(data2.value);
       }
-      return data;
+      return data2;
     };
-    return isAsync(result) ? result.then((data) => freeze(data)) : freeze(result);
+    return isAsync(result) ? result.then((data2) => freeze(data2)) : freeze(result);
   }
   unwrap() {
     return this._def.innerType;
@@ -15514,26 +15531,26 @@ ZodReadonly.create = (type, params) => {
     ...processCreateParams(params)
   });
 };
-function cleanParams(params, data) {
-  const p = typeof params === "function" ? params(data) : typeof params === "string" ? { message: params } : params;
+function cleanParams(params, data2) {
+  const p = typeof params === "function" ? params(data2) : typeof params === "string" ? { message: params } : params;
   const p2 = typeof p === "string" ? { message: p } : p;
   return p2;
 }
 function custom(check2, _params = {}, fatal) {
   if (check2)
-    return ZodAny.create().superRefine((data, ctx) => {
-      const r = check2(data);
+    return ZodAny.create().superRefine((data2, ctx) => {
+      const r = check2(data2);
       if (r instanceof Promise) {
         return r.then((r2) => {
           if (!r2) {
-            const params = cleanParams(_params, data);
+            const params = cleanParams(_params, data2);
             const _fatal = params.fatal ?? fatal ?? true;
             ctx.addIssue({ code: "custom", ...params, fatal: _fatal });
           }
         });
       }
       if (!r) {
-        const params = cleanParams(_params, data);
+        const params = cleanParams(_params, data2);
         const _fatal = params.fatal ?? fatal ?? true;
         ctx.addIssue({ code: "custom", ...params, fatal: _fatal });
       }
@@ -15585,7 +15602,7 @@ var ZodFirstPartyTypeKind;
 })(ZodFirstPartyTypeKind || (ZodFirstPartyTypeKind = {}));
 var instanceOfType = (cls, params = {
   message: `Input not instance of ${cls.name}`
-}) => custom((data) => data instanceof cls, params);
+}) => custom((data2) => data2 instanceof cls, params);
 var stringType = ZodString.create;
 var numberType = ZodNumber.create;
 var nanType = ZodNaN.create;
@@ -15859,8 +15876,8 @@ function esc(str) {
 }
 var captureStackTrace = Error.captureStackTrace ? Error.captureStackTrace : (..._args) => {
 };
-function isObject(data) {
-  return typeof data === "object" && data !== null && !Array.isArray(data);
+function isObject(data2) {
+  return typeof data2 === "object" && data2 !== null && !Array.isArray(data2);
 }
 var allowsEval = cached(() => {
   if (typeof navigator !== "undefined" && navigator?.userAgent?.includes("Cloudflare")) {
@@ -15888,24 +15905,24 @@ function isPlainObject(o) {
   }
   return true;
 }
-function numKeys(data) {
+function numKeys(data2) {
   let keyCount = 0;
-  for (const key in data) {
-    if (Object.prototype.hasOwnProperty.call(data, key)) {
+  for (const key in data2) {
+    if (Object.prototype.hasOwnProperty.call(data2, key)) {
       keyCount++;
     }
   }
   return keyCount;
 }
-var getParsedType2 = (data) => {
-  const t = typeof data;
+var getParsedType2 = (data2) => {
+  const t = typeof data2;
   switch (t) {
     case "undefined":
       return "undefined";
     case "string":
       return "string";
     case "number":
-      return Number.isNaN(data) ? "nan" : "number";
+      return Number.isNaN(data2) ? "nan" : "number";
     case "boolean":
       return "boolean";
     case "function":
@@ -15915,25 +15932,25 @@ var getParsedType2 = (data) => {
     case "symbol":
       return "symbol";
     case "object":
-      if (Array.isArray(data)) {
+      if (Array.isArray(data2)) {
         return "array";
       }
-      if (data === null) {
+      if (data2 === null) {
         return "null";
       }
-      if (data.then && typeof data.then === "function" && data.catch && typeof data.catch === "function") {
+      if (data2.then && typeof data2.then === "function" && data2.catch && typeof data2.catch === "function") {
         return "promise";
       }
-      if (typeof Map !== "undefined" && data instanceof Map) {
+      if (typeof Map !== "undefined" && data2 instanceof Map) {
         return "map";
       }
-      if (typeof Set !== "undefined" && data instanceof Set) {
+      if (typeof Set !== "undefined" && data2 instanceof Set) {
         return "set";
       }
-      if (typeof Date !== "undefined" && data instanceof Date) {
+      if (typeof Date !== "undefined" && data2 instanceof Date) {
         return "date";
       }
-      if (typeof File !== "undefined" && data instanceof File) {
+      if (typeof File !== "undefined" && data2 instanceof File) {
         return "file";
       }
       return "object";
@@ -17119,13 +17136,13 @@ var $ZodCIDRv6 = /* @__PURE__ */ $constructor("$ZodCIDRv6", (inst, def) => {
     }
   };
 });
-function isValidBase64(data) {
-  if (data === "")
+function isValidBase64(data2) {
+  if (data2 === "")
     return true;
-  if (data.length % 4 !== 0)
+  if (data2.length % 4 !== 0)
     return false;
   try {
-    atob(data);
+    atob(data2);
     return true;
   } catch {
     return false;
@@ -17149,10 +17166,10 @@ var $ZodBase64 = /* @__PURE__ */ $constructor("$ZodBase64", (inst, def) => {
     });
   };
 });
-function isValidBase64URL(data) {
-  if (!base64url.test(data))
+function isValidBase64URL(data2) {
+  if (!base64url.test(data2))
     return false;
-  const base642 = data.replace(/[-_]/g, (c) => c === "-" ? "+" : "/");
+  const base642 = data2.replace(/[-_]/g, (c) => c === "-" ? "+" : "/");
   const padded = base642.padEnd(Math.ceil(base642.length / 4) * 4, "=");
   return isValidBase64(padded);
 }
@@ -18067,21 +18084,21 @@ function handleRefineResult(result, payload, input, inst) {
 }
 
 // ../node_modules/zod/v4/locales/en.js
-var parsedType = (data) => {
-  const t = typeof data;
+var parsedType = (data2) => {
+  const t = typeof data2;
   switch (t) {
     case "number": {
-      return Number.isNaN(data) ? "NaN" : "number";
+      return Number.isNaN(data2) ? "NaN" : "number";
     }
     case "object": {
-      if (Array.isArray(data)) {
+      if (Array.isArray(data2)) {
         return "array";
       }
-      if (data === null) {
+      if (data2 === null) {
         return "null";
       }
-      if (Object.getPrototypeOf(data) !== Object.prototype && data.constructor) {
-        return data.constructor.name;
+      if (Object.getPrototypeOf(data2) !== Object.prototype && data2.constructor) {
+        return data2.constructor.name;
       }
     }
   }
@@ -19444,10 +19461,10 @@ var ZodMiniType = /* @__PURE__ */ $constructor("ZodMiniType", (inst, def) => {
     throw new Error("Uninitialized schema in ZodMiniType.");
   $ZodType.init(inst, def);
   inst.def = def;
-  inst.parse = (data, params) => parse(inst, data, params, { callee: inst.parse });
-  inst.safeParse = (data, params) => safeParse(inst, data, params);
-  inst.parseAsync = async (data, params) => parseAsync(inst, data, params, { callee: inst.parseAsync });
-  inst.safeParseAsync = async (data, params) => safeParseAsync(inst, data, params);
+  inst.parse = (data2, params) => parse(inst, data2, params, { callee: inst.parse });
+  inst.safeParse = (data2, params) => safeParse(inst, data2, params);
+  inst.parseAsync = async (data2, params) => parseAsync(inst, data2, params, { callee: inst.parseAsync });
+  inst.safeParseAsync = async (data2, params) => safeParseAsync(inst, data2, params);
   inst.check = (...checks) => {
     return inst.clone(
       {
@@ -19501,22 +19518,22 @@ function objectFromShape(shape) {
     return objectType(shape);
   throw new Error("Mixed Zod versions detected in object shape.");
 }
-function safeParse2(schema, data) {
+function safeParse2(schema, data2) {
   if (isZ4Schema(schema)) {
-    const result2 = safeParse(schema, data);
+    const result2 = safeParse(schema, data2);
     return result2;
   }
   const v3Schema = schema;
-  const result = v3Schema.safeParse(data);
+  const result = v3Schema.safeParse(data2);
   return result;
 }
-async function safeParseAsync2(schema, data) {
+async function safeParseAsync2(schema, data2) {
   if (isZ4Schema(schema)) {
-    const result2 = await safeParseAsync(schema, data);
+    const result2 = await safeParseAsync(schema, data2);
     return result2;
   }
   const v3Schema = schema;
-  const result = await v3Schema.safeParseAsync(data);
+  const result = await v3Schema.safeParseAsync(data2);
   return result;
 }
 function getObjectShape(schema) {
@@ -19732,10 +19749,10 @@ var ZodType2 = /* @__PURE__ */ $constructor("ZodType", (inst, def) => {
     reg.add(inst, meta);
     return inst;
   });
-  inst.parse = (data, params) => parse2(inst, data, params, { callee: inst.parse });
-  inst.safeParse = (data, params) => safeParse3(inst, data, params);
-  inst.parseAsync = async (data, params) => parseAsync2(inst, data, params, { callee: inst.parseAsync });
-  inst.safeParseAsync = async (data, params) => safeParseAsync3(inst, data, params);
+  inst.parse = (data2, params) => parse2(inst, data2, params, { callee: inst.parse });
+  inst.safeParse = (data2, params) => safeParse3(inst, data2, params);
+  inst.parseAsync = async (data2, params) => parseAsync2(inst, data2, params, { callee: inst.parseAsync });
+  inst.safeParseAsync = async (data2, params) => safeParseAsync3(inst, data2, params);
   inst.spa = inst.safeParseAsync;
   inst.refine = (check2, params) => inst.check(refine(check2, params));
   inst.superRefine = (refinement) => inst.check(superRefine(refinement));
@@ -21824,23 +21841,23 @@ var ServerResultSchema = union([
   CreateTaskResultSchema
 ]);
 var McpError = class _McpError extends Error {
-  constructor(code, message, data) {
+  constructor(code, message, data2) {
     super(`MCP error ${code}: ${message}`);
     this.code = code;
-    this.data = data;
+    this.data = data2;
     this.name = "McpError";
   }
   /**
    * Factory method to create the appropriate error type based on the error code and data
    */
-  static fromError(code, message, data) {
-    if (code === ErrorCode.UrlElicitationRequired && data) {
-      const errorData = data;
+  static fromError(code, message, data2) {
+    if (code === ErrorCode.UrlElicitationRequired && data2) {
+      const errorData = data2;
       if (errorData.elicitations) {
         return new UrlElicitationRequiredError(errorData.elicitations, message);
       }
     }
-    return new _McpError(code, message, data);
+    return new _McpError(code, message, data2);
   }
 };
 var UrlElicitationRequiredError = class extends McpError {
@@ -23177,8 +23194,8 @@ function getMethodLiteral(schema) {
   }
   return value;
 }
-function parseWithCompat(schema, data) {
-  const result = safeParse2(schema, data);
+function parseWithCompat(schema, data2) {
+  const result = safeParse2(schema, data2);
   if (!result.success) {
     throw result.error;
   }
@@ -23685,7 +23702,7 @@ var Protocol = class {
           return;
         }
         const pollInterval = task2.pollInterval ?? this._options?.defaultTaskPollInterval ?? 1e3;
-        await new Promise((resolve) => setTimeout(resolve, pollInterval));
+        await new Promise((resolve2) => setTimeout(resolve2, pollInterval));
         options?.signal?.throwIfAborted();
       }
     } catch (error2) {
@@ -23702,7 +23719,7 @@ var Protocol = class {
    */
   request(request2, resultSchema, options) {
     const { relatedRequestId, resumptionToken, onresumptiontoken, task, relatedTask } = options ?? {};
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve2, reject) => {
       const earlyReject = (error2) => {
         reject(error2);
       };
@@ -23780,7 +23797,7 @@ var Protocol = class {
           if (!parseResult.success) {
             reject(parseResult.error);
           } else {
-            resolve(parseResult.data);
+            resolve2(parseResult.data);
           }
         } catch (error2) {
           reject(error2);
@@ -24041,12 +24058,12 @@ var Protocol = class {
       }
     } catch {
     }
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve2, reject) => {
       if (signal.aborted) {
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
         return;
       }
-      const timeoutId = setTimeout(resolve, interval);
+      const timeoutId = setTimeout(resolve2, interval);
       signal.addEventListener("abort", () => {
         clearTimeout(timeoutId);
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
@@ -25377,7 +25394,7 @@ var McpServer = class {
     let task = createTaskResult.task;
     const pollInterval = task.pollInterval ?? 5e3;
     while (task.status !== "completed" && task.status !== "failed" && task.status !== "cancelled") {
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      await new Promise((resolve2) => setTimeout(resolve2, pollInterval));
       const updatedTask = await extra.taskStore.getTask(taskId2);
       if (!updatedTask) {
         throw new McpError(ErrorCode.InternalError, `Task ${taskId2} not found during polling`);
@@ -26050,19 +26067,19 @@ var StdioServerTransport = class {
     this.onclose?.();
   }
   send(message) {
-    return new Promise((resolve) => {
+    return new Promise((resolve2) => {
       const json2 = serializeMessage(message);
       if (this._stdout.write(json2)) {
-        resolve();
+        resolve2();
       } else {
-        this._stdout.once("drain", resolve);
+        this._stdout.once("drain", resolve2);
       }
     });
   }
 };
 
 // src/index.ts
-var import_shared3 = __toESM(require_dist2(), 1);
+var import_shared4 = __toESM(require_dist2(), 1);
 
 // src/config.ts
 var envSchema = external_exports.object({
@@ -26072,21 +26089,29 @@ var envSchema = external_exports.object({
   CNSOFTS_ALLOW_DELETE: external_exports.string().optional()
 });
 var parsed = envSchema.safeParse(process.env);
-if (!parsed.success) {
+var isLogin = process.argv[2] === "login";
+if (!parsed.success && !isLogin) {
   const issues = parsed.error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n");
   console.error(`[cnsofts-mcp] Invalid configuration:
 ${issues}`);
   process.exit(1);
 }
 var truthy = (v) => v === "1" || v?.toLowerCase() === "true";
+var data = parsed.success ? parsed.data : {
+  // Login-mode placeholders; `runLogin` supplies what it needs itself.
+  CNSOFTS_API_URL: process.env.CNSOFTS_API_URL ?? "",
+  CNSOFTS_TOKEN: "",
+  CNSOFTS_READONLY: process.env.CNSOFTS_READONLY,
+  CNSOFTS_ALLOW_DELETE: process.env.CNSOFTS_ALLOW_DELETE
+};
 var config2 = {
   /** API base URL, trailing slash trimmed. */
-  apiUrl: parsed.data.CNSOFTS_API_URL.replace(/\/+$/, ""),
-  token: parsed.data.CNSOFTS_TOKEN,
+  apiUrl: data.CNSOFTS_API_URL.replace(/\/+$/, ""),
+  token: data.CNSOFTS_TOKEN,
   /** When set, only read tools are registered. */
-  readOnly: truthy(parsed.data.CNSOFTS_READONLY),
+  readOnly: truthy(data.CNSOFTS_READONLY),
   /** When set, destructive delete_* tools are registered. */
-  allowDelete: truthy(parsed.data.CNSOFTS_ALLOW_DELETE)
+  allowDelete: truthy(data.CNSOFTS_ALLOW_DELETE)
 };
 
 // src/client.ts
@@ -26140,8 +26165,8 @@ async function getBinary(path) {
     throw new Error(`Request failed (HTTP ${res.status})`);
   }
   const contentType = res.headers.get("content-type") ?? "application/octet-stream";
-  const data = Buffer.from(await res.arrayBuffer());
-  return { data, contentType };
+  const data2 = Buffer.from(await res.arrayBuffer());
+  return { data: data2, contentType };
 }
 var api = {
   get: (path) => request("GET", path),
@@ -26244,13 +26269,13 @@ function findMilestone(p, milestoneId2) {
 // src/resources.ts
 var import_shared = __toESM(require_dist2(), 1);
 var listProjects = () => api.get(import_shared.apiPaths.projects.list());
-function json(uri, data) {
+function json(uri, data2) {
   return {
     contents: [
       {
         uri: uri.href,
         mimeType: "application/json",
-        text: JSON.stringify(data, null, 2)
+        text: JSON.stringify(data2, null, 2)
       }
     ]
   };
@@ -26513,11 +26538,135 @@ function registerPrompts(server2) {
   );
 }
 
+// src/login.ts
+var import_shared3 = __toESM(require_dist2(), 1);
+import { spawn } from "node:child_process";
+import { readFile, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+var say = (msg = "") => console.error(msg);
+function configPath() {
+  if (process.env.CNSOFTS_MCP_CONFIG) return resolve(process.env.CNSOFTS_MCP_CONFIG);
+  return resolve(dirname(fileURLToPath(import.meta.url)), "..", ".mcp.json");
+}
+async function readConfig(path) {
+  try {
+    return JSON.parse(await readFile(path, "utf8"));
+  } catch {
+    return {};
+  }
+}
+async function postJson(url, body, bearer) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...bearer ? { Authorization: `Bearer ${bearer}` } : {}
+    },
+    body: body === void 0 ? void 0 : JSON.stringify(body)
+  });
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const j = await res.json();
+      if (j.error?.message) message = j.error.message;
+    } catch {
+    }
+    throw new Error(message);
+  }
+  return res.status === 204 ? void 0 : await res.json();
+}
+function openBrowser(url) {
+  if (process.env.CNSOFTS_NO_BROWSER) return;
+  const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
+  try {
+    const child = spawn(cmd, [url], {
+      stdio: "ignore",
+      detached: true,
+      shell: process.platform === "win32"
+    });
+    child.on("error", () => void 0);
+    child.unref();
+  } catch {
+  }
+}
+var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function runLogin() {
+  const path = configPath();
+  const existing = await readConfig(path);
+  const entry = existing.mcpServers?.cnsofts;
+  const oldToken = entry?.env?.CNSOFTS_TOKEN;
+  const apiUrl = (process.env.CNSOFTS_API_URL || entry?.env?.CNSOFTS_API_URL || "").replace(/\/+$/, "");
+  if (!apiUrl) {
+    throw new Error(
+      `No API URL. Set CNSOFTS_API_URL, or add it to ${path} under mcpServers.cnsofts.env.`
+    );
+  }
+  const start = await postJson(
+    `${apiUrl}${import_shared3.apiPaths.auth.deviceStart()}`,
+    { name: process.env.CNSOFTS_AGENT_NAME || "Coding agent" }
+  );
+  say();
+  say(`  Approve this agent at:  ${start.verificationUriComplete}`);
+  say(`  Your code:              ${start.userCode}`);
+  say();
+  say("  Opening your browser\u2026 (waiting for approval)");
+  openBrowser(start.verificationUriComplete);
+  const deadline = Date.now() + start.expiresIn * 1e3;
+  let token;
+  while (Date.now() < deadline) {
+    await sleep(start.interval * 1e3);
+    let poll;
+    try {
+      poll = await postJson(
+        `${apiUrl}${import_shared3.apiPaths.auth.deviceToken()}`,
+        { deviceCode: start.deviceCode }
+      );
+    } catch (err) {
+      throw new Error(
+        `Login failed: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+    if (poll.status === "issued") {
+      token = poll.token;
+      break;
+    }
+  }
+  if (!token) throw new Error("Timed out waiting for approval \u2014 run `login` again.");
+  if (oldToken && oldToken !== token) {
+    await postJson(
+      `${apiUrl}${import_shared3.apiPaths.auth.tokensRevokeCurrent()}`,
+      void 0,
+      oldToken
+    ).catch(() => void 0);
+  }
+  const next = {
+    ...existing,
+    mcpServers: {
+      ...existing.mcpServers,
+      cnsofts: {
+        type: "stdio",
+        command: "node",
+        args: ["${CLAUDE_PROJECT_DIR:-.}/server/index.mjs"],
+        ...entry,
+        env: { ...entry?.env, CNSOFTS_API_URL: apiUrl, CNSOFTS_TOKEN: token }
+      }
+    }
+  };
+  await writeFile(path, `${JSON.stringify(next, null, 2)}
+`, "utf8");
+  say();
+  say(`  \u2705 Connected. Token saved to ${path}`);
+  say(oldToken ? "  (the previous token was revoked)" : "");
+  say("  Restart your agent to pick up the new token.");
+  say();
+}
+
 // src/index.ts
 async function run(work) {
   try {
-    const data = await work();
-    const text = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+    const data2 = await work();
+    const text = typeof data2 === "string" ? data2 : JSON.stringify(data2, null, 2);
     return { content: [{ type: "text", text: text || "Done." }] };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -26532,8 +26681,8 @@ var EXT_MIME = {
   ".webp": "image/webp"
 };
 async function loadImageBytes(input) {
-  const { path, data, mimeType } = input;
-  if (!path && !data) {
+  const { path, data: data2, mimeType } = input;
+  if (!path && !data2) {
     throw new Error(
       "Provide `path` (a local image file or an http(s) URL) or `data` (base64)."
     );
@@ -26550,23 +26699,23 @@ async function loadImageBytes(input) {
       mime ??= res.headers.get("content-type")?.split(";")[0]?.trim() || void 0;
     } else {
       try {
-        buffer = await readFile(path);
+        buffer = await readFile2(path);
       } catch {
         throw new Error(`Could not read image file at "${path}"`);
       }
     }
     mime ??= EXT_MIME[extname(path).toLowerCase()];
   } else {
-    buffer = Buffer.from(data, "base64");
+    buffer = Buffer.from(data2, "base64");
   }
   if (!mime) {
     throw new Error(
-      `Could not determine the image type \u2014 pass mimeType (one of: ${import_shared3.IMAGE_ALLOWED_MIME.join(", ")}).`
+      `Could not determine the image type \u2014 pass mimeType (one of: ${import_shared4.IMAGE_ALLOWED_MIME.join(", ")}).`
     );
   }
-  if (!import_shared3.IMAGE_ALLOWED_MIME.includes(mime)) {
+  if (!import_shared4.IMAGE_ALLOWED_MIME.includes(mime)) {
     throw new Error(
-      `Unsupported image type "${mime}". Allowed: ${import_shared3.IMAGE_ALLOWED_MIME.join(", ")}.`
+      `Unsupported image type "${mime}". Allowed: ${import_shared4.IMAGE_ALLOWED_MIME.join(", ")}.`
     );
   }
   return { buffer, mimeType: mime };
@@ -26659,7 +26808,7 @@ server.registerTool(
     description: "List every project the connected account can access (id, name, status).",
     inputSchema: {}
   },
-  () => run(() => api.get(import_shared3.apiPaths.projects.list()))
+  () => run(() => api.get(import_shared4.apiPaths.projects.list()))
 );
 server.registerTool(
   "get_project",
@@ -26669,7 +26818,7 @@ server.registerTool(
     inputSchema: { projectId }
   },
   ({ projectId: projectId2 }) => run(
-    async () => compactProject(await api.get(import_shared3.apiPaths.projects.detail(projectId2)))
+    async () => compactProject(await api.get(import_shared4.apiPaths.projects.detail(projectId2)))
   )
 );
 server.registerTool(
@@ -26680,7 +26829,7 @@ server.registerTool(
     inputSchema: { projectId, taskId }
   },
   ({ projectId: projectId2, taskId: taskId2 }) => run(
-    async () => findTask(await api.get(import_shared3.apiPaths.projects.detail(projectId2)), taskId2)
+    async () => findTask(await api.get(import_shared4.apiPaths.projects.detail(projectId2)), taskId2)
   )
 );
 server.registerTool(
@@ -26690,13 +26839,13 @@ server.registerTool(
     description: "List a project\u2019s tasks (compact), optionally filtered by status, feature, or assignee (member id).",
     inputSchema: {
       projectId,
-      status: import_shared3.taskStatusSchema.optional(),
+      status: import_shared4.taskStatusSchema.optional(),
       featureId: external_exports.string().optional().describe("Filter to one feature"),
       assigneeId: external_exports.string().optional().describe("Filter to one member id")
     }
   },
   ({ projectId: projectId2, status, featureId: featureId2, assigneeId }) => run(async () => {
-    const p = await api.get(import_shared3.apiPaths.projects.detail(projectId2));
+    const p = await api.get(import_shared4.apiPaths.projects.detail(projectId2));
     let tasks = p.tasks;
     if (status) tasks = tasks.filter((t) => t.status === status);
     if (featureId2) tasks = tasks.filter((t) => t.featureId === featureId2);
@@ -26712,7 +26861,7 @@ server.registerTool(
     description: "List the discussion channels of a project.",
     inputSchema: { projectId }
   },
-  ({ projectId: projectId2 }) => run(() => api.get(import_shared3.apiPaths.projects.channels(projectId2)))
+  ({ projectId: projectId2 }) => run(() => api.get(import_shared4.apiPaths.projects.channels(projectId2)))
 );
 server.registerTool(
   "get_channel_overview",
@@ -26721,7 +26870,7 @@ server.registerTool(
     description: "Cheap orientation for a channel: message count, participants, first/last activity, and the last few message previews. Call this before read_channel to decide whether you even need to read more.",
     inputSchema: { projectId, channelId }
   },
-  ({ projectId: projectId2, channelId: channelId2 }) => run(() => api.get(import_shared3.apiPaths.projects.channelOverview(projectId2, channelId2)))
+  ({ projectId: projectId2, channelId: channelId2 }) => run(() => api.get(import_shared4.apiPaths.projects.channelOverview(projectId2, channelId2)))
 );
 server.registerTool(
   "search_conversations",
@@ -26738,7 +26887,7 @@ server.registerTool(
   ({ projectId: projectId2, query, channelId: channelId2, limit }) => run(() => {
     const params = new URLSearchParams({ q: query, limit: String(limit) });
     if (channelId2) params.set("channelId", channelId2);
-    return api.get(`${import_shared3.apiPaths.projects.search(projectId2)}?${params.toString()}`);
+    return api.get(`${import_shared4.apiPaths.projects.search(projectId2)}?${params.toString()}`);
   })
 );
 server.registerTool(
@@ -26763,7 +26912,7 @@ server.registerTool(
     });
     if (afterMessageId) params.set("after", afterMessageId);
     return api.get(
-      `${import_shared3.apiPaths.projects.channelWait(projectId2, channelId2)}?${params.toString()}`
+      `${import_shared4.apiPaths.projects.channelWait(projectId2, channelId2)}?${params.toString()}`
     );
   })
 );
@@ -26782,7 +26931,7 @@ server.registerTool(
   ({ projectId: projectId2, channelId: channelId2, limit, before }) => run(async () => {
     const qs = `?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ""}`;
     const messages = await api.get(
-      `${import_shared3.apiPaths.projects.channelMessages(projectId2, channelId2)}${qs}`
+      `${import_shared4.apiPaths.projects.channelMessages(projectId2, channelId2)}${qs}`
     );
     const hasMore = messages.length === limit;
     return {
@@ -26805,7 +26954,7 @@ server.registerTool(
     }
   },
   ({ projectId: projectId2, channelId: channelId2, messageId }) => run(
-    () => api.get(import_shared3.apiPaths.projects.channelMessage(projectId2, channelId2, messageId))
+    () => api.get(import_shared4.apiPaths.projects.channelMessage(projectId2, channelId2, messageId))
   )
 );
 server.registerTool(
@@ -26821,14 +26970,14 @@ server.registerTool(
     try {
       const marker = "/api/images/";
       const id = image.includes(marker) ? image.slice(image.indexOf(marker) + marker.length).split(/[?#/]/)[0] : image.trim();
-      const { data, contentType } = await api.getBinary(
-        import_shared3.apiPaths.images.serve(id)
+      const { data: data2, contentType } = await api.getBinary(
+        import_shared4.apiPaths.images.serve(id)
       );
       return {
         content: [
           {
             type: "image",
-            data: data.toString("base64"),
+            data: data2.toString("base64"),
             mimeType: contentType
           }
         ]
@@ -26849,7 +26998,7 @@ server.registerTool(
     description: "A project's documentation pages (id, title, when/who last edited) \u2014 metadata only, no body. Use this to orient before reading or writing a doc.",
     inputSchema: { projectId }
   },
-  ({ projectId: projectId2 }) => run(() => api.get(import_shared3.apiPaths.projects.docs(projectId2)))
+  ({ projectId: projectId2 }) => run(() => api.get(import_shared4.apiPaths.projects.docs(projectId2)))
 );
 server.registerTool(
   "get_doc",
@@ -26858,7 +27007,7 @@ server.registerTool(
     description: "Fetch one documentation page with its full markdown body. Read it before update_doc so you preserve the parts you are not changing.",
     inputSchema: { projectId, docId }
   },
-  ({ projectId: projectId2, docId: docId2 }) => run(() => api.get(import_shared3.apiPaths.projects.doc(projectId2, docId2)))
+  ({ projectId: projectId2, docId: docId2 }) => run(() => api.get(import_shared4.apiPaths.projects.doc(projectId2, docId2)))
 );
 if (!config2.readOnly) {
   server.registerTool(
@@ -26866,11 +27015,11 @@ if (!config2.readOnly) {
     {
       title: "Create feature",
       description: "Create a feature (kanban swimlane) in a project.",
-      inputSchema: { projectId, ...import_shared3.createFeatureSchema.shape }
+      inputSchema: { projectId, ...import_shared4.createFeatureSchema.shape }
     },
     ({ projectId: projectId2, ...body }) => run(async () => {
       const p = await api.post(
-        import_shared3.apiPaths.projects.features(projectId2),
+        import_shared4.apiPaths.projects.features(projectId2),
         body
       );
       return compactFeature(p, newest(p.features));
@@ -26881,11 +27030,11 @@ if (!config2.readOnly) {
     {
       title: "Update feature",
       description: "Update a feature \u2014 name, description, status, owners, target date, or pinned.",
-      inputSchema: { projectId, featureId, ...import_shared3.updateFeatureSchema.shape }
+      inputSchema: { projectId, featureId, ...import_shared4.updateFeatureSchema.shape }
     },
     ({ projectId: projectId2, featureId: featureId2, ...body }) => run(async () => {
       const p = await api.patch(
-        import_shared3.apiPaths.projects.feature(projectId2, featureId2),
+        import_shared4.apiPaths.projects.feature(projectId2, featureId2),
         body
       );
       return compactFeature(p, findFeature(p, featureId2));
@@ -26903,7 +27052,7 @@ if (!config2.readOnly) {
     },
     ({ projectId: projectId2, orderedIds }) => run(async () => {
       const p = await api.post(
-        import_shared3.apiPaths.projects.featuresReorder(projectId2),
+        import_shared4.apiPaths.projects.featuresReorder(projectId2),
         { orderedIds }
       );
       return p.features.map((f) => compactFeature(p, f));
@@ -26914,10 +27063,10 @@ if (!config2.readOnly) {
     {
       title: "Create task",
       description: "Create a task on the board. First call get_project to get valid featureId (swimlane) and assigneeIds (member ids) \u2014 do not invent them.",
-      inputSchema: { projectId, ...import_shared3.createTaskSchema.shape }
+      inputSchema: { projectId, ...import_shared4.createTaskSchema.shape }
     },
     ({ projectId: projectId2, ...body }) => run(async () => {
-      const p = await api.post(import_shared3.apiPaths.projects.tasks(projectId2), body);
+      const p = await api.post(import_shared4.apiPaths.projects.tasks(projectId2), body);
       return compactTask(newest(p.tasks));
     })
   );
@@ -26926,11 +27075,11 @@ if (!config2.readOnly) {
     {
       title: "Reorder tasks",
       description: "Set the order of tasks within one status column. Pass the status and the full, final list of task ids in that column, in the desired order.",
-      inputSchema: { projectId, ...import_shared3.reorderTasksSchema.shape }
+      inputSchema: { projectId, ...import_shared4.reorderTasksSchema.shape }
     },
     ({ projectId: projectId2, ...body }) => run(async () => {
       const p = await api.patch(
-        import_shared3.apiPaths.projects.tasksReorder(projectId2),
+        import_shared4.apiPaths.projects.tasksReorder(projectId2),
         body
       );
       return p.tasks.filter((t) => t.status === body.status).map(compactTask);
@@ -26941,12 +27090,12 @@ if (!config2.readOnly) {
     {
       title: "Update task",
       description: "Update task fields (title, description, status, priority, assigneeIds, featureId, dueDate). Read the task via get_project first so you only change what you intend. Only fields you pass are changed.",
-      inputSchema: { projectId, taskId, ...import_shared3.updateTaskSchema.shape }
+      inputSchema: { projectId, taskId, ...import_shared4.updateTaskSchema.shape }
     },
     ({ projectId: projectId2, taskId: taskId2, ...body }) => run(
       async () => compactTask(
         findTask(
-          await api.patch(import_shared3.apiPaths.projects.task(projectId2, taskId2), body),
+          await api.patch(import_shared4.apiPaths.projects.task(projectId2, taskId2), body),
           taskId2
         )
       )
@@ -26957,12 +27106,12 @@ if (!config2.readOnly) {
     {
       title: "Move task",
       description: "Move a task to another status column on the board.",
-      inputSchema: { projectId, taskId, status: import_shared3.taskStatusSchema }
+      inputSchema: { projectId, taskId, status: import_shared4.taskStatusSchema }
     },
     ({ projectId: projectId2, taskId: taskId2, status }) => run(
       async () => compactTask(
         findTask(
-          await api.patch(import_shared3.apiPaths.projects.task(projectId2, taskId2), {
+          await api.patch(import_shared4.apiPaths.projects.task(projectId2, taskId2), {
             status
           }),
           taskId2
@@ -26984,7 +27133,7 @@ if (!config2.readOnly) {
     ({ projectId: projectId2, taskId: taskId2, assigneeIds }) => run(
       async () => compactTask(
         findTask(
-          await api.patch(import_shared3.apiPaths.projects.task(projectId2, taskId2), {
+          await api.patch(import_shared4.apiPaths.projects.task(projectId2, taskId2), {
             assigneeIds
           }),
           taskId2
@@ -26997,12 +27146,12 @@ if (!config2.readOnly) {
     {
       title: "Add subtask",
       description: "Add a checklist subtask to a task.",
-      inputSchema: { projectId, taskId, ...import_shared3.createSubtaskSchema.shape }
+      inputSchema: { projectId, taskId, ...import_shared4.createSubtaskSchema.shape }
     },
     ({ projectId: projectId2, taskId: taskId2, ...body }) => run(
       async () => findTask(
         await api.post(
-          import_shared3.apiPaths.projects.subtasks(projectId2, taskId2),
+          import_shared4.apiPaths.projects.subtasks(projectId2, taskId2),
           body
         ),
         taskId2
@@ -27025,7 +27174,7 @@ if (!config2.readOnly) {
     ({ projectId: projectId2, taskId: taskId2, subtaskId: subtaskId2, ...body }) => run(
       async () => findTask(
         await api.patch(
-          import_shared3.apiPaths.projects.subtask(projectId2, taskId2, subtaskId2),
+          import_shared4.apiPaths.projects.subtask(projectId2, taskId2, subtaskId2),
           body
         ),
         taskId2
@@ -27037,18 +27186,18 @@ if (!config2.readOnly) {
     {
       title: "Create channel",
       description: 'Create a discussion channel. visibility "internal" = team-only, "client" = shared with clients.',
-      inputSchema: { projectId, ...import_shared3.createChannelSchema.shape }
+      inputSchema: { projectId, ...import_shared4.createChannelSchema.shape }
     },
-    ({ projectId: projectId2, ...body }) => run(() => api.post(import_shared3.apiPaths.projects.channels(projectId2), body))
+    ({ projectId: projectId2, ...body }) => run(() => api.post(import_shared4.apiPaths.projects.channels(projectId2), body))
   );
   server.registerTool(
     "create_doc",
     {
       title: "Create doc",
       description: `Create a documentation page in the project's Docs \u2014 long-form project docs (architecture, onboarding, decisions, status) the team and agents read to stay aware of what's going on. Give it a clear title and a markdown body. ${MARKDOWN_HINT}`,
-      inputSchema: { projectId, ...import_shared3.createDocSchema.shape }
+      inputSchema: { projectId, ...import_shared4.createDocSchema.shape }
     },
-    ({ projectId: projectId2, ...body }) => run(() => api.post(import_shared3.apiPaths.projects.docs(projectId2), body))
+    ({ projectId: projectId2, ...body }) => run(() => api.post(import_shared4.apiPaths.projects.docs(projectId2), body))
   );
   server.registerTool(
     "update_doc",
@@ -27058,11 +27207,11 @@ if (!config2.readOnly) {
       inputSchema: {
         projectId,
         docId,
-        title: import_shared3.createDocSchema.shape.title.optional(),
-        body: import_shared3.createDocSchema.shape.body.optional()
+        title: import_shared4.createDocSchema.shape.title.optional(),
+        body: import_shared4.createDocSchema.shape.body.optional()
       }
     },
-    ({ projectId: projectId2, docId: docId2, ...body }) => run(() => api.patch(import_shared3.apiPaths.projects.doc(projectId2, docId2), body))
+    ({ projectId: projectId2, docId: docId2, ...body }) => run(() => api.patch(import_shared4.apiPaths.projects.doc(projectId2, docId2), body))
   );
   server.registerTool(
     "upload_image",
@@ -27077,19 +27226,19 @@ if (!config2.readOnly) {
         data: external_exports.string().min(1).optional().describe(
           "Fallback only, when you have no file path: the raw image bytes base64-encoded. Prefer `path`."
         ),
-        mimeType: external_exports.enum(import_shared3.IMAGE_ALLOWED_MIME).optional().describe(
+        mimeType: external_exports.enum(import_shared4.IMAGE_ALLOWED_MIME).optional().describe(
           "Usually inferred from the file extension or URL. Set only if it cannot be inferred. One of: image/png, image/jpeg, image/gif, image/webp."
         ),
         alt: external_exports.string().max(200).optional().describe("Alt text for the image")
       }
     },
-    ({ projectId: projectId2, path, data, mimeType, alt }) => run(async () => {
+    ({ projectId: projectId2, path, data: data2, mimeType, alt }) => run(async () => {
       const { buffer, mimeType: mime } = await loadImageBytes({
         path,
-        data,
+        data: data2,
         mimeType
       });
-      const image = await api.postBinary(import_shared3.apiPaths.projects.images(projectId2), buffer, mime);
+      const image = await api.postBinary(import_shared4.apiPaths.projects.images(projectId2), buffer, mime);
       return { ...image, markdown: `![${alt ?? "image"}](${image.url})` };
     })
   );
@@ -27098,11 +27247,11 @@ if (!config2.readOnly) {
     {
       title: "Create checkpoint",
       description: "Add a checkpoint to the project roadmap (a client-facing delivery marker). Provide a title, optional description, dueDate (YYYY-MM-DD), and status (upcoming | in_progress | done).",
-      inputSchema: { projectId, ...import_shared3.createMilestoneSchema.shape }
+      inputSchema: { projectId, ...import_shared4.createMilestoneSchema.shape }
     },
     ({ projectId: projectId2, ...body }) => run(async () => {
       const p = await api.post(
-        import_shared3.apiPaths.projects.milestones(projectId2),
+        import_shared4.apiPaths.projects.milestones(projectId2),
         body
       );
       return compactMilestone(newest(p.milestones));
@@ -27116,15 +27265,15 @@ if (!config2.readOnly) {
       inputSchema: {
         projectId,
         milestoneId,
-        title: import_shared3.createMilestoneSchema.shape.title.optional(),
-        description: import_shared3.createMilestoneSchema.shape.description.optional(),
-        dueDate: import_shared3.createMilestoneSchema.shape.dueDate.optional(),
-        status: import_shared3.createMilestoneSchema.shape.status.optional()
+        title: import_shared4.createMilestoneSchema.shape.title.optional(),
+        description: import_shared4.createMilestoneSchema.shape.description.optional(),
+        dueDate: import_shared4.createMilestoneSchema.shape.dueDate.optional(),
+        status: import_shared4.createMilestoneSchema.shape.status.optional()
       }
     },
     ({ projectId: projectId2, milestoneId: milestoneId2, ...body }) => run(async () => {
       const p = await api.patch(
-        import_shared3.apiPaths.projects.milestone(projectId2, milestoneId2),
+        import_shared4.apiPaths.projects.milestone(projectId2, milestoneId2),
         body
       );
       return compactMilestone(findMilestone(p, milestoneId2));
@@ -27142,7 +27291,7 @@ if (!config2.readOnly) {
     },
     ({ projectId: projectId2, orderedIds }) => run(async () => {
       const p = await api.patch(
-        import_shared3.apiPaths.projects.milestonesReorder(projectId2),
+        import_shared4.apiPaths.projects.milestonesReorder(projectId2),
         { orderedIds }
       );
       return p.milestones.map(compactMilestone);
@@ -27153,13 +27302,13 @@ if (!config2.readOnly) {
     {
       title: "Comment on task",
       description: `Post a comment on a task thread. ${MARKDOWN_HINT}`,
-      inputSchema: { projectId, taskId, ...import_shared3.createCommentSchema.shape }
+      inputSchema: { projectId, taskId, ...import_shared4.createCommentSchema.shape }
     },
     ({ projectId: projectId2, taskId: taskId2, ...body }) => run(
       async () => compactTask(
         findTask(
           await api.post(
-            import_shared3.apiPaths.projects.comments(projectId2, taskId2),
+            import_shared4.apiPaths.projects.comments(projectId2, taskId2),
             body
           ),
           taskId2
@@ -27176,13 +27325,13 @@ if (!config2.readOnly) {
         projectId,
         channelId,
         body: external_exports.string().max(4e3).optional().describe(`Message text. ${MARKDOWN_HINT}`),
-        attachment: import_shared3.messageAttachmentSchema.nullable().optional().describe(
+        attachment: import_shared4.messageAttachmentSchema.nullable().optional().describe(
           'Optional { kind: "task"|"feature"|"milestone", id } to share'
         )
       }
     },
     ({ projectId: projectId2, channelId: channelId2, ...body }) => run(
-      () => api.post(import_shared3.apiPaths.projects.channelMessages(projectId2, channelId2), body)
+      () => api.post(import_shared4.apiPaths.projects.channelMessages(projectId2, channelId2), body)
     )
   );
   {
@@ -27194,7 +27343,7 @@ if (!config2.readOnly) {
         inputSchema: { projectId, taskId }
       },
       ({ projectId: projectId2, taskId: taskId2 }) => run(async () => {
-        await api.delete(import_shared3.apiPaths.projects.task(projectId2, taskId2));
+        await api.delete(import_shared4.apiPaths.projects.task(projectId2, taskId2));
         return "Task deleted.";
       })
     );
@@ -27206,7 +27355,7 @@ if (!config2.readOnly) {
         inputSchema: { projectId, featureId }
       },
       ({ projectId: projectId2, featureId: featureId2 }) => run(async () => {
-        await api.delete(import_shared3.apiPaths.projects.feature(projectId2, featureId2));
+        await api.delete(import_shared4.apiPaths.projects.feature(projectId2, featureId2));
         return "Feature deleted.";
       })
     );
@@ -27218,7 +27367,7 @@ if (!config2.readOnly) {
         inputSchema: { projectId, milestoneId }
       },
       ({ projectId: projectId2, milestoneId: milestoneId2 }) => run(async () => {
-        await api.delete(import_shared3.apiPaths.projects.milestone(projectId2, milestoneId2));
+        await api.delete(import_shared4.apiPaths.projects.milestone(projectId2, milestoneId2));
         return "Checkpoint deleted.";
       })
     );
@@ -27232,7 +27381,16 @@ async function main() {
   const mode = config2.readOnly ? "read-only" : "read-write";
   console.error(`[cnsofts-mcp] connected (${mode}) \u2192 ${config2.apiUrl}`);
 }
-main().catch((err) => {
-  console.error("[cnsofts-mcp] fatal:", err);
-  process.exit(1);
-});
+if (process.argv[2] === "login") {
+  runLogin().then(() => process.exit(0)).catch((err) => {
+    console.error(
+      `[cnsofts-mcp] login failed: ${err instanceof Error ? err.message : String(err)}`
+    );
+    process.exit(1);
+  });
+} else {
+  main().catch((err) => {
+    console.error("[cnsofts-mcp] fatal:", err);
+    process.exit(1);
+  });
+}

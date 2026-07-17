@@ -70,6 +70,29 @@ model Session {
 }
 
 /**
+ * A pending browser login for a local coding agent (OAuth 2.0 device-flow
+ * style). The CLI calls `device/start` → gets a short `userCode` it shows the
+ * user and a secret `deviceCode` it polls with (only the hash is stored). The
+ * user opens `/connect`, and — authenticated in the browser — approves the
+ * `userCode`, which records `approvedUserId`. The next poll mints a PAT for that
+ * user and flips `status` to `issued` (so the plaintext token is never stored:
+ * it's created at poll time and returned once). Rows expire after a few minutes.
+ */
+model DeviceAuth {
+  id             String   @id @default(cuid())
+  deviceCodeHash String   @unique
+  userCode       String   @unique
+  // pending → approved → issued (terminal); or denied / expired.
+  status         String   @default("pending")
+  approvedUserId String?
+  tokenName      String   @default("Coding agent")
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+
+  @@map("device_auths")
+}
+
+/**
  * A long-lived Personal Access Token that lets a coding agent (e.g. Claude Code
  * via the MCP server) act AS the token's owner. Only the sha-256 hash is stored;
  * the plaintext `cnsofts_pat_…` value is shown once at creation.

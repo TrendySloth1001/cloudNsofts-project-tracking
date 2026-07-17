@@ -2,10 +2,15 @@ import type { Request, Response } from 'express';
 import type { AuthUser } from '@cnsofts/shared';
 import {
   createApiTokenSchema,
+  deviceApproveSchema,
+  deviceStartSchema,
+  deviceTokenSchema,
+  DEVICE_POLL_INTERVAL_SECONDS,
   loginSchema,
   signupSchema,
   updateApiTokenSchema,
   updateProfileSchema,
+  type DeviceStartResponse,
 } from '@cnsofts/shared';
 import { env } from '../../infra/env';
 import { asyncHandler } from '../../shared/http/async-handler';
@@ -90,6 +95,53 @@ export const authController = {
     const raw = readCookie(req.headers.cookie, COOKIE_REFRESH);
     if (raw) await authService.revokeSession(raw);
     clearSessionCookies(res);
+    res.status(204).end();
+  }),
+
+  /* --------------------- Device login (browser auth) -------------------- */
+
+  // CLI begins a login (no auth). Returns codes + the page to approve at.
+  deviceStart: asyncHandler(async (req, res) => {
+    const input = validate(deviceStartSchema, req.body ?? {});
+    const { deviceCode, userCode, expiresIn } =
+      await authService.startDevice(input);
+    const verificationUri = `${env.CORS_ORIGIN}/connect`;
+    const body: DeviceStartResponse = {
+      deviceCode,
+      userCode,
+      verificationUri,
+      verificationUriComplete: `${verificationUri}?code=${encodeURIComponent(userCode)}`,
+      expiresIn,
+      interval: DEVICE_POLL_INTERVAL_SECONDS,
+    };
+    res.status(201).json(body);
+  }),
+
+  // What the /connect page shows before the signed-in user approves.
+  deviceLookup: asyncHandler(async (req, res) => {
+    const userCode = String(req.query.code ?? '');
+    res.json(await authService.lookupDevice(userCode));
+  }),
+
+  // The signed-in user approves a pending device by its user code.
+  deviceApprove: asyncHandler(async (req, res) => {
+    const input = validate(deviceApproveSchema, req.body);
+    await authService.approveDevice(input.userCode, requireUser(req));
+    res.status(204).end();
+  }),
+
+  // CLI polls for the minted token (no auth — the device code is the secret).
+  deviceToken: asyncHandler(async (req, res) => {
+    const input = validate(deviceTokenSchema, req.body);
+    res.json(await authService.pollDevice(input.deviceCode));
+  }),
+
+  // Revoke the PAT used to authenticate THIS request (a token retiring itself).
+  revokeCurrentToken: asyncHandler(async (req, res) => {
+    const [scheme, raw] = (req.headers.authorization ?? '').split(' ');
+    if (scheme === 'Bearer' && raw && authService.isApiToken(raw)) {
+      await authService.revokeApiTokenByRaw(raw);
+    }
     res.status(204).end();
   }),
 

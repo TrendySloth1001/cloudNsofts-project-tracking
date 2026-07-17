@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import {
   apiTokenScopeSchema,
+  DEVICE_CODE_TTL_SECONDS,
   userRoleSchema,
   type AgentActivity,
   type AppDensity,
@@ -12,6 +13,7 @@ import {
   type AuthUser,
   type CreateApiTokenInput,
   type CreatedApiToken,
+  type DevicePollResponse,
   type LoginInput,
   type SignupInput,
   type TokenVerifyResult,
@@ -175,6 +177,21 @@ export interface SessionTokens {
  *  is the source of truth so it can be revoked). */
 function newRefreshToken(): string {
   return randomBytes(32).toString('base64url');
+}
+
+/** Unambiguous alphabet for the human-typed device user code (no 0/O/1/I/L). */
+const USER_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+/** A short, readable user code like `ABCD-EFGH` for the device-login browser
+ *  step (32^8 ≈ 10^12 space; rows expire in minutes and polling is rate-limited). */
+function newUserCode(): string {
+  const bytes = randomBytes(8);
+  let out = '';
+  for (let i = 0; i < 8; i++) {
+    out += USER_CODE_ALPHABET[bytes[i] % USER_CODE_ALPHABET.length];
+    if (i === 3) out += '-';
+  }
+  return out;
 }
 
 /** Open a new session for a user: persist the (hashed) refresh token and return
@@ -624,6 +641,98 @@ export const authService = {
       where: { id },
       data: { revokedAt: new Date() },
     });
+  },
+
+  /** Revoke a PAT by its raw value — lets a token revoke ITSELF (used by the
+   *  device-login CLI to retire the old token after minting a new one). No-op if
+   *  the value isn't a live token. */
+  async revokeApiTokenByRaw(raw: string): Promise<void> {
+    await prisma.apiToken.updateMany({
+      where: { tokenHash: hashToken(raw), revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  },
+
+  /* --------------------- Device login (browser auth) -------------------- */
+
+  /** Begin a device login: persist a pending row and return the codes. */
+  async startDevice(
+    input: { name?: string },
+  ): Promise<{ deviceCode: string; userCode: string; expiresIn: number }> {
+    const deviceCode = randomBytes(32).toString('base64url');
+    const userCode = newUserCode();
+    await prisma.deviceAuth.create({
+      data: {
+        deviceCodeHash: hashToken(deviceCode),
+        userCode,
+        tokenName: input.name?.trim() || 'Coding agent',
+        expiresAt: new Date(Date.now() + DEVICE_CODE_TTL_SECONDS * 1000),
+      },
+    });
+    return { deviceCode, userCode, expiresIn: DEVICE_CODE_TTL_SECONDS };
+  },
+
+  /** What the /connect page shows before approval (404 if unknown/expired). */
+  async lookupDevice(
+    userCode: string,
+  ): Promise<{ tokenName: string; expiresAt: string }> {
+    const row = await prisma.deviceAuth.findUnique({
+      where: { userCode: userCode.trim().toUpperCase() },
+    });
+    if (!row || row.status !== 'pending' || row.expiresAt.getTime() < Date.now()) {
+      throw HttpError.notFound('That code is invalid or has expired.');
+    }
+    return { tokenName: row.tokenName, expiresAt: row.expiresAt.toISOString() };
+  },
+
+  /** The signed-in user approves a pending device by its user code. */
+  async approveDevice(userCode: string, user: AuthUser): Promise<void> {
+    const row = await prisma.deviceAuth.findUnique({
+      where: { userCode: userCode.trim().toUpperCase() },
+    });
+    if (!row || row.status !== 'pending' || row.expiresAt.getTime() < Date.now()) {
+      throw HttpError.notFound('That code is invalid or has expired.');
+    }
+    await prisma.deviceAuth.update({
+      where: { id: row.id },
+      data: { status: 'approved', approvedUserId: user.id },
+    });
+  },
+
+  /**
+   * CLI poll. Pending → `{ status: 'pending' }`. Approved → mint a PAT for the
+   * approving user, flip to `issued`, and return the token ONCE (never stored in
+   * plaintext — created here at poll time). Unknown/expired/consumed → 401/410.
+   */
+  async pollDevice(deviceCode: string): Promise<DevicePollResponse> {
+    const row = await prisma.deviceAuth.findUnique({
+      where: { deviceCodeHash: hashToken(deviceCode) },
+    });
+    if (!row) throw HttpError.unauthorized('Unknown device code.');
+    if (row.expiresAt.getTime() < Date.now()) {
+      throw HttpError.badRequest('This login request expired — start again.');
+    }
+    if (row.status === 'pending') return { status: 'pending' };
+    if (row.status !== 'approved' || !row.approvedUserId) {
+      throw HttpError.badRequest('This login request is no longer usable.');
+    }
+    const principal = await principalFromId(row.approvedUserId);
+    if (!principal) throw HttpError.unauthorized('The account no longer exists.');
+    // Atomically claim the row so a duplicate poll can't mint a second token.
+    const claimed = await prisma.deviceAuth.updateMany({
+      where: { id: row.id, status: 'approved' },
+      data: { status: 'issued' },
+    });
+    if (claimed.count === 0) {
+      throw HttpError.badRequest('This login request was already completed.');
+    }
+    const minted = await this.createApiToken(principal, {
+      name: row.tokenName,
+      scope: 'full',
+      projectIds: [],
+      canDelete: false,
+    });
+    return { status: 'issued', token: minted.token };
   },
 
   /** Verify a PAT against the DB and reconstruct the acting principal. Returns

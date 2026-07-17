@@ -40,6 +40,7 @@ import {
 } from './shape.js';
 import { registerResources } from './resources.js';
 import { registerPrompts } from './prompts.js';
+import { runLogin } from './login.js';
 
 type ToolResult = {
   content: { type: 'text'; text: string }[];
@@ -956,7 +957,20 @@ async function main(): Promise<void> {
   console.error(`[cnsofts-mcp] connected (${mode}) → ${config.apiUrl}`);
 }
 
-main().catch((err) => {
-  console.error('[cnsofts-mcp] fatal:', err);
-  process.exit(1);
-});
+// `login` is a one-shot terminal command (browser auth → writes .mcp.json), not
+// an MCP session — run it and exit instead of speaking the protocol on stdio.
+if (process.argv[2] === 'login') {
+  runLogin()
+    .then(() => process.exit(0))
+    .catch((err: unknown) => {
+      console.error(
+        `[cnsofts-mcp] login failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      process.exit(1);
+    });
+} else {
+  main().catch((err) => {
+    console.error('[cnsofts-mcp] fatal:', err);
+    process.exit(1);
+  });
+}

@@ -158,6 +158,57 @@ export interface TokenVerifyResult {
   reason: string;
 }
 
+/* ---------------------- Device login (browser auth) ---------------------- */
+
+/** How long a pending device login stays valid, and how often the CLI polls. */
+export const DEVICE_CODE_TTL_SECONDS = 600;
+export const DEVICE_POLL_INTERVAL_SECONDS = 3;
+
+/** CLI → server: begin a device login; `name` labels the PAT it will mint. */
+export const deviceStartSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+});
+export type DeviceStartInput = z.infer<typeof deviceStartSchema>;
+
+/** Server → CLI: the codes + where to send the user to approve. */
+export interface DeviceStartResponse {
+  /** Secret the CLI polls with (shown to no one). */
+  deviceCode: string;
+  /** Short human code the user confirms in the browser. */
+  userCode: string;
+  /** Page the user opens to approve. */
+  verificationUri: string;
+  /** Same page with the code prefilled. */
+  verificationUriComplete: string;
+  /** Seconds until the codes expire. */
+  expiresIn: number;
+  /** Seconds the CLI should wait between polls. */
+  interval: number;
+}
+
+/** Browser (authed) → server: approve a pending device by its user code. */
+export const deviceApproveSchema = z.object({
+  userCode: z.string().trim().min(1).max(20),
+});
+export type DeviceApproveInput = z.infer<typeof deviceApproveSchema>;
+
+/** What the /connect page shows before the user approves. */
+export interface DeviceLookupResponse {
+  tokenName: string;
+  expiresAt: string;
+}
+
+/** CLI → server: poll for the minted token. */
+export const deviceTokenSchema = z.object({
+  deviceCode: z.string().min(1),
+});
+export type DeviceTokenInput = z.infer<typeof deviceTokenSchema>;
+
+/** Server → CLI poll: still waiting, or here's the token (returned once). */
+export type DevicePollResponse =
+  | { status: 'pending' }
+  | { status: 'issued'; token: string };
+
 /** A recent action performed by a coding agent (PAT), for the owner's feed. */
 export interface AgentActivity {
   id: string;
@@ -1219,6 +1270,12 @@ export const apiPaths = {
     logout: () => `${API_ROUTES.auth}/logout`,
     google: () => `${API_ROUTES.auth}/google`,
     me: () => `${API_ROUTES.auth}/me`,
+    // Device login (browser auth for a local coding agent).
+    deviceStart: () => `${API_ROUTES.auth}/device/start`,
+    deviceLookup: () => `${API_ROUTES.auth}/device/lookup`,
+    deviceApprove: () => `${API_ROUTES.auth}/device/approve`,
+    deviceToken: () => `${API_ROUTES.auth}/device/token`,
+    tokensRevokeCurrent: () => `${API_ROUTES.auth}/tokens/revoke-current`,
     tokens: () => `${API_ROUTES.auth}/tokens`,
     token: (id: string) => `${API_ROUTES.auth}/tokens/${id}`,
     tokenRotate: (id: string) => `${API_ROUTES.auth}/tokens/${id}/rotate`,
