@@ -1,3 +1,4 @@
+import { apiPaths } from '@cnsofts/shared';
 import type { IconName } from '@/components/ui';
 
 /**
@@ -5,6 +6,28 @@ import type { IconName } from '@/components/ui';
  * starter prompts, and per-client connect snippets. Kept in one place so the
  * page copy has a single source. The API base is injected from `lib/config`.
  */
+
+/**
+ * The recommended setup — no token to copy. Download the one-file server, then
+ * run `login`: it opens the browser, you approve in your signed-in session, and
+ * the freshly-minted token is written into `.mcp.json` for you. Re-running
+ * `login` rotates the token (the old one is revoked).
+ */
+export const terminalLogin = {
+  /** 1. Grab the single-file server (no npm). Creates `cnsofts-agent/`. */
+  install: (apiUrl: string): string =>
+    [
+      'mkdir -p cnsofts-agent/server && cd cnsofts-agent',
+      `curl -fsSL ${apiUrl}${apiPaths.agent.mcpServer()} -o server/index.mjs`,
+    ].join('\n'),
+  /** 2. Sign in through the browser; writes the token into .mcp.json. */
+  signIn: (apiUrl: string): string =>
+    `CNSOFTS_API_URL=${apiUrl} node server/index.mjs login`,
+  /** Later: rotate (the URL is remembered in .mcp.json). */
+  rotate: 'node server/index.mjs login',
+  /** Headless box / over SSH — print the URL instead of opening a browser. */
+  headless: 'CNSOFTS_NO_BROWSER=1 node server/index.mjs login',
+};
 
 /** The MCP tools exposed by `@cnsofts/mcp`, grouped by what they touch. */
 export const MCP_TOOL_GROUPS: {
@@ -228,6 +251,18 @@ export const TROUBLESHOOTING: { q: string; a: string }[] = [
   {
     q: 'The agent can’t install the MCP server',
     a: 'You don’t install from npm — download the single self-contained file first (`curl -fsSL <API URL>/api/agent/mcp-server.mjs -o cnsofts-mcp.mjs`), then point your client at `node ./cnsofts-mcp.mjs`. It needs only Node 20+.',
+  },
+  {
+    q: '`login` says “No API URL”',
+    a: 'The first sign-in on a machine has no config to read yet — pass the URL once: `CNSOFTS_API_URL=<API URL> node server/index.mjs login`. After that it’s remembered in .mcp.json, so plain `node server/index.mjs login` works.',
+  },
+  {
+    q: '`login` can’t open a browser (SSH / headless)',
+    a: 'Run `CNSOFTS_NO_BROWSER=1 node server/index.mjs login` — it prints the approval URL and code instead. Open that URL on any device where you’re signed in; the terminal completes on its own.',
+  },
+  {
+    q: 'Where does `login` write the token?',
+    a: 'Into the `.mcp.json` next to the server folder (i.e. `<folder-containing-server/>/.mcp.json`) — it’s resolved from the bundle’s location, not your current directory. Override with `CNSOFTS_MCP_CONFIG=/path/.mcp.json`.',
   },
   {
     q: 'Works locally but not from another device',

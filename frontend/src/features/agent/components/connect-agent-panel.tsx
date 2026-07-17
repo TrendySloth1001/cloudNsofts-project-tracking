@@ -40,6 +40,7 @@ import {
   EXAMPLE_PROMPTS,
   MCP_TOOL_GROUPS,
   REST_EXAMPLES,
+  terminalLogin,
   TROUBLESHOOTING,
   type ConnectClient,
 } from '../agent.content';
@@ -125,6 +126,53 @@ function CopyButton({
     >
       {copied ? 'Copied' : label}
     </Button>
+  );
+}
+
+/**
+ * The recommended setup: install the one-file server, then `login` — the browser
+ * mints the token and writes it into `.mcp.json`, so nothing is copy-pasted.
+ */
+function TerminalLogin() {
+  const [apiBase, setApiBase] = useState(config.apiUrl);
+  const installCmd = terminalLogin.install(apiBase);
+  const signInCmd = terminalLogin.signIn(apiBase);
+  return (
+    <div className={styles.connect}>
+      <Input
+        label="API base URL (must be reachable from the agent's device)"
+        value={apiBase}
+        onChange={(e) => setApiBase(e.target.value)}
+        placeholder="https://your-tunnel.devtunnels.ms"
+      />
+
+      <p className={styles.stepLabel}>1. Install the server (one file, no npm)</p>
+      <div className={styles.cmdRow}>
+        <pre className={styles.cmd}>{installCmd}</pre>
+        <div className={styles.cmdActions}>
+          <CopyButton value={installCmd} label="Copy" />
+        </div>
+      </div>
+
+      <p className={styles.stepLabel}>2. Sign in (opens your browser to approve)</p>
+      <div className={styles.cmdRow}>
+        <pre className={styles.cmd}>{signInCmd}</pre>
+        <div className={styles.cmdActions}>
+          <CopyButton value={signInCmd} label="Copy" />
+        </div>
+      </div>
+
+      <p className={styles.stepLabel}>3. Restart your agent to load the tools</p>
+
+      <p className={styles.formHint}>
+        <Icon name="info" size={14} tone="neutral" />
+        Approve the code shown in your terminal, and the token is written into{' '}
+        <code>.mcp.json</code> automatically — nothing to copy. Re-run{' '}
+        <code>{terminalLogin.rotate}</code> any time to rotate it (the old token
+        is revoked). On a headless box use{' '}
+        <code>CNSOFTS_NO_BROWSER=1</code> to print the URL instead.
+      </p>
+    </div>
   );
 }
 
@@ -773,11 +821,25 @@ export function ConnectAgentPanel() {
       {/* Tool reference + prompts */}
       <ToolReference />
 
-      {/* Setup reference */}
+      {/* Recommended: browser sign-in from the terminal — no token to copy. */}
       <section className={styles.card}>
         <h2 className={styles.cardTitle}>
           <Icon name="terminal" size={18} tone="brand" />
-          How to connect
+          Connect from your terminal
+        </h2>
+        <p className={styles.formHint}>
+          <Icon name="checkCircle" size={14} tone="brand" />
+          Recommended — two commands, no token to generate or paste. Your browser
+          opens, you approve, and the agent is connected.
+        </p>
+        <TerminalLogin />
+      </section>
+
+      {/* Fallback: generate a token and paste it into a client config. */}
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>
+          <Icon name="key" size={18} tone="brand" />
+          Or paste a token manually
         </h2>
         <ol className={styles.steps}>
           <li>Generate a token above and copy it.</li>
