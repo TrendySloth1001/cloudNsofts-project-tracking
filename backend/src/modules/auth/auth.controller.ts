@@ -11,6 +11,7 @@ import {
   updateApiTokenSchema,
   updateProfileSchema,
   type DeviceStartResponse,
+  type GrantableProject,
 } from '@cnsofts/shared';
 import { env } from '../../infra/env';
 import { asyncHandler } from '../../shared/http/async-handler';
@@ -123,10 +124,20 @@ export const authController = {
     res.json(await authService.lookupDevice(userCode));
   }),
 
+  // Projects the signed-in user may scope the device token to.
+  deviceProjects: asyncHandler(async (req, res) => {
+    const projects = await authService.grantableProjects(requireUser(req));
+    const body: GrantableProject[] = projects;
+    res.json(body);
+  }),
+
   // The signed-in user approves a pending device by its user code.
   deviceApprove: asyncHandler(async (req, res) => {
     const input = validate(deviceApproveSchema, req.body);
-    await authService.approveDevice(input.userCode, requireUser(req));
+    await authService.approveDevice(input.userCode, requireUser(req), {
+      scope: input.scope,
+      projectIds: input.projectIds,
+    });
     res.status(204).end();
   }),
 

@@ -166,11 +166,21 @@ function TerminalLogin() {
 
       <p className={styles.formHint}>
         <Icon name="info" size={14} tone="neutral" />
-        Approve the code shown in your terminal, and the token is written into{' '}
-        <code>.mcp.json</code> automatically — nothing to copy. Re-run{' '}
-        <code>{terminalLogin.rotate}</code> any time to rotate it (the old token
-        is revoked). On a headless box use{' '}
+        Approving in the browser is where you pick which projects the agent may
+        touch and whether it&rsquo;s read-only or full access — then the token is
+        written into <code>.mcp.json</code> automatically, nothing to copy.
+        Re-run <code>{terminalLogin.rotate}</code> any time to rotate it (the old
+        token is revoked). On a headless box use{' '}
         <code>CNSOFTS_NO_BROWSER=1</code> to print the URL instead.
+      </p>
+
+      <p className={styles.formHint}>
+        <Icon name="info" size={14} tone="neutral" />
+        Sign-in asks what to name the agent — press Enter to accept the name it
+        derives from the machine, or type your own. That name is what you see and
+        revoke below, so give each machine its own. To skip the prompt (or in CI,
+        where there's no terminal to ask on):{' '}
+        <code>{terminalLogin.named}</code>
       </p>
     </div>
   );

@@ -86,6 +86,9 @@ model DeviceAuth {
   status         String   @default("pending")
   approvedUserId String?
   tokenName      String   @default("Coding agent")
+  // Chosen by the approver in the browser; the minted PAT inherits both.
+  scope          String   @default("full")
+  projectIds     String[] @default([])
   expiresAt      DateTime
   createdAt      DateTime @default(now())
 

@@ -686,17 +686,47 @@ export const authService = {
     return { tokenName: row.tokenName, expiresAt: row.expiresAt.toISOString() };
   },
 
-  /** The signed-in user approves a pending device by its user code. */
-  async approveDevice(userCode: string, user: AuthUser): Promise<void> {
+  /** Projects the signed-in user may scope a device token to (roster only, so
+   *  the platform admin's metadata-only reach is never grantable as content). */
+  async grantableProjects(user: AuthUser): Promise<{ id: string; name: string }[]> {
+    return prisma.project.findMany({
+      where: rosterScopeWhere(user),
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+  },
+
+  /**
+   * The signed-in user approves a pending device by its user code, choosing the
+   * token's access level and which projects it may touch. Foreign/unreachable
+   * ids are dropped; approval fails if none survive, so a token is never minted
+   * with empty (i.e. all-project) scope by accident.
+   */
+  async approveDevice(
+    userCode: string,
+    user: AuthUser,
+    grant: { scope: ApiTokenScope; projectIds: string[] },
+  ): Promise<void> {
     const row = await prisma.deviceAuth.findUnique({
       where: { userCode: userCode.trim().toUpperCase() },
     });
     if (!row || row.status !== 'pending' || row.expiresAt.getTime() < Date.now()) {
       throw HttpError.notFound('That code is invalid or has expired.');
     }
+    const projectIds = await scopedProjectIds(user, grant.projectIds);
+    if (projectIds.length === 0) {
+      throw HttpError.badRequest(
+        'Choose at least one project you have access to.',
+      );
+    }
     await prisma.deviceAuth.update({
       where: { id: row.id },
-      data: { status: 'approved', approvedUserId: user.id },
+      data: {
+        status: 'approved',
+        approvedUserId: user.id,
+        scope: grant.scope,
+        projectIds,
+      },
     });
   },
 
@@ -729,8 +759,8 @@ export const authService = {
     }
     const minted = await this.createApiToken(principal, {
       name: row.tokenName,
-      scope: 'full',
-      projectIds: [],
+      scope: toScope(row.scope),
+      projectIds: row.projectIds,
       canDelete: false,
     });
     return { status: 'issued', token: minted.token };

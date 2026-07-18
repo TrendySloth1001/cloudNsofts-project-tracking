@@ -192,11 +192,26 @@ export interface DeviceStartResponse {
   interval: number;
 }
 
-/** Browser (authed) → server: approve a pending device by its user code. */
+/**
+ * Browser (authed) → server: approve a pending device by its user code, and
+ * choose what the minted token may touch. Project scope is explicit — the user
+ * ticks the projects the agent gets, and gives it read-only or full access —
+ * so an approved agent can never silently reach every project.
+ */
 export const deviceApproveSchema = z.object({
   userCode: z.string().trim().min(1).max(20),
+  scope: apiTokenScopeSchema.default('full'),
+  projectIds: z
+    .array(z.string().min(1))
+    .min(1, 'Choose at least one project for the agent to access'),
 });
 export type DeviceApproveInput = z.infer<typeof deviceApproveSchema>;
+
+/** A project the approving user may scope a device token to (id + label only). */
+export interface GrantableProject {
+  id: string;
+  name: string;
+}
 
 /** What the /connect page shows before the user approves. */
 export interface DeviceLookupResponse {
@@ -1279,6 +1294,7 @@ export const apiPaths = {
     // Device login (browser auth for a local coding agent).
     deviceStart: () => `${API_ROUTES.auth}/device/start`,
     deviceLookup: () => `${API_ROUTES.auth}/device/lookup`,
+    deviceProjects: () => `${API_ROUTES.auth}/device/projects`,
     deviceApprove: () => `${API_ROUTES.auth}/device/approve`,
     deviceToken: () => `${API_ROUTES.auth}/device/token`,
     tokensRevokeCurrent: () => `${API_ROUTES.auth}/tokens/revoke-current`,

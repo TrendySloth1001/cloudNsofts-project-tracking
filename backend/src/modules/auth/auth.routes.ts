@@ -22,6 +22,7 @@ authRoutes.post('/logout', authController.logout);
 // approve run as the signed-in browser user.
 authRoutes.post('/device/start', authRateLimiter, authController.deviceStart);
 authRoutes.get('/device/lookup', requireAuth, authController.deviceLookup);
+authRoutes.get('/device/projects', requireAuth, authController.deviceProjects);
 authRoutes.post('/device/approve', requireAuth, authController.deviceApprove);
 authRoutes.post('/device/token', authController.deviceToken);
 

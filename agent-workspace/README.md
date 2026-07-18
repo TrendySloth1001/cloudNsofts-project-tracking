@@ -43,6 +43,9 @@ CNSOFTS_API_URL=https://cloudnsofts.com node server/index.mjs login
 ```
 
 ```
+  Name this agent [nick on Nicks-MacBook-Pro]: ⏎
+
+  Agent name:             nick on Nicks-MacBook-Pro
   Approve this agent at:  https://cloudnsofts.com/connect?code=VRH3-P4SV
   Your code:              VRH3-P4SV
   Opening your browser… (waiting for approval)
@@ -51,8 +54,21 @@ CNSOFTS_API_URL=https://cloudnsofts.com node server/index.mjs login
   Restart your agent to pick up the new token.
 ```
 
-Click **Approve** in the browser (it shows the code and who the agent will act
-as). The terminal finishes on its own within a few seconds.
+It asks what to **name** the agent first — press Enter to take the default it
+derives from the machine, or type your own. That name is how you tell this token
+apart from your other machines' on the *Connect coding agent* screen (and how you
+pick the right one to revoke), so give each machine its own. Skip the prompt with
+`--name`:
+
+```bash
+node server/index.mjs login --name "Nick's MacBook"
+```
+
+In the browser you then choose **what the agent can reach** — pick the
+project(s) it may touch and whether it gets **full** (read + write) or
+**read-only** access, so a connected agent is never handed every project by
+default. Click **Approve** and the terminal finishes on its own within a few
+seconds.
 
 **Run the agent** in that folder:
 
@@ -73,14 +89,19 @@ activates the sandbox rules and auto-enables the `cnsofts` server). Then ask:
 | Command / env | What it does |
 | --- | --- |
 | `node server/index.mjs login` | Sign in / **rotate** — mints a new token, rewrites `.mcp.json`, revokes the old one. |
+| `--name "My laptop"` | Names the token up front, skipping the prompt. |
 | `CNSOFTS_API_URL=…` | Required only on the **first** sign-in (nothing to read yet). |
 | `CNSOFTS_NO_BROWSER=1` | Headless box / over SSH — prints the URL + code instead of opening a browser. |
-| `CNSOFTS_AGENT_NAME="My laptop"` | Labels the token on the *Connect coding agent* screen. |
+| `CNSOFTS_AGENT_NAME="My laptop"` | Same as `--name`, for config/CI. `--name` wins if both are set. |
 | `CNSOFTS_MCP_CONFIG=/path/.mcp.json` | Write to a specific config file. |
 
 The config is resolved from the **bundle's** location (`<folder-containing
 server/>/.mcp.json`), not your current directory — so the command works from
 anywhere.
+
+The name prompt only appears on a real terminal. Scripted and CI runs take the
+machine-derived default rather than blocking on stdin, so pass `--name` (or
+`CNSOFTS_AGENT_NAME`) when you automate this.
 
 ### Alternative: paste a token manually
 
