@@ -164,9 +164,15 @@ export interface TokenVerifyResult {
 export const DEVICE_CODE_TTL_SECONDS = 600;
 export const DEVICE_POLL_INTERVAL_SECONDS = 3;
 
+/** Longest label a device login may give the PAT it mints. */
+export const DEVICE_TOKEN_NAME_MAX = 120;
+
+/** Fallback label when a device login doesn't name itself. */
+export const DEVICE_TOKEN_NAME_FALLBACK = 'Coding agent';
+
 /** CLI → server: begin a device login; `name` labels the PAT it will mint. */
 export const deviceStartSchema = z.object({
-  name: z.string().trim().min(1).max(120).optional(),
+  name: z.string().trim().min(1).max(DEVICE_TOKEN_NAME_MAX).optional(),
 });
 export type DeviceStartInput = z.infer<typeof deviceStartSchema>;
 

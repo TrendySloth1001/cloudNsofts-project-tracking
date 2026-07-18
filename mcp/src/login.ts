@@ -1,9 +1,12 @@
 import { spawn } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
+import { hostname, userInfo } from 'node:os';
 import { dirname, resolve } from 'node:path';
+import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import {
   apiPaths,
+  DEVICE_TOKEN_NAME_MAX,
   type DevicePollResponse,
   type DeviceStartResponse,
 } from '@cnsofts/shared';
@@ -97,6 +100,58 @@ function openBrowser(url: string): void {
 const sleep = (ms: number): Promise<void> =>
   new Promise((r) => setTimeout(r, ms));
 
+/** `--name X` / `--name=X` from `login`'s own args (argv[2] is the command). */
+function nameFlag(argv: string[]): string | undefined {
+  const args = argv.slice(3);
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (arg === '--name') return args[i + 1];
+    if (arg?.startsWith('--name=')) return arg.slice('--name='.length);
+  }
+  return undefined;
+}
+
+/** A label that tells this machine apart from the user's other ones, e.g.
+ *  "nick on Nicks-MacBook-Pro" — hostnames carry a `.local`/`.lan` suffix that
+ *  reads as noise in the token list. */
+function defaultName(): string {
+  const host = hostname().replace(/\.(local|lan|home|internal)$/i, '');
+  let who = '';
+  try {
+    who = userInfo().username;
+  } catch {
+    /* no passwd entry (some containers) — the host alone still identifies it */
+  }
+  return who ? `${who} on ${host}` : host;
+}
+
+const clampName = (name: string): string =>
+  name.trim().slice(0, DEVICE_TOKEN_NAME_MAX).trim();
+
+/**
+ * What this token will be called in *Connect coding agent*. Precedence:
+ * `--name` (scriptable) → `CNSOFTS_AGENT_NAME` (config/CI) → an interactive
+ * prompt → a machine-derived default. The prompt only happens on a real
+ * terminal; piped/CI runs must never block waiting on stdin.
+ */
+async function resolveName(): Promise<string> {
+  const explicit = nameFlag(process.argv) ?? process.env.CNSOFTS_AGENT_NAME;
+  const fallback = defaultName();
+  if (explicit?.trim()) return clampName(explicit);
+  if (!process.stdin.isTTY) return fallback;
+
+  // Prompt on stderr: stdout is the MCP protocol channel and must stay clean.
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  try {
+    const answer = await rl.question(`  Name this agent [${fallback}]: `);
+    return clampName(answer) || fallback;
+  } catch {
+    return fallback; // ^C / closed stdin — take the default rather than fail
+  } finally {
+    rl.close();
+  }
+}
+
 export async function runLogin(): Promise<void> {
   const path = configPath();
   const existing = await readConfig(path);
@@ -114,13 +169,18 @@ export async function runLogin(): Promise<void> {
     );
   }
 
-  // 1) Begin the device login.
+  // 1) Name this token, then begin the device login. The name is fixed at start
+  //    because it's what the approval page shows the user before they consent.
+  say();
+  const name = await resolveName();
+
   const start = await postJson<DeviceStartResponse>(
     `${apiUrl}${apiPaths.auth.deviceStart()}`,
-    { name: process.env.CNSOFTS_AGENT_NAME || 'Coding agent' },
+    { name },
   );
 
   say();
+  say(`  Agent name:             ${name}`);
   say(`  Approve this agent at:  ${start.verificationUriComplete}`);
   say(`  Your code:              ${start.userCode}`);
   say();

@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import {
   apiTokenScopeSchema,
   DEVICE_CODE_TTL_SECONDS,
+  DEVICE_TOKEN_NAME_FALLBACK,
   userRoleSchema,
   type AgentActivity,
   type AppDensity,
@@ -665,7 +666,7 @@ export const authService = {
       data: {
         deviceCodeHash: hashToken(deviceCode),
         userCode,
-        tokenName: input.name?.trim() || 'Coding agent',
+        tokenName: input.name?.trim() || DEVICE_TOKEN_NAME_FALLBACK,
         expiresAt: new Date(Date.now() + DEVICE_CODE_TTL_SECONDS * 1000),
       },
     });

@@ -11067,8 +11067,8 @@ var require_dist2 = __commonJS({
   "../shared/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.createFeatureSchema = exports.createTaskSchema = exports.createInvitationSchema = exports.invitationStatusSchema = exports.updateMemberRoleSchema = exports.addMemberSchema = exports.addClientSchema = exports.createProjectSchema = exports.FEATURE_STATUS_ORDER = exports.FEATURE_STATUS_LABELS = exports.featureStatusSchema = exports.MILESTONE_DESC_MAX_LENGTH = exports.MILESTONE_TITLE_MAX_LENGTH = exports.MILESTONE_STATUS_ORDER = exports.MILESTONE_STATUS_LABELS = exports.milestoneStatusSchema = exports.taskEventKindSchema = exports.TASK_PRIORITY_LABELS = exports.taskPrioritySchema = exports.TASK_STATUS_ORDER = exports.TASK_STATUS_LABELS = exports.taskStatusSchema = exports.projectRoleSchema = exports.INVITATION_ROLE_LABELS = exports.invitationRoleSchema = exports.MEMBER_ROLE_LABELS = exports.memberRoleSchema = exports.PROJECT_STATUS_LABELS = exports.projectStatusSchema = exports.updateUserSchema = exports.createUserSchema = exports.userRoleSchema = exports.deviceTokenSchema = exports.deviceApproveSchema = exports.deviceStartSchema = exports.DEVICE_POLL_INTERVAL_SECONDS = exports.DEVICE_CODE_TTL_SECONDS = exports.updateApiTokenSchema = exports.createApiTokenSchema = exports.API_TOKEN_SCOPE_LABELS = exports.apiTokenScopeSchema = exports.updateProfileSchema = exports.PROFILE_MAX_SKILLS = exports.PROFILE_BIO_MAX_LENGTH = exports.appDensitySchema = exports.appThemeSchema = exports.signupSchema = exports.loginSchema = exports.PASSWORD_MAX_LENGTH = exports.PASSWORD_MIN_LENGTH = void 0;
-    exports.USER_ROLE_LABELS = exports.apiPaths = exports.API_ROUTES = exports.searchConversationsQuerySchema = exports.listMessagesQuerySchema = exports.channelRoomSchema = exports.WS_EVENTS = exports.updateNotificationPreferenceSchema = exports.NOTIFICATION_PREF_KINDS = exports.NOTIFICATION_KIND_DESCRIPTIONS = exports.NOTIFICATION_KIND_LABELS = exports.notificationKindSchema = exports.updateProjectSchema = exports.reorderMilestonesSchema = exports.updateMilestoneSchema = exports.createMilestoneSchema = exports.IMAGE_MAX_BYTES = exports.IMAGE_ALLOWED_MIME = exports.updateDocSchema = exports.reorderDocsSchema = exports.createDocSchema = exports.DOC_VISIBILITY_LABELS = exports.docVisibilitySchema = exports.DOC_BODY_MAX_LENGTH = exports.DOC_TITLE_MAX_LENGTH = exports.resolveChannelSchema = exports.channelWaitStatusSchema = exports.channelWaitQuerySchema = exports.CHANNEL_WAIT_MAX_MS = exports.scheduleMessageSchema = exports.scheduledMessageStatusSchema = exports.postMessageSchema = exports.MESSAGE_BODY_MAX_LENGTH = exports.createChannelSchema = exports.addChannelMemberSchema = exports.messageAttachmentSchema = exports.CHANNEL_VISIBILITY_LABELS = exports.channelVisibilitySchema = exports.createCommentSchema = exports.updateSubtaskSchema = exports.createSubtaskSchema = exports.reorderTasksSchema = exports.updateTaskSchema = exports.reorderFeaturesSchema = exports.updateFeatureSchema = void 0;
+    exports.createInvitationSchema = exports.invitationStatusSchema = exports.updateMemberRoleSchema = exports.addMemberSchema = exports.addClientSchema = exports.createProjectSchema = exports.FEATURE_STATUS_ORDER = exports.FEATURE_STATUS_LABELS = exports.featureStatusSchema = exports.MILESTONE_DESC_MAX_LENGTH = exports.MILESTONE_TITLE_MAX_LENGTH = exports.MILESTONE_STATUS_ORDER = exports.MILESTONE_STATUS_LABELS = exports.milestoneStatusSchema = exports.taskEventKindSchema = exports.TASK_PRIORITY_LABELS = exports.taskPrioritySchema = exports.TASK_STATUS_ORDER = exports.TASK_STATUS_LABELS = exports.taskStatusSchema = exports.projectRoleSchema = exports.INVITATION_ROLE_LABELS = exports.invitationRoleSchema = exports.MEMBER_ROLE_LABELS = exports.memberRoleSchema = exports.PROJECT_STATUS_LABELS = exports.projectStatusSchema = exports.updateUserSchema = exports.createUserSchema = exports.userRoleSchema = exports.deviceTokenSchema = exports.deviceApproveSchema = exports.deviceStartSchema = exports.DEVICE_TOKEN_NAME_FALLBACK = exports.DEVICE_TOKEN_NAME_MAX = exports.DEVICE_POLL_INTERVAL_SECONDS = exports.DEVICE_CODE_TTL_SECONDS = exports.updateApiTokenSchema = exports.createApiTokenSchema = exports.API_TOKEN_SCOPE_LABELS = exports.apiTokenScopeSchema = exports.updateProfileSchema = exports.PROFILE_MAX_SKILLS = exports.PROFILE_BIO_MAX_LENGTH = exports.appDensitySchema = exports.appThemeSchema = exports.signupSchema = exports.loginSchema = exports.PASSWORD_MAX_LENGTH = exports.PASSWORD_MIN_LENGTH = void 0;
+    exports.USER_ROLE_LABELS = exports.apiPaths = exports.API_ROUTES = exports.searchConversationsQuerySchema = exports.listMessagesQuerySchema = exports.channelRoomSchema = exports.WS_EVENTS = exports.updateNotificationPreferenceSchema = exports.NOTIFICATION_PREF_KINDS = exports.NOTIFICATION_KIND_DESCRIPTIONS = exports.NOTIFICATION_KIND_LABELS = exports.notificationKindSchema = exports.updateProjectSchema = exports.reorderMilestonesSchema = exports.updateMilestoneSchema = exports.createMilestoneSchema = exports.IMAGE_MAX_BYTES = exports.IMAGE_ALLOWED_MIME = exports.updateDocSchema = exports.reorderDocsSchema = exports.createDocSchema = exports.DOC_VISIBILITY_LABELS = exports.docVisibilitySchema = exports.DOC_BODY_MAX_LENGTH = exports.DOC_TITLE_MAX_LENGTH = exports.resolveChannelSchema = exports.channelWaitStatusSchema = exports.channelWaitQuerySchema = exports.CHANNEL_WAIT_MAX_MS = exports.scheduleMessageSchema = exports.scheduledMessageStatusSchema = exports.postMessageSchema = exports.MESSAGE_BODY_MAX_LENGTH = exports.createChannelSchema = exports.addChannelMemberSchema = exports.messageAttachmentSchema = exports.CHANNEL_VISIBILITY_LABELS = exports.channelVisibilitySchema = exports.createCommentSchema = exports.updateSubtaskSchema = exports.createSubtaskSchema = exports.reorderTasksSchema = exports.updateTaskSchema = exports.reorderFeaturesSchema = exports.updateFeatureSchema = exports.createFeatureSchema = exports.createTaskSchema = void 0;
     exports.projectAbilities = projectAbilities;
     exports.channelSlug = channelSlug;
     var zod_1 = require_zod();
@@ -11121,8 +11121,10 @@ var require_dist2 = __commonJS({
     });
     exports.DEVICE_CODE_TTL_SECONDS = 600;
     exports.DEVICE_POLL_INTERVAL_SECONDS = 3;
+    exports.DEVICE_TOKEN_NAME_MAX = 120;
+    exports.DEVICE_TOKEN_NAME_FALLBACK = "Coding agent";
     exports.deviceStartSchema = zod_1.z.object({
-      name: zod_1.z.string().trim().min(1).max(120).optional()
+      name: zod_1.z.string().trim().min(1).max(exports.DEVICE_TOKEN_NAME_MAX).optional()
     });
     exports.deviceApproveSchema = zod_1.z.object({
       userCode: zod_1.z.string().trim().min(1).max(20)
@@ -26542,7 +26544,9 @@ function registerPrompts(server2) {
 var import_shared3 = __toESM(require_dist2(), 1);
 import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
+import { hostname as hostname2, userInfo } from "node:os";
 import { dirname, resolve } from "node:path";
+import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 var say = (msg = "") => console.error(msg);
 function configPath() {
@@ -26591,6 +26595,40 @@ function openBrowser(url) {
   }
 }
 var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function nameFlag(argv) {
+  const args = argv.slice(3);
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (arg === "--name") return args[i + 1];
+    if (arg?.startsWith("--name=")) return arg.slice("--name=".length);
+  }
+  return void 0;
+}
+function defaultName() {
+  const host = hostname2().replace(/\.(local|lan|home|internal)$/i, "");
+  let who = "";
+  try {
+    who = userInfo().username;
+  } catch {
+  }
+  return who ? `${who} on ${host}` : host;
+}
+var clampName = (name) => name.trim().slice(0, import_shared3.DEVICE_TOKEN_NAME_MAX).trim();
+async function resolveName() {
+  const explicit = nameFlag(process.argv) ?? process.env.CNSOFTS_AGENT_NAME;
+  const fallback = defaultName();
+  if (explicit?.trim()) return clampName(explicit);
+  if (!process.stdin.isTTY) return fallback;
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  try {
+    const answer = await rl.question(`  Name this agent [${fallback}]: `);
+    return clampName(answer) || fallback;
+  } catch {
+    return fallback;
+  } finally {
+    rl.close();
+  }
+}
 async function runLogin() {
   const path = configPath();
   const existing = await readConfig(path);
@@ -26602,11 +26640,14 @@ async function runLogin() {
       `No API URL. Set CNSOFTS_API_URL, or add it to ${path} under mcpServers.cnsofts.env.`
     );
   }
+  say();
+  const name = await resolveName();
   const start = await postJson(
     `${apiUrl}${import_shared3.apiPaths.auth.deviceStart()}`,
-    { name: process.env.CNSOFTS_AGENT_NAME || "Coding agent" }
+    { name }
   );
   say();
+  say(`  Agent name:             ${name}`);
   say(`  Approve this agent at:  ${start.verificationUriComplete}`);
   say(`  Your code:              ${start.userCode}`);
   say();

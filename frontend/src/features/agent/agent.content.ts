@@ -20,9 +20,13 @@ export const terminalLogin = {
       'mkdir -p cnsofts-agent/server && cd cnsofts-agent',
       `curl -fsSL ${apiUrl}${apiPaths.agent.mcpServer()} -o server/index.mjs`,
     ].join('\n'),
-  /** 2. Sign in through the browser; writes the token into .mcp.json. */
+  /** 2. Sign in through the browser; writes the token into .mcp.json. It asks
+   *     what to name the agent (Enter accepts a name derived from the machine). */
   signIn: (apiUrl: string): string =>
     `CNSOFTS_API_URL=${apiUrl} node server/index.mjs login`,
+  /** Name it up front instead of answering the prompt — also for scripts/CI,
+   *  where there's no terminal to prompt on. */
+  named: 'node server/index.mjs login --name "Nick’s MacBook"',
   /** Later: rotate (the URL is remembered in .mcp.json). */
   rotate: 'node server/index.mjs login',
   /** Headless box / over SSH — print the URL instead of opening a browser. */
@@ -251,6 +255,10 @@ export const TROUBLESHOOTING: { q: string; a: string }[] = [
   {
     q: 'The agent can’t install the MCP server',
     a: 'You don’t install from npm — download the single self-contained file first (`curl -fsSL <API URL>/api/agent/mcp-server.mjs -o cnsofts-mcp.mjs`), then point your client at `node ./cnsofts-mcp.mjs`. It needs only Node 20+.',
+  },
+  {
+    q: 'How do I name the token from the terminal?',
+    a: '`login` asks — press Enter to accept the default it derives from the machine (e.g. “nick on Nicks-MacBook-Pro”), or type your own. To skip the prompt, pass `--name "Nick’s MacBook"`. Scripts and CI have no terminal to prompt on, so they take the default unless you pass `--name` or set `CNSOFTS_AGENT_NAME`. The name is what you see — and revoke by — on this screen, so give each machine its own.',
   },
   {
     q: '`login` says “No API URL”',
