@@ -94,6 +94,14 @@ activates the sandbox rules and auto-enables the `cnsofts` server). Then ask:
 | `CNSOFTS_NO_BROWSER=1` | Headless box / over SSH — prints the URL + code instead of opening a browser. |
 | `CNSOFTS_AGENT_NAME="My laptop"` | Same as `--name`, for config/CI. `--name` wins if both are set. |
 | `CNSOFTS_MCP_CONFIG=/path/.mcp.json` | Write to a specific config file. |
+| `CNSOFTS_NO_SELF_UPDATE=1` | Skip refreshing `server/index.mjs` to the latest build. |
+
+Every `login` also **self-updates the bundle**: while it's talking to the
+server it pulls the latest `server/index.mjs` and replaces its own copy (atomic;
+the new code applies on your next launch). So re-running `login` keeps both your
+token *and* the agent code current — you won't be stuck on an old build after a
+server update. It's best-effort: offline or on an older server it just keeps the
+bundle you have. Opt out with `CNSOFTS_NO_SELF_UPDATE=1`.
 
 The config is resolved from the **bundle's** location (`<folder-containing
 server/>/.mcp.json`), not your current directory — so the command works from

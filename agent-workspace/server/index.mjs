@@ -11127,7 +11127,9 @@ var require_dist2 = __commonJS({
       name: zod_1.z.string().trim().min(1).max(exports.DEVICE_TOKEN_NAME_MAX).optional()
     });
     exports.deviceApproveSchema = zod_1.z.object({
-      userCode: zod_1.z.string().trim().min(1).max(20)
+      userCode: zod_1.z.string().trim().min(1).max(20),
+      scope: exports.apiTokenScopeSchema.default("full"),
+      projectIds: zod_1.z.array(zod_1.z.string().min(1)).min(1, "Choose at least one project for the agent to access")
     });
     exports.deviceTokenSchema = zod_1.z.object({
       deviceCode: zod_1.z.string().min(1)
@@ -11516,6 +11518,7 @@ var require_dist2 = __commonJS({
         // Device login (browser auth for a local coding agent).
         deviceStart: () => `${exports.API_ROUTES.auth}/device/start`,
         deviceLookup: () => `${exports.API_ROUTES.auth}/device/lookup`,
+        deviceProjects: () => `${exports.API_ROUTES.auth}/device/projects`,
         deviceApprove: () => `${exports.API_ROUTES.auth}/device/approve`,
         deviceToken: () => `${exports.API_ROUTES.auth}/device/token`,
         tokensRevokeCurrent: () => `${exports.API_ROUTES.auth}/tokens/revoke-current`,
@@ -26543,15 +26546,35 @@ function registerPrompts(server2) {
 // src/login.ts
 var import_shared3 = __toESM(require_dist2(), 1);
 import { spawn } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, rename, writeFile } from "node:fs/promises";
 import { hostname as hostname2, userInfo } from "node:os";
 import { dirname, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 var say = (msg = "") => console.error(msg);
+function bundlePath() {
+  return fileURLToPath(import.meta.url);
+}
 function configPath() {
   if (process.env.CNSOFTS_MCP_CONFIG) return resolve(process.env.CNSOFTS_MCP_CONFIG);
-  return resolve(dirname(fileURLToPath(import.meta.url)), "..", ".mcp.json");
+  return resolve(dirname(bundlePath()), "..", ".mcp.json");
+}
+async function selfUpdate(apiUrl) {
+  if (process.env.CNSOFTS_NO_SELF_UPDATE) return;
+  const path = bundlePath();
+  try {
+    const res = await fetch(`${apiUrl}${import_shared3.apiPaths.agent.mcpServer()}`);
+    if (!res.ok) return;
+    const next = Buffer.from(await res.arrayBuffer());
+    if (next.length === 0) return;
+    const current = await readFile(path).catch(() => null);
+    if (current && current.equals(next)) return;
+    const tmp = `${path}.new`;
+    await writeFile(tmp, next);
+    await rename(tmp, path);
+    say("  \u21BB Updated the agent to the latest version (applies next launch).");
+  } catch {
+  }
 }
 async function readConfig(path) {
   try {
@@ -26640,6 +26663,7 @@ async function runLogin() {
       `No API URL. Set CNSOFTS_API_URL, or add it to ${path} under mcpServers.cnsofts.env.`
     );
   }
+  await selfUpdate(apiUrl);
   say();
   const name = await resolveName();
   const start = await postJson(

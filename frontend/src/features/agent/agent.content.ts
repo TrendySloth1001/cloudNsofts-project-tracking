@@ -257,6 +257,10 @@ export const TROUBLESHOOTING: { q: string; a: string }[] = [
     a: 'You don’t install from npm — download the single self-contained file first (`curl -fsSL <API URL>/api/agent/mcp-server.mjs -o cnsofts-mcp.mjs`), then point your client at `node ./cnsofts-mcp.mjs`. It needs only Node 20+.',
   },
   {
+    q: 'My agent seems to be running old behavior after an update',
+    a: 'Your downloaded `server/index.mjs` was from before the change — re-running `login` rotates the token but only newer builds refresh the code. `login` now self-updates the bundle each run, so once you’re on a current build it stays current; to jump a stale install forward once, re-download it (`curl -fsSL <API URL>/api/agent/mcp-server.mjs -o server/index.mjs`) or run `login` again. Opt out of auto-update with `CNSOFTS_NO_SELF_UPDATE=1`.',
+  },
+  {
     q: 'How do I name the token from the terminal?',
     a: '`login` asks — press Enter to accept the default it derives from the machine (e.g. “nick on Nicks-MacBook-Pro”), or type your own. To skip the prompt, pass `--name "Nick’s MacBook"`. Scripts and CI have no terminal to prompt on, so they take the default unless you pass `--name` or set `CNSOFTS_AGENT_NAME`. The name is what you see — and revoke by — on this screen, so give each machine its own.',
   },

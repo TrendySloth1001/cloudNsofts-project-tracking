@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, rename, writeFile } from 'node:fs/promises';
 import { hostname, userInfo } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
@@ -26,11 +26,44 @@ import {
 
 const say = (msg = ''): void => console.error(msg);
 
+/** This bundle's own file — the `server/index.mjs` currently executing. */
+function bundlePath(): string {
+  return fileURLToPath(import.meta.url);
+}
+
 /** The `.mcp.json` this bundle is configured by. Override with CNSOFTS_MCP_CONFIG. */
 function configPath(): string {
   if (process.env.CNSOFTS_MCP_CONFIG) return resolve(process.env.CNSOFTS_MCP_CONFIG);
   // The bundle lives at <workspace>/server/index.mjs; its config is one level up.
-  return resolve(dirname(fileURLToPath(import.meta.url)), '..', '.mcp.json');
+  return resolve(dirname(bundlePath()), '..', '.mcp.json');
+}
+
+/**
+ * Pull the latest server bundle and overwrite this file, so re-running `login`
+ * keeps the code current — not just the token. Best-effort: a fetch failure
+ * (offline, old server) never blocks login, and an unchanged bundle is a no-op.
+ * The new bytes take effect on the *next* launch (this process keeps running the
+ * code it already loaded), which is why login already tells you to restart.
+ * Set CNSOFTS_NO_SELF_UPDATE=1 to opt out.
+ */
+async function selfUpdate(apiUrl: string): Promise<void> {
+  if (process.env.CNSOFTS_NO_SELF_UPDATE) return;
+  const path = bundlePath();
+  try {
+    const res = await fetch(`${apiUrl}${apiPaths.agent.mcpServer()}`);
+    if (!res.ok) return;
+    const next = Buffer.from(await res.arrayBuffer());
+    if (next.length === 0) return;
+    const current = await readFile(path).catch(() => null);
+    if (current && current.equals(next)) return;
+    // Atomic replace: write a sibling temp then rename over the running file.
+    const tmp = `${path}.new`;
+    await writeFile(tmp, next);
+    await rename(tmp, path);
+    say('  ↻ Updated the agent to the latest version (applies next launch).');
+  } catch {
+    /* offline / unreachable — keep the bundle we have */
+  }
 }
 
 interface McpConfig {
@@ -168,6 +201,9 @@ export async function runLogin(): Promise<void> {
       `No API URL. Set CNSOFTS_API_URL, or add it to ${path} under mcpServers.cnsofts.env.`,
     );
   }
+
+  // Keep the bundle current while we're talking to the server anyway.
+  await selfUpdate(apiUrl);
 
   // 1) Name this token, then begin the device login. The name is fixed at start
   //    because it's what the approval page shows the user before they consent.
